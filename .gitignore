@@ -4,6 +4,7 @@
 # Next.js
 /.next
 /out
+*.tsbuildinfo
 
 # env files
 .env
@@ -13,5 +14,10 @@
 # misc
 .DS_Store
 *.pem
+*.html
 npm-debug.log*
 .playwright-mcp
+/logo.png
+/REFINED_PRD.md
+/SPEC.md
+/USER_ROLES.md
