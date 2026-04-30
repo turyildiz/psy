@@ -62,7 +62,7 @@ export default function FestivalSection() {
   const [ref, vis] = useReveal();
 
   return (
-    <section style={{ padding: "80px 0", background: "var(--dark)" }}>
+    <section className="section-pad" style={{ background: "var(--dark)" }}>
       <div ref={ref} className="site-shell">
         <div className={`section-heading reveal ${vis ? "vis" : ""}`}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>

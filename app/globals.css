@@ -70,13 +70,13 @@ select { appearance: none; }
 }
 
 .header-topbar {
-  min-height: 120px;
+  min-height: 80px;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: 24px;
-  padding-top: 20px;
-  padding-bottom: 20px;
+  padding-top: 16px;
+  padding-bottom: 16px;
 }
 
 .header-search-wrap {
@@ -166,6 +166,10 @@ select { appearance: none; }
   flex-wrap: wrap;
 }
 
+.section-pad {
+  padding: 80px 0;
+}
+
 .section-heading {
   display: flex;
   align-items: center;
@@ -210,13 +214,30 @@ select { appearance: none; }
   }
 
   .header-topbar {
-    grid-template-columns: 1fr;
-    justify-items: center;
-    text-align: center;
+    grid-template-columns: auto 1fr;
+    grid-template-rows: auto auto;
+    min-height: auto;
+    gap: 12px;
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .header-topbar > div:first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .header-search-wrap {
+    grid-column: 1 / -1;
+    grid-row: 2;
+    width: 100%;
+    max-width: 100%;
   }
 
   .header-auth-links {
-    justify-content: center;
+    grid-column: 2;
+    grid-row: 1;
+    justify-content: flex-end;
   }
 
   .footer-grid {
@@ -225,10 +246,33 @@ select { appearance: none; }
   }
 }
 
+@media (max-width: 1024px) and (min-width: 641px) {
+  .category-grid,
+  .category-grid.right {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+  }
+
+  .category-grid-big,
+  .category-grid.left .category-grid-big,
+  .category-grid.right .category-grid-big {
+    grid-row: auto;
+    grid-column: auto;
+  }
+
+  .festival-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
 @media (max-width: 768px) {
   .site-shell {
     padding-left: 16px;
     padding-right: 16px;
+  }
+
+  .section-pad {
+    padding: 48px 0;
   }
 
   .section-heading {
@@ -256,21 +300,12 @@ select { appearance: none; }
 
   .header-topbar {
     min-height: auto;
-    gap: 16px;
-  }
-
-  .header-search-wrap {
-    width: 100%;
-  }
-
-  .header-auth-links {
-    width: 100%;
+    gap: 10px;
   }
 
   .header-auth-secondary,
   .header-auth-primary {
-    flex: 1;
-    text-align: center;
+    padding: 8px 14px;
   }
 
   .header-categories {
@@ -297,5 +332,17 @@ select { appearance: none; }
 
   .footer-bottom-links {
     gap: 14px;
+  }
+}
+
+@media (max-width: 480px) {
+  .section-pad {
+    padding: 40px 0;
+  }
+
+  .header-auth-secondary,
+  .header-auth-primary {
+    padding: 7px 12px;
+    font-size: 12px;
   }
 }

@@ -18,7 +18,7 @@ export default function CategoryGrid({ title, link, items, bigOnRight, bg }: Pro
   const smalls = rest.slice(0, 4);
 
   return (
-    <section style={{ padding: "80px 0", background: bg || "var(--cream)" }}>
+    <section className="section-pad" style={{ background: bg || "var(--cream)" }}>
       <div ref={ref} className="site-shell">
         <div className={`section-heading reveal ${vis ? "vis" : ""}`}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
