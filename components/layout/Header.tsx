@@ -19,34 +19,15 @@ export default function Header() {
 
   return (
     <div style={{ position: "sticky", top: 0, zIndex: 1000 }}>
-      {/* Top bar: Logo + Search + Auth */}
       <div style={{ background: "#000", borderBottom: "1px solid oklch(100% 0 0 / 0.12)" }}>
-        <div
-          style={{
-            maxWidth: "1320px",
-            margin: "0 auto",
-            padding: "0 40px",
-            height: "120px",
-            display: "grid",
-            gridTemplateColumns: "1fr auto 1fr",
-            alignItems: "center",
-            gap: "24px",
-          }}
-        >
+        <div className="site-shell header-topbar">
           <div>
             <Link href="/">
-              <Image
-                src="/logo.png"
-                alt="psy.market"
-                width={156}
-                height={62}
-                priority
-                style={{ height: "62px", width: "auto" }}
-              />
+              <Image src="/logo.png" alt="psy.market" width={156} height={62} priority style={{ height: "62px", width: "auto", maxWidth: "100%" }} />
             </Link>
           </div>
 
-          <div style={{ width: "480px" }}>
+          <div className="header-search-wrap">
             <div
               style={{
                 display: "flex",
@@ -69,114 +50,35 @@ export default function Header() {
                 onFocus={() => setSearchFocused(true)}
                 onBlur={() => setSearchFocused(false)}
                 placeholder="Search apparel, art, gear, tickets…"
-                style={{
-                  border: "none",
-                  outline: "none",
-                  background: "transparent",
-                  fontSize: "14px",
-                  color: "white",
-                  width: "100%",
-                  fontFamily: "Manrope, var(--font-manrope)",
-                }}
+                style={{ border: "none", outline: "none", background: "transparent", fontSize: "14px", color: "white", width: "100%", fontFamily: "Manrope, var(--font-manrope)" }}
               />
               {query && (
-                <button
-                  onClick={() => setQuery("")}
-                  style={{ background: "transparent", border: "none", color: "oklch(55% 0.01 70)", cursor: "pointer", fontSize: "16px", lineHeight: 1, padding: 0, flexShrink: 0 }}
-                >
+                <button onClick={() => setQuery("")} style={{ background: "transparent", border: "none", color: "oklch(55% 0.01 70)", cursor: "pointer", fontSize: "16px", lineHeight: 1, padding: 0, flexShrink: 0 }}>
                   ×
                 </button>
               )}
             </div>
           </div>
 
-          <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
-            <Link
-              href="/login"
-              style={{
-                background: "transparent",
-                border: "1px solid oklch(100% 0 0 / 0.22)",
-                color: "white",
-                padding: "9px 20px",
-                borderRadius: "7px",
-                fontSize: "13px",
-                fontFamily: "Manrope, var(--font-manrope)",
-                fontWeight: 500,
-                textDecoration: "none",
-                transition: "all 0.2s",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.background = "oklch(100% 0 0 / 0.08)";
-                e.currentTarget.style.borderColor = "oklch(100% 0 0 / 0.4)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.background = "transparent";
-                e.currentTarget.style.borderColor = "oklch(100% 0 0 / 0.22)";
-              }}
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              style={{
-                background: "var(--rust)",
-                border: "none",
-                color: "white",
-                padding: "9px 22px",
-                borderRadius: "7px",
-                fontSize: "13px",
-                fontFamily: "Manrope, var(--font-manrope)",
-                fontWeight: 600,
-                textDecoration: "none",
-                transition: "background 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "var(--rust-dim)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "var(--rust)")}
-            >
-              Sign Up
-            </Link>
+          <div className="header-auth-links">
+            <Link href="/login" className="header-auth-secondary">Log In</Link>
+            <Link href="/signup" className="header-auth-primary">Sign Up</Link>
           </div>
         </div>
       </div>
 
-      {/* Category nav bar */}
       <div
         style={{
-          height: "56px",
+          minHeight: "56px",
           background: "oklch(15% 0.02 55)",
           borderBottom: "1px solid oklch(100% 0 0 / 0.09)",
           boxShadow: scrolled ? "0 4px 24px oklch(0% 0 0 / 0.45)" : "none",
           transition: "box-shadow 0.35s ease",
         }}
       >
-        <div
-          style={{
-            maxWidth: "1320px",
-            margin: "0 auto",
-            padding: "0 40px",
-            height: "100%",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: "28px",
-          }}
-        >
+        <div className="site-shell header-categories">
           {CATEGORIES.map((cat) => (
-            <Link
-              key={cat}
-              href="/browse"
-              style={{
-                color: "oklch(68% 0.01 70)",
-                fontSize: "13px",
-                textDecoration: "none",
-                fontWeight: 400,
-                letterSpacing: "0.005em",
-                whiteSpace: "nowrap",
-                transition: "color 0.2s",
-              }}
-              onMouseEnter={(e) => (e.currentTarget.style.color = "white")}
-              onMouseLeave={(e) => (e.currentTarget.style.color = "oklch(68% 0.01 70)")}
-            >
+            <Link key={cat} href="/browse" className="header-category-link">
               {cat}
             </Link>
           ))}

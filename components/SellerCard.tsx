@@ -1,14 +1,12 @@
 "use client";
 
 import { useState } from "react";
+import type { Profile } from "@/types/marketplace";
 
-export type SellerItem = {
-  name: string;
-  type: string;
-  badge: string;
-  seed: string;
-  items: number;
+export type SellerItem = Profile & {
+  itemCount: number;
   rating: string;
+  badge: string;
 };
 
 const BADGE_COLORS: Record<string, string> = {
@@ -40,9 +38,9 @@ export default function SellerCard({ seller }: { seller: SellerItem }) {
       <div style={{ position: "relative", overflow: "hidden" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`https://picsum.photos/seed/${seller.seed}/320/220`}
+          src={seller.avatarUrl}
           style={{ width: "100%", height: "180px", objectFit: "cover", display: "block", transition: "transform 0.4s", transform: hov ? "scale(1.05)" : "scale(1)" }}
-          alt=""
+          alt={seller.displayName}
         />
         <span
           style={{
@@ -64,11 +62,13 @@ export default function SellerCard({ seller }: { seller: SellerItem }) {
       </div>
       <div style={{ padding: "13px 14px 14px" }}>
         <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 600, marginBottom: "2px", color: "var(--dark)" }}>
-          {seller.name}
+          {seller.displayName}
         </p>
-        <p style={{ fontSize: "11px", color: "var(--text-light)", marginBottom: "10px" }}>{seller.type}</p>
+        <p style={{ fontSize: "11px", color: "var(--text-light)", marginBottom: "10px" }}>
+          {seller.type} · {seller.location || "Worldwide"}
+        </p>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <span style={{ fontSize: "12px", color: "var(--rust)", fontWeight: 600 }}>{seller.items} listings</span>
+          <span style={{ fontSize: "12px", color: "var(--rust)", fontWeight: 600 }}>{seller.itemCount} listings</span>
           <span style={{ fontSize: "11px", color: "var(--text-light)", display: "flex", alignItems: "center", gap: "3px" }}>
             <svg width="10" height="10" viewBox="0 0 10 10" fill="var(--rust)">
               <path d="M5 0l1.1 3.4H9.5L6.7 5.5l1.1 3.4L5 7l-2.8 1.9 1.1-3.4L.5 3.4H3.9z" />

@@ -1,20 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { categoryLabels, conditionLabels } from "@/lib/constants";
+import type { Listing } from "@/types/marketplace";
 
-export type ProductItem = {
-  name: string;
-  cat: string;
-  price: string;
-  seed: string;
-  badge?: string;
-};
+export type ProductItem = Listing;
 
 const BADGE_COLORS: Record<string, string> = {
-  Hot: "var(--rust)",
+  Featured: "var(--rust)",
   Rare: "#5a7c4a",
   Handmade: "#8b6914",
-  Featured: "var(--dark)",
+  Vintage: "var(--dark)",
 };
 
 type Props = {
@@ -25,6 +21,7 @@ type Props = {
 
 export default function ProductCard({ item, fill, small }: Props) {
   const [hov, setHov] = useState(false);
+  const badge = item.isFeatured ? "Featured" : item.condition === "vintage" ? "Vintage" : undefined;
 
   return (
     <div
@@ -47,7 +44,7 @@ export default function ProductCard({ item, fill, small }: Props) {
       <div style={{ position: "relative", overflow: "hidden", flex: fill ? 1 : undefined }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`https://picsum.photos/seed/${item.seed}/600/500`}
+          src={item.images[0]}
           style={{
             width: "100%",
             height: fill ? "100%" : small ? "200px" : "230px",
@@ -56,15 +53,15 @@ export default function ProductCard({ item, fill, small }: Props) {
             transition: "transform 0.5s ease",
             transform: hov ? "scale(1.05)" : "scale(1)",
           }}
-          alt={item.name}
+          alt={item.title}
         />
-        {item.badge && (
+        {badge && (
           <span
             style={{
               position: "absolute",
               top: "10px",
               left: "10px",
-              background: BADGE_COLORS[item.badge] || "var(--rust)",
+              background: BADGE_COLORS[badge] || "var(--rust)",
               color: "white",
               fontSize: "9px",
               padding: "3px 8px",
@@ -74,7 +71,7 @@ export default function ProductCard({ item, fill, small }: Props) {
               textTransform: "uppercase",
             }}
           >
-            {item.badge}
+            {badge}
           </span>
         )}
         {hov && (
@@ -107,14 +104,19 @@ export default function ProductCard({ item, fill, small }: Props) {
 
       <div style={{ padding: "12px 14px 14px", flexShrink: 0 }}>
         <p style={{ fontSize: "10px", color: "var(--text-light)", letterSpacing: "0.09em", textTransform: "uppercase", marginBottom: "3px" }}>
-          {item.cat}
+          {categoryLabels[item.category]}
         </p>
         <p style={{ fontSize: "14px", fontWeight: 500, color: "var(--text)", marginBottom: "6px", lineHeight: 1.3 }}>
-          {item.name}
+          {item.title}
         </p>
-        <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "16px", fontWeight: 700, color: "var(--rust)" }}>
-          {item.price}
-        </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
+          <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "16px", fontWeight: 700, color: "var(--rust)" }}>
+            {(item.priceCents / 100).toLocaleString("en-IE", { style: "currency", currency: "EUR" })}
+          </p>
+          <span style={{ fontSize: "10px", color: "var(--text-light)", whiteSpace: "nowrap" }}>
+            {conditionLabels[item.condition]}
+          </span>
+        </div>
       </div>
     </div>
   );

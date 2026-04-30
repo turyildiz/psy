@@ -37,27 +37,10 @@ function FestivalCard({ festival, delay, vis }: { festival: FestivalItem; delay:
         onMouseLeave={() => setHov(false)}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={`https://picsum.photos/seed/${festival.seed}/700/420`}
-          style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.07)" : "scale(1)" }}
-          alt={festival.name}
-        />
+        <img src={`https://picsum.photos/seed/${festival.seed}/700/420`} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.07)" : "scale(1)" }} alt={festival.name} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, oklch(0% 0 0 / 0.9) 30%, oklch(0% 0 0 / 0.05) 100%)" }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px" }}>
-          <div
-            style={{
-              display: "inline-flex",
-              border: "1px solid var(--rust)",
-              color: "var(--rust)",
-              fontSize: "10px",
-              padding: "3px 9px",
-              borderRadius: "3px",
-              letterSpacing: "0.1em",
-              marginBottom: "10px",
-              fontWeight: 700,
-              textTransform: "uppercase",
-            }}
-          >
+          <div style={{ display: "inline-flex", border: "1px solid var(--rust)", color: "var(--rust)", fontSize: "10px", padding: "3px 9px", borderRadius: "3px", letterSpacing: "0.1em", marginBottom: "10px", fontWeight: 700, textTransform: "uppercase" }}>
             {festival.date}
           </div>
           <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "22px", fontWeight: 700, color: "white", marginBottom: "7px", letterSpacing: "-0.025em", lineHeight: 1.1 }}>
@@ -70,13 +53,6 @@ function FestivalCard({ festival, delay, vis }: { festival: FestivalItem; delay:
             {festival.location}
           </p>
         </div>
-        {hov && (
-          <div style={{ position: "absolute", top: "16px", right: "16px" }}>
-            <span style={{ background: "var(--rust)", color: "white", fontSize: "11px", padding: "5px 12px", borderRadius: "4px", fontWeight: 700 }}>
-              Shop Festival →
-            </span>
-          </div>
-        )}
       </div>
     </div>
   );
@@ -87,9 +63,8 @@ export default function FestivalSection() {
 
   return (
     <section style={{ padding: "80px 0", background: "var(--dark)" }}>
-      <div ref={ref} style={{ maxWidth: "1320px", margin: "0 auto", padding: "0 40px" }}>
-        {/* Section label */}
-        <div className={`reveal ${vis ? "vis" : ""}`} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "32px" }}>
+      <div ref={ref} className="site-shell">
+        <div className={`section-heading reveal ${vis ? "vis" : ""}`}>
           <div style={{ display: "flex", alignItems: "center", gap: "14px" }}>
             <div style={{ width: "26px", height: "2px", background: "var(--rust)", flexShrink: 0 }} />
             <span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "20px", fontWeight: 600, letterSpacing: "-0.02em", color: "white" }}>
@@ -101,7 +76,7 @@ export default function FestivalSection() {
           </Link>
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "16px" }}>
+        <div className="festival-grid">
           {FESTIVALS.map((f, i) => (
             <FestivalCard key={i} festival={f} delay={i} vis={vis} />
           ))}
