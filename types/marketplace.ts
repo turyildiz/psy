@@ -21,6 +21,14 @@ export type User = {
   createdAt: string;
 };
 
+export type SocialLinks = {
+  website?: string;
+  instagram?: string;
+  facebook?: string;
+  soundcloud?: string;
+  bandcamp?: string;
+};
+
 export type Profile = {
   id: string;
   userId: string;
@@ -32,6 +40,7 @@ export type Profile = {
   location?: string;
   isCreator: boolean;
   isVerified: boolean;
+  socialLinks?: SocialLinks;
   createdAt: string;
 };
 

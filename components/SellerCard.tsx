@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import type { Profile } from "@/types/marketplace";
 
 export type SellerItem = Profile & {
@@ -21,6 +22,7 @@ export default function SellerCard({ seller }: { seller: SellerItem }) {
   const [hov, setHov] = useState(false);
 
   return (
+    <Link href={`/${seller.handle}`} style={{ textDecoration: "none", display: "block" }}>
     <div
       style={{
         background: "var(--white)",
@@ -78,5 +80,6 @@ export default function SellerCard({ seller }: { seller: SellerItem }) {
         </div>
       </div>
     </div>
+    </Link>
   );
 }
