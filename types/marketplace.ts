@@ -60,6 +60,7 @@ export type Listing = {
   isFeatured: boolean;
   sellerHandle: string;
   sellerName: string;
+  sellerAvatar?: string;
   sellerLocation?: string;
   sellerRating?: number;
   viewCount: number;

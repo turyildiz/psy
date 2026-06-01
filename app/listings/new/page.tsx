@@ -1,8 +1,10 @@
 "use client";
 
 import { useState, useRef, useCallback } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
+import { createClient } from "@/lib/supabase/client";
 import { conditionLabels, categoryLabels } from "@/lib/constants";
 
 const CONDITIONS = [
@@ -88,7 +90,7 @@ function ShipsTo({ selected, onChange }: { selected: string[]; onChange: (s: str
 }
 
 /* ── Image uploader ── */
-function ImageUploader({ images, onChange }: { images: string[]; onChange: (imgs: string[]) => void }) {
+function ImageUploader({ images, imageFiles, onChange }: { images: string[]; imageFiles: File[]; onChange: (imgs: string[], files: File[]) => void }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -96,18 +98,19 @@ function ImageUploader({ images, onChange }: { images: string[]; onChange: (imgs
     if (!files) return;
     const remaining = 8 - images.length;
     const newImgs: string[] = [];
+    const newFiles: File[] = [];
     let loaded = 0;
     const toLoad = Array.from(files).filter((f) => f.type.startsWith("image/")).slice(0, remaining);
     if (!toLoad.length) return;
     toLoad.forEach((file) => {
       const reader = new FileReader();
       reader.onload = (e) => {
-        if (e.target?.result) newImgs.push(e.target.result as string);
-        if (++loaded === toLoad.length) onChange([...images, ...newImgs]);
+        if (e.target?.result) { newImgs.push(e.target.result as string); newFiles.push(file); }
+        if (++loaded === toLoad.length) onChange([...images, ...newImgs], [...imageFiles, ...newFiles]);
       };
       reader.readAsDataURL(file);
     });
-  }, [images, onChange]);
+  }, [images, imageFiles, onChange]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -139,7 +142,7 @@ function ImageUploader({ images, onChange }: { images: string[]; onChange: (imgs
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
               {i === 0 && <span style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "2px 7px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.06em" }}>COVER</span>}
-              <button type="button" onClick={() => onChange(images.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+              <button type="button" onClick={() => onChange(images.filter((_, j) => j !== i), imageFiles.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
           ))}
           {images.length < 8 && (
@@ -180,6 +183,7 @@ function ORow({ label, value }: { label: string; value: React.ReactNode }) {
 /* ── Page ── */
 
 export default function NewListingPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
 
   /* Step 1 — Details */
@@ -195,7 +199,10 @@ export default function NewListingPage() {
 
   /* Step 2 — Images */
   const [images, setImages]         = useState<string[]>([]);
+  const [imageFiles, setImageFiles] = useState<File[]>([]);
   const [errors2, setErrors2]       = useState<Record<string, string>>({});
+  const [publishing, setPublishing] = useState(false);
+  const [publishError, setPublishError] = useState("");
 
   const validateStep1 = () => {
     const e: Record<string, string> = {};
@@ -221,8 +228,47 @@ export default function NewListingPage() {
     else if (step === 2 && validateStep2()) setStep(3);
   };
 
-  const publish = () => {
-    alert("Listing ready — will be published once Supabase is wired up.");
+  const publish = async () => {
+    setPublishing(true);
+    setPublishError("");
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { router.push("/login"); return; }
+    const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
+    if (!profile) { setPublishError("Profile not found."); setPublishing(false); return; }
+
+    const uploadedUrls: string[] = [];
+    for (const file of imageFiles) {
+      const ext = file.name.split(".").pop() || "jpg";
+      const path = `${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
+      const { error } = await supabase.storage.from("listings").upload(path, file);
+      if (!error) {
+        const { data: { publicUrl } } = supabase.storage.from("listings").getPublicUrl(path);
+        uploadedUrls.push(publicUrl);
+      }
+    }
+
+    const { data: listing, error } = await supabase.from("listings").insert({
+      profile_id: profile.id,
+      title,
+      description: description || "No description provided.",
+      price: Math.round(Number(price) * 100),
+      condition,
+      category,
+      size: size || "One Size",
+      tags,
+      ships_to: shipsTo,
+      images: uploadedUrls,
+      status: "active",
+      submitted_at: new Date().toISOString(),
+    }).select("id").single();
+
+    if (listing) {
+      router.push(`/listing/${listing.id}`);
+    } else {
+      setPublishError(error?.message || "Something went wrong. Please try again.");
+      setPublishing(false);
+    }
   };
 
   const catLabel = CATEGORIES.find((c) => c.value === category)?.label;
@@ -318,7 +364,7 @@ export default function NewListingPage() {
 
             {/* ── STEP 2: Photos ── */}
             {step === 2 && <>
-              <ImageUploader images={images} onChange={setImages} />
+              <ImageUploader images={images} imageFiles={imageFiles} onChange={(imgs, files) => { setImages(imgs); setImageFiles(files); }} />
               {errors2.images && <p style={{ fontSize: "12px", color: "var(--rust)", margin: 0 }}>{errors2.images}</p>}
 
               <button type="submit" style={{ padding: "14px", background: "var(--rust)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", marginTop: "8px" }}>
@@ -348,12 +394,13 @@ export default function NewListingPage() {
                 <ORow label="Photos" value={`${images.length} photo${images.length > 1 ? "s" : ""}`} />
               </div>
 
+              {publishError && <p style={{ fontSize: "13px", color: "var(--rust)", margin: 0 }}>{publishError}</p>}
               <div style={{ display: "flex", gap: "12px" }}>
-                <button type="button" style={{ flex: 1, padding: "13px", border: "1.5px solid var(--dark)", background: "transparent", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", color: "var(--dark)" }}>
+                <button type="button" style={{ flex: 1, padding: "13px", border: "1.5px solid var(--dark)", background: "transparent", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", color: "var(--dark)", opacity: publishing ? 0.5 : 1 }} disabled={publishing}>
                   Save Draft
                 </button>
-                <button type="button" onClick={publish} style={{ flex: 2, padding: "13px", background: "var(--rust)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>
-                  Publish Listing
+                <button type="button" onClick={publish} disabled={publishing} style={{ flex: 2, padding: "13px", background: "var(--rust)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", fontFamily: "Manrope, var(--font-manrope)", opacity: publishing ? 0.7 : 1 }}>
+                  {publishing ? "Publishing…" : "Publish Listing"}
                 </button>
               </div>
             </>}

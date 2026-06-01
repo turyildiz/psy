@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 
 function EyeIcon({ visible }: { visible: boolean }) {
   return visible ? (
@@ -70,27 +71,53 @@ function Field({ label, type = "text", value, onChange, placeholder, error, auto
   );
 }
 
+type Status = "idle" | "checking" | "success" | "error";
+
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [error, setError] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [status, setStatus] = useState<Status>("idle");
+  const [fading, setFading] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError(null);
-    if (!email.includes("@")) { setError("Enter a valid email address"); return; }
-    if (!password) { setError("Password is required"); return; }
-    setLoading(true);
-    /* Supabase auth wired here later */
-    setTimeout(() => {
-      setLoading(false);
-      setError("Invalid email or password"); // mock failure for now
-    }, 800);
+    setErrorMsg(null);
+    if (!email.includes("@")) { setErrorMsg("Enter a valid email address"); return; }
+    if (!password) { setErrorMsg("Password is required"); return; }
+
+    setStatus("checking");
+    const supabase = createClient();
+
+    // Run auth + minimum spinner time in parallel so spinner always shows
+    const [{ error: authError }] = await Promise.all([
+      supabase.auth.signInWithPassword({ email, password }),
+      new Promise<void>((r) => setTimeout(r, 700)),
+    ]);
+
+    if (authError) {
+      setStatus("idle");
+      setErrorMsg("Invalid email or password");
+      return;
+    }
+
+    setStatus("success");
+    await new Promise<void>((r) => setTimeout(r, 900));
+    setFading(true);
+    await new Promise<void>((r) => setTimeout(r, 400));
+    const next = new URLSearchParams(window.location.search).get("next") ?? "/";
+    window.location.href = next;
   };
 
+  const isChecking = status === "checking";
+  const isSuccess = status === "success";
+  const isIdle = status === "idle";
+
+  const btnBg = isSuccess ? "#2d6a4f" : isChecking ? "oklch(25% 0.01 55)" : "var(--rust)";
+  const btnLabel = isChecking ? "Checking…" : isSuccess ? "Welcome back!" : "Log In";
+
   return (
-    <div style={{ minHeight: "100vh", background: "oklch(10% 0.018 55)", display: "flex", flexDirection: "column" }}>
+    <div style={{ minHeight: "100vh", background: "oklch(10% 0.018 55)", display: "flex", flexDirection: "column", opacity: fading ? 0 : 1, transition: "opacity 0.4s ease" }}>
       {/* Top bar */}
       <div style={{ padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid oklch(100% 0 0 / 0.07)" }}>
         <Link href="/">
@@ -123,36 +150,41 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {error && (
+            {errorMsg && (
               <div style={{ background: "oklch(35% 0.12 20 / 0.2)", border: "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "12px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
                   <circle cx="8" cy="8" r="7" stroke="#e05252" strokeWidth="1.5" />
                   <path d="M8 5v4M8 11v.5" stroke="#e05252" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                <p style={{ fontSize: "13px", color: "#e07070", margin: 0 }}>{error}</p>
+                <p style={{ fontSize: "13px", color: "#e07070", margin: 0 }}>{errorMsg}</p>
               </div>
             )}
 
             <button
               type="submit"
-              disabled={loading}
+              disabled={!isIdle}
               style={{
-                background: loading ? "oklch(100% 0 0 / 0.08)" : "var(--rust)",
-                color: loading ? "oklch(45% 0.01 70)" : "white",
+                background: btnBg,
+                color: "white",
                 border: "none", padding: "14px", borderRadius: "8px", fontSize: "15px", fontWeight: 700,
-                cursor: loading ? "not-allowed" : "pointer",
-                fontFamily: "Manrope, var(--font-manrope)", transition: "all 0.2s",
+                cursor: isIdle ? "pointer" : "default",
+                fontFamily: "Manrope, var(--font-manrope)",
+                transition: "background 0.3s ease",
                 display: "flex", alignItems: "center", justifyContent: "center", gap: "8px",
+                width: "100%",
               }}
             >
-              {loading ? (
-                <>
-                  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: "spin 0.8s linear infinite" }}>
-                    <circle cx="8" cy="8" r="6" stroke="oklch(45% 0.01 70)" strokeWidth="2" strokeDasharray="20 18" />
-                  </svg>
-                  Logging in…
-                </>
-              ) : "Log In"}
+              {isChecking && (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: "spin 0.8s linear infinite", flexShrink: 0 }}>
+                  <circle cx="8" cy="8" r="6" stroke="white" strokeWidth="2" strokeDasharray="20 18" />
+                </svg>
+              )}
+              {isSuccess && (
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
+                  <path d="M3 8l3.5 3.5L13 4.5" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                </svg>
+              )}
+              {btnLabel}
             </button>
           </form>
 

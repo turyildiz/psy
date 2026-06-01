@@ -1,14 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
-import { mockListings } from "@/lib/mock-data";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing } from "@/types/marketplace";
-
-const CLOTHING = mockListings.filter((l) => l.category === "clothing");
+import { createClient } from "@/lib/supabase/client";
+import { toListing } from "@/lib/db";
 
 const SUBCAT_TAG: Record<string, string> = {
   Hoodies: "hoodie",
@@ -120,20 +119,19 @@ function ProductCard({ item }: { item: Listing }) {
             <span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "18px", fontWeight: 700, color: "var(--rust)" }}>
               €{(item.priceCents / 100).toFixed(0)}
             </span>
-            <span
-              style={{
-                fontSize: "10px",
-                padding: "2px 8px",
-                borderRadius: "3px",
-                background: `${condColor}18`,
-                color: condColor,
-                fontWeight: 600,
-                letterSpacing: "0.04em",
-              }}
-            >
+            <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "3px", background: `${condColor}18`, color: condColor, fontWeight: 600, letterSpacing: "0.04em" }}>
               {conditionLabels[item.condition]}
             </span>
           </div>
+          {item.sellerHandle && (
+            <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--sand)" }}>
+              {item.sellerAvatar
+                ? <img src={item.sellerAvatar} alt="" style={{ width: "18px", height: "18px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                : <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: 700, color: "white", flexShrink: 0 }}>{(item.sellerName || item.sellerHandle).charAt(0).toUpperCase()}</div>
+              }
+              <span style={{ fontSize: "11px", color: "var(--text-light)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{item.sellerHandle}</span>
+            </div>
+          )}
         </div>
       </div>
     </Link>
@@ -143,10 +141,18 @@ function ProductCard({ item }: { item: Listing }) {
 /* ── Page ── */
 
 export default function BrowsePage() {
+  const [allListings, setAllListings] = useState<Listing[]>([]);
+  const [loading, setLoading] = useState(true);
   const [subcats, setSubcats] = useState<string[]>([]);
   const [sort, setSort] = useState("Newest First");
   const [priceRange, setPriceRange] = useState("Any Price");
   const [gridCols, setGridCols] = useState(4);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "clothing").eq("status", "active")
+      .then(({ data }) => { setAllListings((data ?? []).map(toListing)); setLoading(false); });
+  }, []);
 
   const toggleSubcat = (s: string) => {
     if (s === "All") { setSubcats([]); return; }
@@ -155,7 +161,7 @@ export default function BrowsePage() {
     );
   };
 
-  const filtered = CLOTHING.filter((p) => {
+  const filtered = allListings.filter((p) => {
     if (subcats.length > 0 && !subcats.some((s) => p.tags.includes(SUBCAT_TAG[s]))) return false;
     const price = p.priceCents / 100;
     if (priceRange === "Under €50" && price >= 50) return false;
@@ -169,11 +175,6 @@ export default function BrowsePage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  const activeFilters = [
-    ...subcats,
-    priceRange !== "Any Price" && priceRange,
-  ].filter(Boolean) as string[];
-
   return (
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
       <Header />
@@ -181,131 +182,77 @@ export default function BrowsePage() {
       {/* Filter bar */}
       <div className="browse-filter-sticky">
         <div className="browse-filter-inner">
-          {/* Subcategory pills — own row on mobile */}
-          <div className="browse-pills-group">
-            {SUBCATS.map((s) => {
-              const active = s === "All" ? subcats.length === 0 : subcats.includes(s);
-              return (
-                <button
-                  key={s}
-                  onClick={() => toggleSubcat(s)}
-                  style={{
-                    padding: "5px 14px",
-                    borderRadius: "20px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    fontFamily: "Manrope, var(--font-manrope)",
-                    fontWeight: 500,
-                    transition: "all 0.2s",
-                    background: active ? "var(--dark)" : "transparent",
-                    border: `1px solid ${active ? "var(--dark)" : "var(--sand)"}`,
-                    color: active ? "white" : "var(--text-mid)",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {s}
-                </button>
-              );
-            })}
-          </div>
-
-          <div className="browse-divider" style={{ width: "1px", height: "20px", background: "var(--sand)", flexShrink: 0 }} />
-
-          {/* Sort */}
-          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-            <span style={{ fontSize: "12px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Sort</span>
-            <div style={{ position: "relative" }}>
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value)}
-                style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 28px 5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}
-              >
-                {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-              </select>
-              <svg style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6">
-                <path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="browse-divider" style={{ width: "1px", height: "20px", background: "var(--sand)" }} />
-
-          {/* Price — pills on desktop, select on mobile */}
-          <div className="browse-price-pills-wrap" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-            <span style={{ fontSize: "12px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Price</span>
-            <div style={{ display: "flex", gap: "6px" }}>
-              {PRICE_RANGES.map((r) => (
-                <button
-                  key={r}
-                  onClick={() => setPriceRange(r)}
-                  style={{
-                    padding: "4px 12px",
-                    borderRadius: "5px",
-                    fontSize: "12px",
-                    cursor: "pointer",
-                    fontFamily: "Manrope, var(--font-manrope)",
-                    transition: "all 0.2s",
-                    background: priceRange === r ? "var(--dark)" : "transparent",
-                    border: `1px solid ${priceRange === r ? "var(--dark)" : "var(--sand)"}`,
-                    color: priceRange === r ? "white" : "var(--text-mid)",
-                  }}
-                >
-                  {r}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          <div className="browse-price-select-wrap">
-            <span style={{ fontSize: "12px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Price</span>
-            <div style={{ position: "relative" }}>
-              <select
-                value={priceRange}
-                onChange={(e) => setPriceRange(e.target.value)}
-                style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 28px 5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}
-              >
-                {PRICE_RANGES.map((r) => <option key={r}>{r}</option>)}
-              </select>
-              <svg style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6">
-                <path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
-              </svg>
-            </div>
-          </div>
-
-          <div className="browse-filter-spacer" />
-
-          {/* Active filter chips */}
-          {activeFilters.length > 0 && (
-            <div style={{ display: "flex", gap: "6px", alignItems: "center" }}>
-              {activeFilters.map((f) => (
-                <span
-                  key={f}
-                  style={{ display: "flex", alignItems: "center", gap: "5px", background: "oklch(92% 0.04 55)", border: "1px solid oklch(82% 0.06 55)", borderRadius: "4px", padding: "3px 8px", fontSize: "11px", color: "var(--rust)", fontWeight: 600 }}
-                >
-                  {f}
+          {/* Row 1: subcategory pills + spacer pushes controls right */}
+          <div className="browse-filter-row">
+            <div className="browse-pills-group">
+              {SUBCATS.map((s) => {
+                const active = s === "All" ? subcats.length === 0 : subcats.includes(s);
+                return (
                   <button
-                    onClick={() => {
-                      if (SUBCATS.includes(f)) setSubcats((prev) => prev.filter((x) => x !== f));
-                      else setPriceRange("Any Price");
+                    key={s}
+                    onClick={() => toggleSubcat(s)}
+                    style={{
+                      padding: "7px 18px",
+                      borderRadius: "20px",
+                      fontSize: "13px",
+                      cursor: "pointer",
+                      fontFamily: "Manrope, var(--font-manrope)",
+                      fontWeight: 500,
+                      transition: "all 0.2s",
+                      background: active ? "var(--dark)" : "transparent",
+                      border: `1px solid ${active ? "var(--dark)" : "var(--sand)"}`,
+                      color: active ? "white" : "var(--text-mid)",
+                      whiteSpace: "nowrap",
                     }}
-                    style={{ background: "none", border: "none", cursor: "pointer", color: "var(--rust)", fontSize: "14px", lineHeight: 1, padding: 0 }}
                   >
-                    ×
+                    {s}
                   </button>
-                </span>
-              ))}
-              <button
-                onClick={() => { setSubcats([]); setPriceRange("Any Price"); }}
-                style={{ fontSize: "11px", color: "var(--text-light)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}
-              >
-                Clear all
-              </button>
+                );
+              })}
             </div>
-          )}
+          </div>
 
-          {/* Grid toggle — desktop only */}
-          <div className="browse-grid-toggle" style={{ display: "flex", alignItems: "center", gap: "12px", flexShrink: 0 }}>
-            <div style={{ display: "flex", gap: "4px" }}>
+          {/* Row 2: spacer + Sort, Price, grid toggle — all pushed right */}
+          <div className="browse-filter-row">
+            <div className="browse-filter-spacer" />
+            {/* Sort */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+              <span style={{ fontSize: "12px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Sort</span>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value)}
+                  style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 28px 5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}
+                >
+                  {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+                </select>
+                <svg style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6">
+                  <path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="browse-divider" style={{ width: "1px", height: "20px", background: "var(--sand)" }} />
+
+            {/* Price select */}
+            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+              <span style={{ fontSize: "12px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Price</span>
+              <div style={{ position: "relative" }}>
+                <select
+                  value={priceRange}
+                  onChange={(e) => setPriceRange(e.target.value)}
+                  style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 28px 5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}
+                >
+                  {PRICE_RANGES.map((r) => <option key={r}>{r}</option>)}
+                </select>
+                <svg style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6">
+                  <path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" />
+                </svg>
+              </div>
+            </div>
+
+            {/* Grid toggle — desktop only */}
+            <div className="browse-grid-toggle" style={{ display: "flex", alignItems: "center", gap: "4px", flexShrink: 0 }}>
               {[4, 3].map((n) => (
                 <button
                   key={n}
@@ -335,26 +282,27 @@ export default function BrowsePage() {
           </h1>
           <span style={{ fontSize: "12px", color: "var(--text-light)" }}>{filtered.length} results</span>
         </div>
-        {filtered.length === 0 ? (
+        {loading ? (
+          <div className="browse-grid" style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
+            {Array.from({ length: gridCols * 2 }).map((_, i) => (
+              <div key={i} className="skeleton-block" style={{ height: "340px" }} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-light)" }}>
             <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "24px", marginBottom: "8px" }}>No listings found</p>
             <p style={{ fontSize: "14px" }}>Try adjusting your filters</p>
           </div>
         ) : (
           <div className="browse-grid" style={{ gridTemplateColumns: `repeat(${gridCols}, 1fr)` }}>
-            {filtered.map((item) => <ProductCard key={item.id} item={item} />)}
+            {filtered.map((item, i) => (
+              <div key={item.id} className="stagger-item" style={{ '--i': Math.min(i, 9) } as CSSProperties}>
+                <ProductCard item={item} />
+              </div>
+            ))}
           </div>
         )}
 
-        {filtered.length > 0 && (
-          <div style={{ textAlign: "center", marginTop: "56px" }}>
-            <button
-              style={{ background: "transparent", border: "1.5px solid var(--dark)", color: "var(--dark)", padding: "13px 40px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", letterSpacing: "0.02em", transition: "all 0.2s" }}
-            >
-              Load More
-            </button>
-          </div>
-        )}
       </div>
 
       <Footer />

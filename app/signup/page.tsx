@@ -1,17 +1,15 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
+import { createClient } from "@/lib/supabase/client";
 
-/* ── Mock taken handles (replaced by Supabase check later) ── */
-const TAKEN_HANDLES = ["admin", "psymarket", "yacxilan", "darkmysterytribe", "frequencylab"];
-
-function validateHandle(h: string) {
+function validateHandleFormat(h: string) {
   if (h.length < 3) return "At least 3 characters";
   if (h.length > 30) return "Max 30 characters";
   if (!/^[a-z0-9_]+$/.test(h)) return "Only lowercase letters, numbers, underscores";
-  if (TAKEN_HANDLES.includes(h)) return "Handle already taken";
   return null;
 }
 
@@ -109,8 +107,13 @@ function PasswordField({ label, value, onChange, placeholder, error, hint, autoF
 }
 
 /* ── Handle availability indicator ── */
-function HandleStatus({ handle, error }: { handle: string; error: string | null }) {
+function HandleStatus({ handle, error, checking }: { handle: string; error: string | null; checking: boolean }) {
   if (!handle) return null;
+  if (checking) return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: "spin 0.8s linear infinite" }}>
+      <circle cx="8" cy="8" r="6" stroke="oklch(55% 0.01 70)" strokeWidth="2" strokeDasharray="20 18" />
+    </svg>
+  );
   if (error) return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
       <circle cx="8" cy="8" r="7" stroke="#e05252" strokeWidth="1.5" />
@@ -126,6 +129,7 @@ function HandleStatus({ handle, error }: { handle: string; error: string | null 
 }
 
 export default function SignupPage() {
+  const router = useRouter();
   const [step, setStep] = useState(1);
 
   /* Step 1 */
@@ -138,12 +142,29 @@ export default function SignupPage() {
   /* Step 2 */
   const [handle, setHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [checkingHandle, setCheckingHandle] = useState(false);
 
-  /* Live handle validation */
+  /* Live handle validation — format check instantly, DB check debounced */
   useEffect(() => {
     if (!handle) { setHandleError(null); return; }
-    setHandleError(validateHandle(handle));
+    const formatErr = validateHandleFormat(handle);
+    if (formatErr) { setHandleError(formatErr); return; }
+
+    setCheckingHandle(true);
+    setHandleError(null);
+    const timer = setTimeout(async () => {
+      const supabase = createClient();
+      const [{ data: profile }, { data: blocked }] = await Promise.all([
+        supabase.from("profiles").select("id").eq("handle", handle).maybeSingle(),
+        supabase.from("blocked_handles").select("handle").eq("handle", handle).maybeSingle(),
+      ]);
+      setCheckingHandle(false);
+      if (blocked) { setHandleError("Handle not available"); return; }
+      if (profile) { setHandleError("Handle already taken"); return; }
+    }, 400);
+    return () => clearTimeout(timer);
   }, [handle]);
 
   const validateStep1 = () => {
@@ -161,10 +182,37 @@ export default function SignupPage() {
     if (validateStep1()) setStep(2);
   };
 
-  const handleStep2Submit = (e: React.FormEvent) => {
+  const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const err = validateHandle(handle);
-    if (err) { setHandleError(err); return; }
+    const formatErr = validateHandleFormat(handle);
+    if (formatErr) { setHandleError(formatErr); return; }
+    if (handleError || checkingHandle) return;
+
+    setLoading(true);
+    const supabase = createClient();
+
+    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
+    if (signUpError || !data.user) {
+      setLoading(false);
+      setHandleError(signUpError?.message ?? "Signup failed");
+      return;
+    }
+
+    const { error: profileError } = await supabase.from("profiles").insert({
+      user_id: data.user.id,
+      handle,
+      display_name: name,
+      type: "personal",
+      is_creator: false,
+      is_verified: false,
+    });
+
+    setLoading(false);
+    if (profileError) {
+      setHandleError("Could not save profile. Handle may be taken.");
+      return;
+    }
+
     setSubmitted(true);
   };
 
@@ -279,7 +327,7 @@ export default function SignupPage() {
           error={handleError}
           hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
           autoFocus
-          suffix={<HandleStatus handle={handle} error={handleError} />}
+          suffix={<HandleStatus handle={handle} error={handleError} checking={checkingHandle} />}
         />
 
         {/* Handle preview */}
@@ -297,16 +345,16 @@ export default function SignupPage() {
 
         <button
           type="submit"
-          disabled={!handle || !!handleError}
+          disabled={!handle || !!handleError || checkingHandle || loading}
           style={{
-            background: !handle || handleError ? "oklch(100% 0 0 / 0.08)" : "var(--rust)",
-            color: !handle || handleError ? "oklch(45% 0.01 70)" : "white",
+            background: !handle || handleError || checkingHandle || loading ? "oklch(100% 0 0 / 0.08)" : "var(--rust)",
+            color: !handle || handleError || checkingHandle || loading ? "oklch(45% 0.01 70)" : "white",
             border: "none", padding: "14px", borderRadius: "8px", fontSize: "15px", fontWeight: 700,
-            cursor: !handle || handleError ? "not-allowed" : "pointer",
+            cursor: !handle || handleError || checkingHandle || loading ? "not-allowed" : "pointer",
             fontFamily: "Manrope, var(--font-manrope)", transition: "all 0.2s",
           }}
         >
-          Create Account
+          {loading ? "Creating account…" : "Create Account"}
         </button>
 
         <button

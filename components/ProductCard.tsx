@@ -117,6 +117,15 @@ export default function ProductCard({ item, fill, small }: Props) {
             {conditionLabels[item.condition]}
           </span>
         </div>
+        {item.sellerHandle && (
+          <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "8px", paddingTop: "8px", borderTop: "1px solid var(--sand)" }}>
+            {item.sellerAvatar
+              ? <img src={item.sellerAvatar} alt="" style={{ width: "18px", height: "18px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+              : <div style={{ width: "18px", height: "18px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: 700, color: "white", flexShrink: 0 }}>{(item.sellerName || item.sellerHandle).charAt(0).toUpperCase()}</div>
+            }
+            <span style={{ fontSize: "11px", color: "var(--text-light)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{item.sellerHandle}</span>
+          </div>
+        )}
       </div>
     </div>
   );

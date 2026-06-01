@@ -1,14 +1,19 @@
 "use client";
 
-import { useRef, useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export function useReveal(threshold = 0.08) {
-  const ref = useRef<HTMLDivElement>(null);
+  const [el, setEl] = useState<HTMLDivElement | null>(null);
   const [vis, setVis] = useState(false);
 
+  const ref = useCallback((node: HTMLDivElement | null) => setEl(node), []);
+
   useEffect(() => {
-    const el = ref.current;
     if (!el) return;
+    if (el.getBoundingClientRect().top < window.innerHeight) {
+      setVis(true);
+      return;
+    }
     const obs = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting) {
@@ -20,7 +25,7 @@ export function useReveal(threshold = 0.08) {
     );
     obs.observe(el);
     return () => obs.disconnect();
-  }, [threshold]);
+  }, [el, threshold]);
 
   return [ref, vis] as const;
 }

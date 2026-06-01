@@ -1,14 +1,16 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, type CSSProperties } from "react";
+import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import AuthModal from "@/components/AuthModal";
 import ProductCard from "@/components/ProductCard";
-import { mockListings, mockProfiles } from "@/lib/mock-data";
 import { categoryLabels, conditionLabels } from "@/lib/constants";
-import type { Listing } from "@/types/marketplace";
+import type { Listing, Profile } from "@/types/marketplace";
+import { createClient } from "@/lib/supabase/client";
+import { toListing, toProfile } from "@/lib/db";
 
 /* ── Helpers ── */
 
@@ -95,25 +97,79 @@ export default function ListingDetailPage() {
   const params = useParams();
   const id = params.id as string;
 
+  const router = useRouter();
   const [selectedImage, setSelectedImage] = useState(0);
-  const [showContact, setShowContact] = useState(false);
-  const [message, setMessage] = useState("");
-  const isLoggedIn = false; // wired to Supabase auth later
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [myProfileId, setMyProfileId] = useState<string | null>(null);
+  const [contactLoading, setContactLoading] = useState(false);
   const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const [listing, setListing] = useState<Listing | null | undefined>(undefined);
+  const [seller, setSeller] = useState<Profile | null | undefined>(undefined);
+  const [related, setRelated] = useState<Listing[]>([]);
+  const [sellerListingCount, setSellerListingCount] = useState(0);
+  const [authModal, setAuthModal] = useState<"login" | "signup" | null>(null);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) return;
+      setIsLoggedIn(true);
+      const { data: profile } = await supabase
+        .from("profiles").select("id").eq("user_id", data.user.id).single();
+      if (profile) setMyProfileId(profile.id);
+    });
+  }, []);
+
+  useEffect(() => {
+    const supabase = createClient();
+    supabase.from("listings").select("*").eq("id", id).single().then(async ({ data }) => {
+      if (!data) { setListing(null); return; }
+      const l = toListing(data);
+      setListing(l);
+      const [{ data: s }, { count }, { data: r }] = await Promise.all([
+        supabase.from("profiles").select("*").eq("id", data.profile_id).single(),
+        supabase.from("listings").select("*", { count: "exact", head: true }).eq("profile_id", data.profile_id).eq("status", "active"),
+        supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", data.category).eq("status", "active").neq("id", id).limit(4),
+      ]);
+      setSeller(s ? toProfile(s) : null);
+      setSellerListingCount(count ?? 0);
+      setRelated((r ?? []).map(toListing));
+    });
+  }, [id]);
+
+  const handleContact = async () => {
+    if (!myProfileId || !listing || !seller) return;
+    setContactLoading(true);
+    const supabase = createClient();
+
+    // Find seller's profile id from profiles table
+    const { data: sellerProfile } = await supabase
+      .from("profiles").select("id").eq("handle", seller.handle).single();
+    if (!sellerProfile) { setContactLoading(false); return; }
+
+    // Find or create conversation
+    const { data: existing } = await supabase
+      .from("conversations")
+      .select("id")
+      .eq("listing_id", listing.id)
+      .eq("buyer_profile_id", myProfileId)
+      .eq("seller_profile_id", sellerProfile.id)
+      .maybeSingle();
+
+    if (existing) { router.push(`/messages/${existing.id}`); return; }
+
+    const { data: created } = await supabase
+      .from("conversations")
+      .insert({ listing_id: listing.id, buyer_profile_id: myProfileId, seller_profile_id: sellerProfile.id })
+      .select("id")
+      .single();
+
+    if (created) router.push(`/messages/${created.id}`);
+    else setContactLoading(false);
+  };
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
 
-  const listing = useMemo(() => mockListings.find((l) => l.id === id), [id]);
-  const seller = useMemo(
-    () => listing && mockProfiles.find((p) => p.id === listing.profileId),
-    [listing],
-  );
-  const related = useMemo(
-    () =>
-      listing
-        ? mockListings.filter((l) => l.category === listing.category && l.id !== id).slice(0, 4)
-        : [],
-    [listing, id],
-  );
+  if (listing === undefined || seller === undefined) return null;
 
   if (!listing || !seller) {
     return (
@@ -171,7 +227,7 @@ export default function ListingDetailPage() {
       <Header />
 
       {/* Breadcrumb */}
-      <div className="site-shell" style={{ paddingTop: "24px", paddingBottom: "0" }}>
+      <div className="stagger-item site-shell" style={{ '--i': 0, paddingTop: "24px", paddingBottom: "0" } as CSSProperties}>
         <div className="detail-breadcrumb">
           <Link href="/" className="detail-breadcrumb-link">Home</Link>
           <span className="detail-breadcrumb-sep">/</span>
@@ -182,7 +238,7 @@ export default function ListingDetailPage() {
       </div>
 
       {/* Main content */}
-      <div className="site-shell" style={{ paddingTop: "28px", paddingBottom: "80px" }}>
+      <div className="stagger-item site-shell" style={{ '--i': 1, paddingTop: "28px", paddingBottom: "80px" } as CSSProperties}>
         <div className="listing-detail-grid">
           {/* ── Image Gallery ── */}
           <div>
@@ -286,7 +342,7 @@ export default function ListingDetailPage() {
               <Section title="Ships to">
                 <div className="detail-ships">
                   {listing.shipsTo.map((dest) => (
-                    <Pill key={dest} bg="var(--white)">{dest}</Pill>
+                    <Pill key={dest}>{dest}</Pill>
                   ))}
                 </div>
               </Section>
@@ -305,63 +361,32 @@ export default function ListingDetailPage() {
 
             {/* ── Contact / CTA ── */}
             <div className="detail-cta">
-              {isLoggedIn ? (
+              {isLoggedIn && myProfileId === seller.id ? null : isLoggedIn ? (
                 <button
-                  onClick={() => setShowContact(!showContact)}
+                  onClick={handleContact}
+                  disabled={contactLoading}
                   className="detail-cta-primary"
+                  style={{ opacity: contactLoading ? 0.7 : 1 }}
                 >
-                  Contact Seller
+                  {contactLoading ? "Opening…" : "Contact Seller"}
                 </button>
               ) : (
-                <Link href="/login" className="detail-cta-primary" style={{ textDecoration: "none", textAlign: "center" }}>
+                <button onClick={() => setAuthModal("login")} className="detail-cta-primary">
                   Log in to contact seller
-                </Link>
+                </button>
               )}
-              <Link
-                href={`/${seller.handle}`}
-                className="detail-cta-secondary"
-              >
+              <Link href={`/${seller.handle}`} className="detail-cta-secondary">
                 View Shop
               </Link>
             </div>
 
-            {/* ── Not logged in nudge ── */}
             {!isLoggedIn && (
               <p style={{ fontSize: "12px", color: "var(--text-light)", marginTop: "12px", textAlign: "center" }}>
                 Don&apos;t have an account?{" "}
-                <Link href="/signup" style={{ color: "var(--rust)", textDecoration: "none", fontWeight: 600 }}>
-                  Sign up free
-                </Link>
+                <button onClick={() => setAuthModal("signup")} style={{ color: "var(--rust)", background: "none", border: "none", padding: 0, fontWeight: 600, fontSize: "12px", cursor: "pointer", fontFamily: "inherit" }}>Sign up free</button>
               </p>
             )}
-
-            {/* ── Message form (logged in only) ── */}
-            {isLoggedIn && showContact && (
-              <div className="detail-message-box">
-                <p className="detail-message-heading">Message {seller.displayName}</p>
-                <textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder={`Hi! I'm interested in "${listing.title}". Is this still available?`}
-                  rows={4}
-                  className="detail-message-input"
-                />
-                <div className="detail-message-actions">
-                  <button
-                    onClick={() => { setShowContact(false); setMessage(""); }}
-                    className="detail-message-cancel"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    disabled={!message.trim()}
-                    className={`detail-message-send ${message.trim() ? "active" : ""}`}
-                  >
-                    Send Message
-                  </button>
-                </div>
-              </div>
-            )}
+            {authModal && <AuthModal initial={authModal} onClose={() => setAuthModal(null)} />}
           </div>
         </div>
 
@@ -383,7 +408,7 @@ export default function ListingDetailPage() {
             )}
           </div>
           <div className="detail-seller-listings">
-            {mockListings.filter((l) => l.profileId === seller.id).length} listings
+            {sellerListingCount} listings
           </div>
         </div>
 
@@ -611,6 +636,7 @@ export default function ListingDetailPage() {
           background: var(--rust-dim);
         }
         .detail-cta-secondary {
+          flex: 1;
           min-width: 140px;
           background: transparent;
           color: var(--dark);
