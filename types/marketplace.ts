@@ -37,6 +37,7 @@ export type Profile = {
   displayName: string;
   bio?: string;
   avatarUrl?: string;
+  headerUrl?: string;
   location?: string;
   isCreator: boolean;
   isVerified: boolean;

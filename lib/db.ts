@@ -9,6 +9,7 @@ export function toProfile(row: Record<string, unknown>): Profile {
     displayName: row.display_name as string,
     bio: (row.bio as string) ?? undefined,
     avatarUrl: (row.avatar_url as string) ?? undefined,
+    headerUrl: (row.header_url as string) ?? undefined,
     location: (row.location as string) ?? undefined,
     isCreator: row.is_creator as boolean,
     isVerified: row.is_verified as boolean,

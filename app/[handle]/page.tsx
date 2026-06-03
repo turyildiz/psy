@@ -193,15 +193,17 @@ function SellerProfilePageInner() {
   if (profile === undefined) return (
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
       <Header />
-      <div style={{ background: "var(--white)", borderBottom: "1px solid var(--sand)" }}>
-        <div className="site-shell" style={{ paddingTop: "40px", paddingBottom: "40px" }}>
-          <div style={{ display: "flex", alignItems: "flex-start", gap: "28px" }}>
-            <div className="skeleton-block" style={{ width: "100px", height: "100px", borderRadius: "50%", flexShrink: 0 }} />
-            <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px" }}>
-              <div className="skeleton-block" style={{ width: "200px", height: "26px" }} />
-              <div className="skeleton-block" style={{ width: "120px", height: "14px" }} />
-              <div className="skeleton-block" style={{ width: "360px", height: "14px" }} />
-              <div className="skeleton-block" style={{ width: "300px", height: "14px" }} />
+      <div style={{ borderBottom: "1px solid var(--sand)" }}>
+        <div className="skeleton-block" style={{ height: "200px", borderRadius: 0 }} />
+        <div style={{ background: "var(--white)" }}>
+          <div className="site-shell" style={{ paddingBottom: "32px" }}>
+            <div style={{ display: "flex", alignItems: "flex-start", gap: "28px" }}>
+              <div className="skeleton-block profile-avatar-img" style={{ borderRadius: "50%", flexShrink: 0, marginTop: "-65px", border: "4px solid white" }} />
+              <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: "12px", paddingTop: "16px" }}>
+                <div className="skeleton-block" style={{ width: "200px", height: "26px" }} />
+                <div className="skeleton-block" style={{ width: "120px", height: "14px" }} />
+                <div className="skeleton-block" style={{ width: "360px", height: "14px" }} />
+              </div>
             </div>
           </div>
         </div>
@@ -242,34 +244,89 @@ function SellerProfilePageInner() {
       <Header />
 
       {/* Hero */}
-      <div className="stagger-item" style={{ '--i': 0, background: "var(--white)", borderBottom: "1px solid var(--sand)" } as CSSProperties}>
-        <div className="site-shell" style={{ paddingTop: "40px", paddingBottom: "40px" }}>
-          <div className="seller-hero">
-            {/* Avatar */}
-            <div style={{ position: "relative", flexShrink: 0 }}>
-              {profile.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={profile.avatarUrl}
-                  alt={profile.displayName}
-                  style={{ width: "100px", height: "100px", borderRadius: "50%", objectFit: "cover", border: "3px solid var(--sand)", display: "block" }}
-                />
-              ) : (
-                <div style={{ width: "100px", height: "100px", borderRadius: "50%", border: "3px solid var(--sand)", background: "var(--sand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "36px", fontWeight: 700, color: "var(--text-light)" }}>
-                  {profile.displayName[0].toUpperCase()}
+      <div className="stagger-item" style={{ '--i': 0, borderBottom: "1px solid var(--sand)" } as CSSProperties}>
+        {/* Banner */}
+        <div style={{ height: "200px", background: profile.headerUrl ? undefined : "oklch(22% 0.02 55)", overflow: "hidden" }}>
+          {profile.headerUrl && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={profile.headerUrl} alt="" aria-hidden style={{ width: "100%", height: "100%", objectFit: "cover", objectPosition: "center 40%", display: "block" }} />
+          )}
+        </div>
+
+        {/* Profile content */}
+        <div style={{ background: "var(--white)" }}>
+          <div className="site-shell" style={{ paddingBottom: "32px" }}>
+            <div className="seller-hero" style={{ alignItems: "flex-start", paddingTop: "0" }}>
+              {/* Avatar column — avatar circle + social icons stacked */}
+              <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
+                <div className="profile-avatar-wrap" style={{ position: "relative", marginTop: "-52px" }}>
+                  {profile.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={profile.avatarUrl}
+                      alt={profile.displayName}
+                      className="profile-avatar-img"
+                      style={{ borderRadius: "50%", objectFit: "cover", border: "4px solid white", display: "block" }}
+                    />
+                  ) : (
+                    <div className="profile-avatar-img" style={{ borderRadius: "50%", border: "4px solid white", background: "var(--sand)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "var(--text-light)" }}>
+                      {profile.displayName[0].toUpperCase()}
+                    </div>
+                  )}
+                  {profile.isVerified && (
+                    <span style={{ position: "absolute", bottom: 4, right: 4, width: "22px", height: "22px", background: "var(--rust)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid white" }}>
+                      <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
+                        <path d="M1 4.5L4 7.5L10 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+                      </svg>
+                    </span>
+                  )}
+                  {isOwner && (
+                    <button
+                      onClick={() => setEditOpen(true)}
+                      title="Edit profile"
+                      style={{ position: "absolute", bottom: profile.isVerified ? 28 : 4, right: profile.isVerified ? -4 : 4, width: "28px", height: "28px", borderRadius: "50%", background: "white", border: "1.5px solid var(--sand)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", boxShadow: "0 2px 8px oklch(0% 0 0 / 0.15)" }}
+                    >
+                      <svg width="12" height="12" viewBox="0 0 13 13" fill="none">
+                        <path d="M9 2l2 2-7 7H2v-2L9 2z" stroke="var(--text)" strokeWidth="1.3" strokeLinejoin="round" />
+                      </svg>
+                    </button>
+                  )}
+                </div>
+
+                {/* Social icons — below avatar, max 3 per row */}
+                {social && Object.keys(social).length > 0 && (
+                <div style={{ display: "flex", gap: "6px", flexWrap: "wrap", maxWidth: "108px" }}>
+                  {social.website && (
+                    <a href={social.website} target="_blank" rel="noopener noreferrer" title="Website" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3"/><path d="M7 1c-2 2-2 10 0 12M7 1c2 2 2 10 0 12M1 7h12" stroke="currentColor" strokeWidth="1.3"/></svg>
+                    </a>
+                  )}
+                  {social.instagram && (
+                    <a href={`https://instagram.com/${social.instagram}`} target="_blank" rel="noopener noreferrer" title="Instagram" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="3" stroke="currentColor" strokeWidth="1.3"/><circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.3"/><circle cx="10.5" cy="3.5" r="0.8" fill="currentColor"/></svg>
+                    </a>
+                  )}
+                  {social.facebook && (
+                    <a href={`https://facebook.com/${social.facebook}`} target="_blank" rel="noopener noreferrer" title="Facebook" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 1H7.5C6 1 5 2 5 3.5V5H3v2h2v6h2.5V7H9l.5-2H7.5V3.5c0-.3.2-.5.5-.5H9V1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+                    </a>
+                  )}
+                  {social.soundcloud && (
+                    <a href={`https://soundcloud.com/${social.soundcloud}`} target="_blank" rel="noopener noreferrer" title="SoundCloud" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 8.5c0 1.4 1.1 2.5 2.5 2.5h7c1.4 0 2.5-1.1 2.5-2.5 0-1.2-.8-2.2-2-2.4V6c0-2.2-1.8-4-4-4-1.8 0-3.3 1.2-3.8 2.8C2 5 1 6.6 1 8.5z" stroke="currentColor" strokeWidth="1.3"/></svg>
+                    </a>
+                  )}
+                  {social.bandcamp && (
+                    <a href={`https://${social.bandcamp}.bandcamp.com`} target="_blank" rel="noopener noreferrer" title="Bandcamp" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 9l4-6h4l-4 6H1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M6 9l4-6h3l-4 6H6z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
+                    </a>
+                  )}
                 </div>
               )}
-              {profile.isVerified && (
-                <span style={{ position: "absolute", bottom: 2, right: 2, width: "22px", height: "22px", background: "var(--rust)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid var(--white)" }}>
-                  <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
-                    <path d="M1 4.5L4 7.5L10 1.5" stroke="white" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </span>
-              )}
-            </div>
+              </div> {/* end avatar column */}
 
             {/* Info */}
-            <div style={{ flex: 1, minWidth: 0 }}>
+            <div style={{ flex: 1, minWidth: 0, paddingTop: "20px" }}>
               <div style={{ display: "flex", alignItems: "center", gap: "10px", flexWrap: "wrap", marginBottom: "4px" }}>
                 <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "26px", fontWeight: 700, color: "var(--text)", margin: 0, letterSpacing: "-0.02em" }}>
                   {profile.displayName}
@@ -300,71 +357,22 @@ function SellerProfilePageInner() {
                 </div>
               </div>
 
-              {/* Social links */}
-              {social && Object.keys(social).length > 0 && (
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-                  {social.website && (
-                    <a href={social.website} target="_blank" rel="noopener noreferrer" title="Website" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "6px", border: "1px solid var(--sand)", background: "var(--white)", textDecoration: "none", fontSize: "12px", color: "var(--text-mid)", fontWeight: 500, transition: "all 0.2s" }}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.3"/><path d="M7 1c-2 2-2 10 0 12M7 1c2 2 2 10 0 12M1 7h12" stroke="currentColor" strokeWidth="1.3"/></svg>
-                      Website
-                    </a>
-                  )}
-                  {social.instagram && (
-                    <a href={`https://instagram.com/${social.instagram}`} target="_blank" rel="noopener noreferrer" title="Instagram" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "6px", border: "1px solid var(--sand)", background: "var(--white)", textDecoration: "none", fontSize: "12px", color: "var(--text-mid)", fontWeight: 500, transition: "all 0.2s" }}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="3" stroke="currentColor" strokeWidth="1.3"/><circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.3"/><circle cx="10.5" cy="3.5" r="0.8" fill="currentColor"/></svg>
-                      Instagram
-                    </a>
-                  )}
-                  {social.facebook && (
-                    <a href={`https://facebook.com/${social.facebook}`} target="_blank" rel="noopener noreferrer" title="Facebook" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "6px", border: "1px solid var(--sand)", background: "var(--white)", textDecoration: "none", fontSize: "12px", color: "var(--text-mid)", fontWeight: 500, transition: "all 0.2s" }}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 1H7.5C6 1 5 2 5 3.5V5H3v2h2v6h2.5V7H9l.5-2H7.5V3.5c0-.3.2-.5.5-.5H9V1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
-                      Facebook
-                    </a>
-                  )}
-                  {social.soundcloud && (
-                    <a href={`https://soundcloud.com/${social.soundcloud}`} target="_blank" rel="noopener noreferrer" title="SoundCloud" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "6px", border: "1px solid var(--sand)", background: "var(--white)", textDecoration: "none", fontSize: "12px", color: "var(--text-mid)", fontWeight: 500, transition: "all 0.2s" }}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 8.5c0 1.4 1.1 2.5 2.5 2.5h7c1.4 0 2.5-1.1 2.5-2.5 0-1.2-.8-2.2-2-2.4V6c0-2.2-1.8-4-4-4-1.8 0-3.3 1.2-3.8 2.8C2 5 1 6.6 1 8.5z" stroke="currentColor" strokeWidth="1.3"/></svg>
-                      SoundCloud
-                    </a>
-                  )}
-                  {social.bandcamp && (
-                    <a href={`https://${social.bandcamp}.bandcamp.com`} target="_blank" rel="noopener noreferrer" title="Bandcamp" style={{ display: "flex", alignItems: "center", gap: "6px", padding: "6px 12px", borderRadius: "6px", border: "1px solid var(--sand)", background: "var(--white)", textDecoration: "none", fontSize: "12px", color: "var(--text-mid)", fontWeight: 500, transition: "all 0.2s" }}>
-                      <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 9l4-6h4l-4 6H1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M6 9l4-6h3l-4 6H6z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
-                      Bandcamp
-                    </a>
-                  )}
-                </div>
-              )}
             </div>
 
-            {/* CTA — owner vs visitor */}
-            <div className="seller-hero-cta">
-              {isOwner ? (
-                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                  <button
-                    onClick={() => setEditOpen(true)}
-                    style={{ display: "block", width: "100%", background: "transparent", color: "var(--dark)", border: "1.5px solid var(--dark)", padding: "11px 24px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", whiteSpace: "nowrap" }}
-                  >
-                    Edit Profile
-                  </button>
-                  <button
-                    onClick={() => setNewListingOpen(true)}
-                    style={{ display: "block", width: "100%", background: "var(--rust)", color: "white", padding: "11px 24px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, border: "none", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", whiteSpace: "nowrap" }}
-                  >
-                    + New Listing
-                  </button>
-                </div>
-              ) : (
+            {/* CTA — visitor only (owner uses pencil icon on avatar) */}
+            {!isOwner && (
+              <div className="seller-hero-cta">
                 <button
                   onClick={() => myHandle ? handleMessageSeller() : setAuthModal("login")}
                   disabled={messagingLoading}
-                  style={{ display: "block", width: "100%", background: "var(--rust)", color: "white", padding: "12px 28px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, border: "none", cursor: messagingLoading ? "default" : "pointer", fontFamily: "Manrope, var(--font-manrope)", textAlign: "center", transition: "background 0.2s", whiteSpace: "nowrap", opacity: messagingLoading ? 0.7 : 1 }}
+                  style={{ display: "block", background: "var(--rust)", color: "white", padding: "12px 28px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, border: "none", cursor: messagingLoading ? "default" : "pointer", fontFamily: "Manrope, var(--font-manrope)", transition: "background 0.2s", whiteSpace: "nowrap", opacity: messagingLoading ? 0.7 : 1 }}
                 >
                   {messagingLoading ? "Opening…" : "Message Seller"}
                 </button>
-              )}
-            </div>
+              </div>
+            )}
           </div>
+        </div>
         </div>
       </div>
 
@@ -434,6 +442,9 @@ function SellerProfilePageInner() {
         }
         .seller-hero-cta { flex-shrink: 0; padding-top: 4px; }
 
+        .profile-avatar-img { width: 130px; height: 130px; font-size: 46px; }
+        .profile-avatar-wrap { margin-top: -65px; }
+
         .seller-stats {
           display: flex;
           gap: 24px;
@@ -471,6 +482,8 @@ function SellerProfilePageInner() {
           .seller-hero { flex-wrap: wrap; gap: 20px; }
           .seller-hero-cta { width: 100%; }
           .seller-hero-cta a { width: 100%; box-sizing: border-box; }
+          .profile-avatar-img { width: 100px !important; height: 100px !important; font-size: 36px !important; }
+          .profile-avatar-wrap { margin-top: -50px !important; }
         }
         @media (max-width: 480px) {
           .seller-hero { gap: 16px; }
