@@ -2,6 +2,7 @@
 
 import { useState, useRef } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { uploadToR2 } from "@/lib/r2";
 import type { Profile, ProfileType, SocialLinks } from "@/types/marketplace";
 
 const PROFILE_TYPES: { value: ProfileType; label: string }[] = [
@@ -75,13 +76,12 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingAvatar(true);
-    const supabase = createClient();
-    const ext = file.name.split(".").pop();
-    const path = `${profile.id}/${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (uploadError) { setError("Avatar upload failed"); setUploadingAvatar(false); return; }
-    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-    setAvatarUrl(urlData.publicUrl);
+    try {
+      const url = await uploadToR2(file);
+      setAvatarUrl(url);
+    } catch {
+      setError("Avatar upload failed");
+    }
     setUploadingAvatar(false);
   };
 

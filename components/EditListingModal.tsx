@@ -2,6 +2,7 @@
 
 import { useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { uploadToR2 } from "@/lib/r2";
 import type { Listing } from "@/types/marketplace";
 
 const CONDITIONS = [
@@ -178,13 +179,10 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
 
     const uploadedUrls: string[] = [];
     for (const file of newFiles) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${profileId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("listings").upload(path, file);
-      if (!uploadErr) {
-        const { data: { publicUrl } } = supabase.storage.from("listings").getPublicUrl(path);
-        uploadedUrls.push(publicUrl);
-      }
+      try {
+        const url = await uploadToR2(file);
+        uploadedUrls.push(url);
+      } catch { /* skip failed uploads */ }
     }
 
     const finalImages = [...existingUrls, ...uploadedUrls];

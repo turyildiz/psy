@@ -3,6 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { uploadToR2 } from "@/lib/r2";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -177,13 +178,10 @@ export default function NewListingModal({ profileId, onClose }: { profileId: str
     const supabase = createClient();
     const uploadedUrls: string[] = [];
     for (const file of imageFiles) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${profileId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("listings").upload(path, file);
-      if (!error) {
-        const { data: { publicUrl } } = supabase.storage.from("listings").getPublicUrl(path);
-        uploadedUrls.push(publicUrl);
-      }
+      try {
+        const url = await uploadToR2(file);
+        uploadedUrls.push(url);
+      } catch { /* skip failed uploads */ }
     }
     const { data: listing, error } = await supabase.from("listings").insert({
       profile_id: profileId, title, description: description || "No description provided.",
