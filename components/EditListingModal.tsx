@@ -180,7 +180,7 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
     const uploadedUrls: string[] = [];
     for (const file of newFiles) {
       try {
-        const url = await uploadToR2(file);
+        const url = await uploadToR2(file, "listings");
         uploadedUrls.push(url);
       } catch { /* skip failed uploads */ }
     }

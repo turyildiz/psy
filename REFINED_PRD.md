@@ -249,6 +249,7 @@ draft → pending → active → sold
 - Stripe Connect for payments (marketplace model, split payments, KYC on master account)
 - Reviews and ratings (buyer reviews seller after transaction)
 - Favorites/wishlist
+- **Follow sellers** — follow button on profile pages, follower/following counts in stats bar, feed of new listings from followed sellers (retention flywheel — high priority for V2)
 - Report listing / report user
 - Automated featured listings (self-service, paid)
 - Bump listings to top (paid)
@@ -260,6 +261,7 @@ draft → pending → active → sold
 - Stale listing policy (auto-expire after 90 days)
 - "Popular" sort (based on real usage data)
 - Mobile app
+- **Community posts** — users can publish text + image posts on their profile (e.g. tutorials, how-to guides, process photos) separate from listings; shows up as a "Posts" tab on the profile page alongside their shop
 
 ### 4.3 Out of Scope (V1 and V2)
 

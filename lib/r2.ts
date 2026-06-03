@@ -1,9 +1,11 @@
-export async function uploadToR2(file: File): Promise<string> {
+export type R2Folder = "listings" | "avatars" | "headers" | "posts";
+
+export async function uploadToR2(file: File, folder: R2Folder = "listings"): Promise<string> {
   // Get presigned URL from our API
   const res = await fetch("/api/r2/presign", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ filename: file.name, contentType: file.type }),
+    body: JSON.stringify({ filename: file.name, contentType: file.type, folder }),
   });
   if (!res.ok) throw new Error("Failed to get upload URL");
   const { uploadUrl, publicUrl } = await res.json();

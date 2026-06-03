@@ -24,13 +24,15 @@ export async function POST(req: NextRequest) {
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { filename, contentType } = await req.json();
+  const { filename, contentType, folder } = await req.json();
   if (!filename || !contentType) {
     return NextResponse.json({ error: "filename and contentType required" }, { status: 400 });
   }
 
-  // Scope key by user id to prevent collisions
-  const key = `${user.id}/${Date.now()}-${filename}`;
+  const validFolders = ["listings", "avatars", "headers", "posts"];
+  const dir = validFolders.includes(folder) ? folder : "listings";
+  const ext = filename.split(".").pop() || "jpg";
+  const key = `${dir}/${user.id}/${Date.now()}.${ext}`;
 
   const url = await getSignedUrl(
     r2,

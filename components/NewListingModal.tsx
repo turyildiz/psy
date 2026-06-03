@@ -179,7 +179,7 @@ export default function NewListingModal({ profileId, onClose }: { profileId: str
     const uploadedUrls: string[] = [];
     for (const file of imageFiles) {
       try {
-        const url = await uploadToR2(file);
+        const url = await uploadToR2(file, "listings");
         uploadedUrls.push(url);
       } catch { /* skip failed uploads */ }
     }

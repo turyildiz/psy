@@ -77,7 +77,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
     if (!file) return;
     setUploadingAvatar(true);
     try {
-      const url = await uploadToR2(file);
+      const url = await uploadToR2(file, "avatars");
       setAvatarUrl(url);
     } catch {
       setError("Avatar upload failed");
