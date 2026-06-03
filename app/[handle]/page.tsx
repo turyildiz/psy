@@ -238,6 +238,8 @@ function SellerProfilePageInner() {
   }
 
   const social = profile?.socialLinks;
+  const socialUrl = (value: string, base: string) =>
+    value.startsWith("http") ? value : `${base}/${value.replace(/^@/, "")}`;
 
   return (
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
@@ -302,22 +304,22 @@ function SellerProfilePageInner() {
                     </a>
                   )}
                   {social.instagram && (
-                    <a href={`https://instagram.com/${social.instagram}`} target="_blank" rel="noopener noreferrer" title="Instagram" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                    <a href={socialUrl(social.instagram!, "https://instagram.com")} target="_blank" rel="noopener noreferrer" title="Instagram" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><rect x="1" y="1" width="12" height="12" rx="3" stroke="currentColor" strokeWidth="1.3"/><circle cx="7" cy="7" r="3" stroke="currentColor" strokeWidth="1.3"/><circle cx="10.5" cy="3.5" r="0.8" fill="currentColor"/></svg>
                     </a>
                   )}
                   {social.facebook && (
-                    <a href={`https://facebook.com/${social.facebook}`} target="_blank" rel="noopener noreferrer" title="Facebook" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                    <a href={socialUrl(social.facebook!, "https://facebook.com")} target="_blank" rel="noopener noreferrer" title="Facebook" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 1H7.5C6 1 5 2 5 3.5V5H3v2h2v6h2.5V7H9l.5-2H7.5V3.5c0-.3.2-.5.5-.5H9V1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
                     </a>
                   )}
                   {social.soundcloud && (
-                    <a href={`https://soundcloud.com/${social.soundcloud}`} target="_blank" rel="noopener noreferrer" title="SoundCloud" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                    <a href={socialUrl(social.soundcloud!, "https://soundcloud.com")} target="_blank" rel="noopener noreferrer" title="SoundCloud" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 8.5c0 1.4 1.1 2.5 2.5 2.5h7c1.4 0 2.5-1.1 2.5-2.5 0-1.2-.8-2.2-2-2.4V6c0-2.2-1.8-4-4-4-1.8 0-3.3 1.2-3.8 2.8C2 5 1 6.6 1 8.5z" stroke="currentColor" strokeWidth="1.3"/></svg>
                     </a>
                   )}
                   {social.bandcamp && (
-                    <a href={`https://${social.bandcamp}.bandcamp.com`} target="_blank" rel="noopener noreferrer" title="Bandcamp" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
+                    <a href={social.bandcamp!.startsWith("http") ? social.bandcamp! : `https://${social.bandcamp}.bandcamp.com`} target="_blank" rel="noopener noreferrer" title="Bandcamp" style={{ width: "32px", height: "32px", borderRadius: "50%", border: "1px solid var(--sand)", background: "var(--white)", display: "flex", alignItems: "center", justifyContent: "center", color: "var(--text-mid)", textDecoration: "none", transition: "all 0.2s", flexShrink: 0 }}>
                       <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 9l4-6h4l-4 6H1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M6 9l4-6h3l-4 6H6z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>
                     </a>
                   )}
