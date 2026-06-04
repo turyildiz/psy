@@ -226,9 +226,14 @@ export default function ListingDetailPage() {
     if (touchStartX === null || touchStartY === null) return;
     const dx = touchStartX - e.changedTouches[0].clientX;
     const dy = touchStartY - e.changedTouches[0].clientY;
+    // Horizontal swipe → change image
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
       if (dx > 0) setSelectedImage((i) => Math.min(i + 1, listing.images.length - 1));
       else setSelectedImage((i) => Math.max(i - 1, 0));
+    }
+    // Pure tap (< 10px movement) → open lightbox
+    else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+      setLightboxOpen(true);
     }
     setTouchStartX(null);
     setTouchStartY(null);
@@ -258,7 +263,7 @@ export default function ListingDetailPage() {
               className="detail-image-main"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
-              onClick={() => setLightboxOpen(true)}
+              onClick={(e) => { if (!(e.nativeEvent as any).changedTouches) setLightboxOpen(true); }}
               style={{ cursor: "zoom-in" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
