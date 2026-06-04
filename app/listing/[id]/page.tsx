@@ -171,6 +171,26 @@ export default function ListingDetailPage() {
   const [lightboxOpen, setLightboxOpen] = useState(false);
 
   useEffect(() => {
+    if (!listing) return;
+    if (lightboxOpen) {
+      // Lock body scroll without jumping to top
+      const scrollY = window.scrollY;
+      document.body.style.overflow = "hidden";
+      document.body.style.position = "fixed";
+      document.body.style.top = `-${scrollY}px`;
+      document.body.style.width = "100%";
+    } else {
+      // Restore scroll position
+      const top = document.body.style.top;
+      document.body.style.overflow = "";
+      document.body.style.position = "";
+      document.body.style.top = "";
+      document.body.style.width = "";
+      if (top) window.scrollTo(0, -parseInt(top, 10));
+    }
+  }, [lightboxOpen, listing]);
+
+  useEffect(() => {
     if (!lightboxOpen || !listing) return;
     const handler = (e: KeyboardEvent) => {
       if (e.key === "ArrowLeft") setSelectedImage((i) => Math.max(i - 1, 0));
