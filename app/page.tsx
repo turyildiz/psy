@@ -15,7 +15,6 @@ import { createClient } from "@/lib/supabase/client";
 import { toListing, toProfile } from "@/lib/db";
 
 const tickets: TicketItem[] = [
-  { name: "Boom Festival 2026", location: "Idanha-a-Nova, PT", date: "Aug 12–18", price: "€280", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567590913.jpg" },
   { name: "Ozora Festival 2026", location: "Ozora, Hungary", date: "Jul 28–Aug 3", price: "€320", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
   { name: "Universo Paralello", location: "Bahia, Brazil", date: "Dec 27–Jan 3, 2027", price: "€420", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591790.jpg" },
   { name: "Antaris Project", location: "Brandenburg, DE", date: "Jul 3–7", price: "€140", imageUrl: "https://images.psy.market/festivals/ai-generated/1780569015502.jpg" },
