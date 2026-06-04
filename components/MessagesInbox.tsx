@@ -10,6 +10,7 @@ type Conversation = {
   last_message_body: string | null;
   buyer_profile_id: string;
   seller_profile_id: string;
+  unread_for: string[];
   other: { id: string; handle: string; display_name: string; avatar_url: string | null };
   listing: { id: string; title: string; images: string[] } | null;
 };
@@ -85,6 +86,7 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
         if (data) setConversations(data.map((c: any) => ({
           id: c.id, last_message_at: c.last_message_at, last_message_body: c.last_message_body,
           buyer_profile_id: c.buyer_profile_id, seller_profile_id: c.seller_profile_id,
+          unread_for: c.unread_for ?? [],
           other: c.buyer_profile_id === myProfileId ? c.seller : c.buyer,
           listing: c.listing,
         })));
@@ -93,9 +95,16 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
   }, [myProfileId]);
 
   useEffect(() => {
-    if (!activeId) { setMessages([]); return; }
+    if (!activeId || !myProfileId) { setMessages([]); return; }
     setLoadingThread(true);
     const supabase = createClient();
+    // Mark as read — remove current user from unread_for
+    supabase.rpc("remove_unread_for", { conv_id: activeId, profile_id: myProfileId }).then(() => {
+      setConversations((cs) => cs.map((c) => c.id === activeId
+        ? { ...c, unread_for: c.unread_for.filter((id) => id !== myProfileId) }
+        : c
+      ));
+    });
     supabase.from("messages").select("id, body, sender_profile_id, created_at")
       .eq("conversation_id", activeId).order("created_at", { ascending: true })
       .then(({ data }) => { setMessages(data ?? []); setLoadingThread(false); });
@@ -114,10 +123,23 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
 
   const sendMessage = async () => {
     const trimmed = body.trim();
-    if (!trimmed || sending || !myProfileId || !activeId) return;
+    if (!trimmed || sending || !myProfileId || !activeId || !activeConv) return;
     setSending(true); setBody("");
     const supabase = createClient();
-    await supabase.from("messages").insert({ conversation_id: activeId, sender_profile_id: myProfileId, body: trimmed });
+    // Get the other party's profile ID
+    const recipientId = activeConv.buyer_profile_id === myProfileId
+      ? activeConv.seller_profile_id
+      : activeConv.buyer_profile_id;
+    await Promise.all([
+      supabase.from("messages").insert({ conversation_id: activeId, sender_profile_id: myProfileId, body: trimmed }),
+      // Add recipient to unread_for (array_append equivalent via RPC or direct update)
+      supabase.rpc("append_unread_for", { conv_id: activeId, profile_id: recipientId }),
+    ]);
+    // Optimistically update local unread_for
+    setConversations((cs) => cs.map((c) => c.id === activeId
+      ? { ...c, unread_for: c.unread_for.includes(recipientId) ? c.unread_for : [...c.unread_for, recipientId] }
+      : c
+    ));
     setSending(false);
     inputRef.current?.focus();
   };
@@ -222,13 +244,16 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
               onMouseLeave={(e) => { if (activeId !== conv.id) e.currentTarget.style.background = "transparent"; }}
             >
               <Avatar name={conv.other?.display_name || conv.other?.handle || "?"} url={conv.other?.avatar_url ?? null} />
+              {myProfileId && conv.unread_for.includes(myProfileId) && (
+                <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--rust)", flexShrink: 0 }} />
+              )}
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "120px" }}>{conv.other?.display_name || conv.other?.handle}</span>
+                  <span style={{ fontSize: "13px", fontWeight: myProfileId && conv.unread_for.includes(myProfileId) ? 700 : 600, color: "var(--text)", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", maxWidth: "120px" }}>{conv.other?.display_name || conv.other?.handle}</span>
                   <span style={{ fontSize: "11px", color: "var(--text-light)", flexShrink: 0 }}>{timeAgo(conv.last_message_at)}</span>
                 </div>
                 {conv.listing && <span style={{ fontSize: "11px", color: "var(--rust)", fontWeight: 500, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Re: {conv.listing.title}</span>}
-                <p style={{ fontSize: "12px", color: "var(--text-light)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{conv.last_message_body ?? "Start the conversation"}</p>
+                <p style={{ fontSize: "12px", color: myProfileId && conv.unread_for.includes(myProfileId) ? "var(--text)" : "var(--text-light)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: myProfileId && conv.unread_for.includes(myProfileId) ? 500 : 400 }}>{conv.last_message_body ?? "Start the conversation"}</p>
               </div>
               <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(conv.id); }} style={{ width: "22px", height: "22px", borderRadius: "4px", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0, flexShrink: 0, transition: "opacity 0.15s" }} className="inbox-delete-btn" title="Delete">
                 <svg width="11" height="12" viewBox="0 0 12 13" fill="none"><path d="M1 3h10M4 3V2h4v1M2 3l1 9h6l1-9" stroke="#c0392b" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>

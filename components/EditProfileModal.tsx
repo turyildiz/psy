@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/r2";
 import type { Profile, ProfileType, SocialLinks } from "@/types/marketplace";
@@ -66,6 +66,27 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
   const [nameError, setNameError] = useState<string | null>(null);
 
   const [displayName, setDisplayName] = useState(profile.displayName);
+  const [handle, setHandle] = useState(profile.handle);
+  const [handleError, setHandleError] = useState<string | null>(null);
+  const [checkingHandle, setCheckingHandle] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordSaved, setPasswordSaved] = useState(false);
+
+  useEffect(() => {
+    if (!handle || handle === profile.handle) { setHandleError(null); return; }
+    if (handle.length < 3) { setHandleError("At least 3 characters"); return; }
+    if (!/^[a-z0-9_]+$/.test(handle)) { setHandleError("Lowercase letters, numbers, underscores only"); return; }
+    setCheckingHandle(true);
+    const timer = setTimeout(async () => {
+      const supabase = createClient();
+      const { data } = await supabase.from("profiles").select("id").eq("handle", handle).maybeSingle();
+      setCheckingHandle(false);
+      setHandleError(data ? "Handle already taken" : null);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [handle, profile.handle]);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [location, setLocation] = useState(profile.location ?? "");
   const [type, setType] = useState<ProfileType>(profile.type);
@@ -88,12 +109,14 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!displayName.trim()) { setNameError("Display name is required"); return; }
+    if (handleError || checkingHandle) return;
     setNameError(null);
     setSaving(true);
     setError(null);
     const supabase = createClient();
     const { error: updateError } = await supabase.from("profiles").update({
       display_name: displayName.trim(),
+      handle: handle.trim(),
       bio: bio.trim() || null,
       location: location.trim() || null,
       type,
@@ -102,8 +125,19 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
     }).eq("id", profile.id);
     setSaving(false);
     if (updateError) { setError("Failed to save changes. Please try again."); return; }
-    onSaved({ displayName: displayName.trim(), bio: bio.trim() || undefined, location: location.trim() || undefined, type, avatarUrl: avatarUrl || undefined, socialLinks: social });
+    onSaved({ handle: handle.trim(), displayName: displayName.trim(), bio: bio.trim() || undefined, location: location.trim() || undefined, type, avatarUrl: avatarUrl || undefined, socialLinks: social });
     onClose();
+  };
+
+  const handlePasswordSave = async () => {
+    if (newPassword.length < 8) { setPasswordError("At least 8 characters"); return; }
+    if (newPassword !== confirmPassword) { setPasswordError("Passwords don't match"); return; }
+    setPasswordError(null);
+    const supabase = createClient();
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+    if (error) { setPasswordError(error.message); return; }
+    setNewPassword(""); setConfirmPassword(""); setPasswordSaved(true);
+    setTimeout(() => setPasswordSaved(false), 3000);
   };
 
   const initials = displayName.charAt(0).toUpperCase();
@@ -150,6 +184,18 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
           <div style={{ background: "var(--white)", borderRadius: "12px", border: "1px solid var(--sand)", padding: "20px", display: "flex", flexDirection: "column", gap: "16px" }}>
             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase", margin: 0 }}>Basic Info</p>
             <Field label="Display Name" value={displayName} onChange={setDisplayName} placeholder="Your name or artist name" maxLength={100} error={nameError} />
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
+                <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Handle</label>
+                {checkingHandle && <span style={{ fontSize: "11px", color: "var(--text-light)" }}>Checking…</span>}
+                {!checkingHandle && handle !== profile.handle && !handleError && <span style={{ fontSize: "11px", color: "#27ae60" }}>Available ✓</span>}
+              </div>
+              <div style={{ position: "relative" }}>
+                <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-light)", fontSize: "14px", pointerEvents: "none" }}>@</span>
+                <input type="text" value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} maxLength={30} style={{ width: "100%", padding: "11px 14px 11px 28px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--white)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: `1.5px solid ${handleError ? "#c0392b" : "var(--sand)"}` }} />
+              </div>
+              {handleError && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{handleError}</p>}
+            </div>
             <Field label="Bio" value={bio} onChange={setBio} placeholder="Tell the community about yourself…" maxLength={500} multiline />
             <Field label="Location" value={location} onChange={setLocation} placeholder="City, Country" maxLength={100} />
           </div>
@@ -174,6 +220,18 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
             <SocialField icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M9 1H7.5C6 1 5 2 5 3.5V5H3v2h2v6h2.5V7H9l.5-2H7.5V3.5c0-.3.2-.5.5-.5H9V1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>} label="Facebook" value={social.facebook ?? ""} onChange={(v) => setSocial((s) => ({ ...s, facebook: v || undefined }))} placeholder="username" />
             <SocialField icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 8.5c0 1.4 1.1 2.5 2.5 2.5h7c1.4 0 2.5-1.1 2.5-2.5 0-1.2-.8-2.2-2-2.4V6c0-2.2-1.8-4-4-4-1.8 0-3.3 1.2-3.8 2.8C2 5 1 6.6 1 8.5z" stroke="currentColor" strokeWidth="1.3"/></svg>} label="SoundCloud" value={social.soundcloud ?? ""} onChange={(v) => setSocial((s) => ({ ...s, soundcloud: v || undefined }))} placeholder="username" />
             <SocialField icon={<svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M1 9l4-6h4l-4 6H1z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/><path d="M6 9l4-6h3l-4 6H6z" stroke="currentColor" strokeWidth="1.3" strokeLinejoin="round"/></svg>} label="Bandcamp" value={social.bandcamp ?? ""} onChange={(v) => setSocial((s) => ({ ...s, bandcamp: v || undefined }))} placeholder="artistname" />
+          </div>
+
+          {/* Change password */}
+          <div style={{ background: "var(--white)", borderRadius: "12px", border: "1px solid var(--sand)", padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
+            <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase", margin: 0 }}>Change Password</p>
+            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min. 8 characters)" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: "1.5px solid var(--sand)" }} />
+            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: "1.5px solid var(--sand)" }} />
+            {passwordError && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{passwordError}</p>}
+            {passwordSaved && <p style={{ fontSize: "12px", color: "#27ae60", margin: 0 }}>Password updated ✓</p>}
+            <button type="button" onClick={handlePasswordSave} disabled={!newPassword} style={{ background: newPassword ? "var(--dark)" : "var(--sand)", color: "white", border: "none", padding: "11px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: newPassword ? "pointer" : "default", fontFamily: "Manrope, var(--font-manrope)" }}>
+              Update Password
+            </button>
           </div>
 
           {error && <div style={{ background: "oklch(95% 0.02 20)", border: "1px solid oklch(80% 0.08 20)", borderRadius: "8px", padding: "12px 14px" }}><p style={{ fontSize: "13px", color: "#c0392b", margin: 0 }}>{error}</p></div>}

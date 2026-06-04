@@ -39,6 +39,7 @@ export default function Header() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [loggingOut, setLoggingOut] = useState(false);
   const [authModal, setAuthModal] = useState<"login" | "signup" | null>(null);
+  const [msgCount, setMsgCount] = useState(0);
   const [authLoading, setAuthLoading] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
@@ -79,6 +80,15 @@ export default function Header() {
         setUserHandle(handle);
         setUserInitial(initial);
         setUserAvatar(avatar);
+        // Fetch unread message count for nav badge
+        const { data: profileId } = await supabase.from("profiles").select("id").eq("handle", handle).single();
+        if (profileId) {
+          const { data: unreadConvs } = await supabase.from("conversations")
+            .select("id, unread_for")
+            .or(`buyer_profile_id.eq.${profileId.id},seller_profile_id.eq.${profileId.id}`);
+          const unreadCount = (unreadConvs ?? []).filter((c: any) => (c.unread_for ?? []).includes(profileId.id)).length;
+          setMsgCount(unreadCount);
+        }
       }
       setAuthLoading(false);
     });
@@ -192,6 +202,17 @@ export default function Header() {
                       : <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700, color: "white", flexShrink: 0 }}>{userInitial}</div>
                     }
                     <span style={{ fontSize: "13px", fontWeight: 600, color: "oklch(85% 0.01 70)" }}>@{userHandle}</span>
+                  </Link>
+                  <Link href={`/${userHandle}?tab=inbox`} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", borderRadius: "50%", background: "oklch(100% 0 0 / 0.08)", border: "1px solid oklch(100% 0 0 / 0.15)", textDecoration: "none", flexShrink: 0 }} title="Messages">
+                    <svg width="16" height="14" viewBox="0 0 16 14" fill="none">
+                      <path d="M1 1h14v9a1 1 0 0 1-1 1H2a1 1 0 0 1-1-1V1z" stroke="oklch(75% 0.01 70)" strokeWidth="1.4" />
+                      <path d="M1 1l7 5 7-5" stroke="oklch(75% 0.01 70)" strokeWidth="1.4" strokeLinecap="round" />
+                    </svg>
+                    {msgCount > 0 && (
+                      <span style={{ position: "absolute", top: "-4px", right: "-4px", background: "var(--rust)", color: "white", fontSize: "9px", fontWeight: 700, borderRadius: "10px", padding: "1px 5px", minWidth: "16px", textAlign: "center", lineHeight: "14px" }}>
+                        {msgCount > 99 ? "99+" : msgCount}
+                      </span>
+                    )}
                   </Link>
                   <button onClick={handleLogout} disabled={loggingOut} className="header-auth-secondary" style={{ cursor: loggingOut ? "default" : "pointer", background: "oklch(100% 0 0 / 0.08)", border: "1px solid oklch(100% 0 0 / 0.3)", borderRadius: "6px", padding: "7px 14px", fontSize: "13px", color: "oklch(88% 0.01 70)", fontFamily: "Manrope, var(--font-manrope)", transition: "all 0.2s", opacity: loggingOut ? 0.5 : 1, fontWeight: 500 }}>
                     {loggingOut ? "Logging out…" : "Log Out"}
@@ -343,6 +364,10 @@ export default function Header() {
                   : <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: 700, color: "white", flexShrink: 0 }}>{userInitial}</div>
                 }
                 <span style={{ fontSize: "14px", fontWeight: 600, color: "white" }}>@{userHandle}</span>
+              </Link>
+              <Link href={`/${userHandle}?tab=inbox`} onClick={closeAll} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: "8px", background: "oklch(100% 0 0 / 0.06)", border: "1px solid oklch(100% 0 0 / 0.1)", textDecoration: "none" }}>
+                <span style={{ fontSize: "14px", fontWeight: 600, color: "white" }}>Messages</span>
+                {msgCount > 0 && <span style={{ background: "var(--rust)", color: "white", fontSize: "11px", fontWeight: 700, borderRadius: "10px", padding: "2px 8px" }}>{msgCount > 99 ? "99+" : msgCount}</span>}
               </Link>
               <button onClick={handleLogout} disabled={loggingOut} className="mobile-auth-btn mobile-auth-secondary" style={{ cursor: loggingOut ? "default" : "pointer", fontFamily: "Manrope, var(--font-manrope)", opacity: loggingOut ? 0.6 : 1, transition: "opacity 0.2s" }}>
                 {loggingOut ? "Logging out…" : "Log Out"}

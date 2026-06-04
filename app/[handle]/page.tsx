@@ -141,6 +141,7 @@ function SellerProfilePageInner() {
   const [authModal, setAuthModal] = useState<"login" | "signup" | null>(null);
   const [messagingLoading, setMessagingLoading] = useState(false);
   const [tab, setTab] = useState<"listings" | "inbox">("listings");
+  const [inboxCount, setInboxCount] = useState(0);
   useEffect(() => {
     if (searchParams.get("tab") === "inbox") setTab("inbox");
   }, [searchParams]);
@@ -174,7 +175,15 @@ function SellerProfilePageInner() {
         .select("id, handle")
         .eq("user_id", data.user.id)
         .single();
-      if (p) { setMyHandle(p.handle); setMyProfileId(p.id); }
+      if (p) {
+        setMyHandle(p.handle);
+        setMyProfileId(p.id);
+        // Count unread conversations for inbox badge
+        const { data: unreadConvs } = await supabase.from("conversations")
+          .select("id, unread_for")
+          .or(`buyer_profile_id.eq.${p.id},seller_profile_id.eq.${p.id}`);
+        setInboxCount((unreadConvs ?? []).filter((c: any) => (c.unread_for ?? []).includes(p.id)).length);
+      }
     });
   }, []);
 
@@ -395,7 +404,7 @@ function SellerProfilePageInner() {
               onClick={() => setTab("inbox")}
               style={{ padding: "16px 0", fontSize: "14px", fontWeight: 600, color: tab === "inbox" ? "var(--text)" : "var(--text-light)", background: "none", border: "none", borderBottom: tab === "inbox" ? "2px solid var(--rust)" : "2px solid transparent", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", transition: "color 0.15s" }}
             >
-              Inbox
+              Inbox {inboxCount > 0 && <span style={{ marginLeft: "5px", fontSize: "11px", background: "var(--rust)", color: "white", borderRadius: "10px", padding: "1px 6px", fontWeight: 700 }}>{inboxCount}</span>}
             </button>
           )}
         </div>
