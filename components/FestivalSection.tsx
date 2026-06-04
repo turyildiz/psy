@@ -11,11 +11,12 @@ type FestivalItem = {
 };
 
 const FESTIVALS: FestivalItem[] = [
-  { name: "DROPS Festival", location: "Slovenia", date: "AUG 11–16, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585298177.jpg" },
-  { name: "Ozora Festival", location: "Ozora, Hungary", date: "JUL 28 – AUG 3, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
   { name: "Masters of Puppets", location: "Czech Republic", date: "JUL 6–13, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585482973.jpg" },
+  { name: "Ozora Festival", location: "Ozora, Hungary", date: "JUL 28 – AUG 3, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
   { name: "Mo:Dem Festival", location: "Primislje, Croatia", date: "AUG 3–9, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585779974.jpg" },
+  { name: "DROPS Festival", location: "Slovenia", date: "AUG 11–16, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585298177.jpg" },
   { name: "Modular Festival", location: "Switzerland", date: "SEP 3–7, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585621814.jpg" },
+  { name: "Space Safari", location: "Belgium", date: "SEP 4–7, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780586154816.jpg" },
   { name: "Universo Paralello", location: "Bahia, Brazil", date: "DEC 27, 2026 – JAN 3, 2027", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591790.jpg" },
 ];
 
