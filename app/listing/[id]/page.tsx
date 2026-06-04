@@ -182,7 +182,31 @@ export default function ListingDetailPage() {
     return () => window.removeEventListener("keydown", handler);
   }, [lightboxOpen, listing]);
 
-  if (listing === undefined || seller === undefined) return null;
+  if (listing === undefined || seller === undefined) return (
+    <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
+      <Header />
+      <div className="stagger-item site-shell" style={{ paddingTop: "24px", paddingBottom: "80px" }}>
+        <div style={{ display: "flex", gap: "8px", marginBottom: "24px" }}>
+          {[80, 60, 160].map((w, i) => <div key={i} className="skeleton-block" style={{ width: `${w}px`, height: "14px", borderRadius: "4px" }} />)}
+        </div>
+        <div className="listing-detail-grid">
+          <div>
+            <div className="skeleton-block" style={{ width: "100%", aspectRatio: "4/5", borderRadius: "12px", marginBottom: "12px" }} />
+            <div style={{ display: "flex", gap: "8px" }}>
+              {[0,1,2].map(i => <div key={i} className="skeleton-block" style={{ width: "80px", height: "80px", borderRadius: "8px" }} />)}
+            </div>
+          </div>
+          <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+            <div className="skeleton-block" style={{ width: "80%", height: "32px", borderRadius: "6px" }} />
+            <div className="skeleton-block" style={{ width: "40%", height: "28px", borderRadius: "6px" }} />
+            <div className="skeleton-block" style={{ width: "100%", height: "80px", borderRadius: "8px" }} />
+            <div className="skeleton-block" style={{ width: "100%", height: "52px", borderRadius: "8px", marginTop: "16px" }} />
+          </div>
+        </div>
+      </div>
+      <Footer />
+    </div>
+  );
 
   if (!listing || !seller) {
     return (
