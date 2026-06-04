@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, useRef, type CSSProperties } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
@@ -169,26 +169,7 @@ export default function ListingDetailPage() {
   };
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
-
-  useEffect(() => {
-    if (!listing) return;
-    if (lightboxOpen) {
-      // Lock body scroll without jumping to top
-      const scrollY = window.scrollY;
-      document.body.style.overflow = "hidden";
-      document.body.style.position = "fixed";
-      document.body.style.top = `-${scrollY}px`;
-      document.body.style.width = "100%";
-    } else {
-      // Restore scroll position
-      const top = document.body.style.top;
-      document.body.style.overflow = "";
-      document.body.style.position = "";
-      document.body.style.top = "";
-      document.body.style.width = "";
-      if (top) window.scrollTo(0, -parseInt(top, 10));
-    }
-  }, [lightboxOpen, listing]);
+  const touchMoved = useRef(false);
 
   useEffect(() => {
     if (!lightboxOpen || !listing) return;
@@ -240,6 +221,11 @@ export default function ListingDetailPage() {
   const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.touches[0].clientX);
     setTouchStartY(e.touches[0].clientY);
+    touchMoved.current = false;
+  };
+
+  const handleTouchMove = () => {
+    touchMoved.current = true;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -251,12 +237,13 @@ export default function ListingDetailPage() {
       if (dx > 0) setSelectedImage((i) => Math.min(i + 1, listing.images.length - 1));
       else setSelectedImage((i) => Math.max(i - 1, 0));
     }
-    // Pure tap (< 10px movement) → open lightbox
-    else if (Math.abs(dx) < 10 && Math.abs(dy) < 10) {
+    // Pure tap (no movement detected) → open lightbox
+    else if (!touchMoved.current) {
       setLightboxOpen(true);
     }
     setTouchStartX(null);
     setTouchStartY(null);
+    touchMoved.current = false;
   };
 
   return (
@@ -282,6 +269,7 @@ export default function ListingDetailPage() {
             <div
               className="detail-image-main"
               onTouchStart={handleTouchStart}
+              onTouchMove={handleTouchMove}
               onTouchEnd={handleTouchEnd}
               onClick={(e) => { if (!(e.nativeEvent as any).changedTouches) setLightboxOpen(true); }}
               style={{ cursor: "zoom-in" }}
