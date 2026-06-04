@@ -102,7 +102,7 @@ export default function ListingDetailPage() {
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
   const [contactLoading, setContactLoading] = useState(false);
-  const [touchStartX, setTouchStartX] = useState<number | null>(null);
+  const touchStartX = useRef<number | null>(null);
   const [listing, setListing] = useState<Listing | null | undefined>(undefined);
   const [seller, setSeller] = useState<Profile | null | undefined>(undefined);
   const [related, setRelated] = useState<Listing[]>([]);
@@ -167,7 +167,7 @@ export default function ListingDetailPage() {
     if (created) router.push(`/messages/${created.id}`);
     else setContactLoading(false);
   };
-  const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const touchStartY = useRef<number | null>(null);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const touchMoved = useRef(false);
 
@@ -219,8 +219,8 @@ export default function ListingDetailPage() {
   const hasMultipleImages = listing.images.length > 1;
 
   const handleTouchStart = (e: React.TouchEvent) => {
-    setTouchStartX(e.touches[0].clientX);
-    setTouchStartY(e.touches[0].clientY);
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
     touchMoved.current = false;
   };
 
@@ -229,9 +229,9 @@ export default function ListingDetailPage() {
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX === null || touchStartY === null) return;
-    const dx = touchStartX - e.changedTouches[0].clientX;
-    const dy = touchStartY - e.changedTouches[0].clientY;
+    if (touchStartX.current === null || touchStartY.current === null) return;
+    const dx = touchStartX.current - e.changedTouches[0].clientX;
+    const dy = touchStartY.current - e.changedTouches[0].clientY;
     // Horizontal swipe → change image
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
       if (dx > 0) setSelectedImage((i) => Math.min(i + 1, listing.images.length - 1));
@@ -241,8 +241,8 @@ export default function ListingDetailPage() {
     else if (!touchMoved.current) {
       setLightboxOpen(true);
     }
-    setTouchStartX(null);
-    setTouchStartY(null);
+    touchStartX.current = null;
+    touchStartY.current = null;
     touchMoved.current = false;
   };
 
