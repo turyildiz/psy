@@ -15,12 +15,11 @@ import { createClient } from "@/lib/supabase/client";
 import { toListing, toProfile } from "@/lib/db";
 
 const tickets: TicketItem[] = [
-  { name: "Boom Festival 2025", location: "Idanha-a-Nova, PT", date: "Aug 12–18", price: "€280", seed: "tickb1", tier: "Full Pass" },
-  { name: "Ozora Festival 2025", location: "Ozora, Hungary", date: "Jul 28–Aug 3", price: "€320", seed: "ticko2", tier: "Early Bird" },
-  { name: "Universo Paralello", location: "Bahia, Brazil", date: "Dec 27–Jan 3", price: "€420", seed: "ticku3", tier: "VIP" },
-  { name: "Antaris Project", location: "Brandenburg, DE", date: "Jul 3–7", price: "€140", seed: "ticka4", tier: "Full Pass" },
-  { name: "Psy-Fi Festival", location: "Leeuwarden, NL", date: "Aug 6–10", price: "€190", seed: "tickp5", tier: "Full Pass" },
-  { name: "Freqs of Nature", location: "Neuruppin, DE", date: "Aug 14–18", price: "€160", seed: "tickf6", tier: "Early Bird" },
+  { name: "Boom Festival 2026", location: "Idanha-a-Nova, PT", date: "Aug 12–18", price: "€280", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567590913.jpg" },
+  { name: "Ozora Festival 2026", location: "Ozora, Hungary", date: "Jul 28–Aug 3", price: "€320", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
+  { name: "Universo Paralello", location: "Bahia, Brazil", date: "Dec 27–Jan 3", price: "€420", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591790.jpg" },
+  { name: "Antaris Project", location: "Brandenburg, DE", date: "Jul 3–7", price: "€140", imageUrl: "https://images.psy.market/festivals/ai-generated/1780569015502.jpg" },
+  { name: "Masters of Puppets", location: "Leeuwarden, NL", date: "Aug 6–10", price: "€190", imageUrl: "https://images.psy.market/festivals/ai-generated/1780569016034.jpg" },
 ];
 
 export default function HomePage() {
@@ -36,14 +35,18 @@ export default function HomePage() {
       supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "accessories").eq("status", "active").limit(5),
       supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "gear").eq("status", "active").limit(5),
       supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(6),
-    ]).then(([{ data: f }, { data: j }, { data: m }, { data: p }]) => {
+    ]).then(async ([{ data: f }, { data: j }, { data: m }, { data: p }]) => {
       setFashionItems((f ?? []).map(toListing));
       setJewelleryItems((j ?? []).map(toListing));
       setMusicItems((m ?? []).map(toListing));
-      setSellers((p ?? []).map((row, i) => ({
+      const profileRows = p ?? [];
+      const profileIds = profileRows.map((r) => r.id);
+      const { data: counts } = await supabase.from("listings").select("profile_id").in("profile_id", profileIds).eq("status", "active");
+      const countMap: Record<string, number> = {};
+      (counts ?? []).forEach((r) => { countMap[r.profile_id] = (countMap[r.profile_id] ?? 0) + 1; });
+      setSellers(profileRows.map((row, i) => ({
         ...toProfile(row),
-        itemCount: 0,
-        rating: ["4.9", "5.0", "4.8"][i] || "4.8",
+        itemCount: countMap[row.id] ?? 0,
         badge: ["Featured", "Top Rated", "Power Seller"][i] || "Verified",
       })));
     });
@@ -53,7 +56,7 @@ export default function HomePage() {
     <div>
       <Header />
 
-      <CategoryGrid title="Trending: Festival Fashion" link="View All" items={fashionItems} loading={fashionItems.length === 0} />
+      <CategoryGrid title="Trending: Festival Fashion" link="View All" href="/apparel" items={fashionItems} loading={fashionItems.length === 0} />
 
       <Carousel
         title="Community Spotlight"
@@ -63,11 +66,12 @@ export default function HomePage() {
         bg="var(--cream-mid)"
       />
 
-      <CategoryGrid title="Jewellery & Accessories" link="View All" items={jewelleryItems} bigOnRight bg="var(--cream)" loading={jewelleryItems.length === 0} />
+
+      <CategoryGrid title="Jewellery & Accessories" link="View All" href="/jewellery" items={jewelleryItems} bigOnRight bg="var(--cream)" loading={jewelleryItems.length === 0} />
 
       <FestivalSection />
 
-      <CategoryGrid title="Music & Instruments" link="View All" items={musicItems} bg="var(--cream-mid)" loading={musicItems.length === 0} />
+      <CategoryGrid title="Music & Instruments" link="View All" href="/music" items={musicItems} bg="var(--cream-mid)" loading={musicItems.length === 0} />
 
       <Carousel
         title="Tickets"

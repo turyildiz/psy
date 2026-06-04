@@ -1,12 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import Link from "next/link";
 
 const COLS = [
   { title: "Shop", links: ["Apparel", "Art & Decor", "Jewellery", "Music", "Tickets", "Vintage"] },
   { title: "Support", links: ["Help Center", "Selling Guide", "Community Guidelines", "Return Policy"] },
-  { title: "Company", links: ["About Us", "Blog", "Careers", "Press"] },
+  { title: "Company", links: ["About Us", "Blog"] },
 ];
 
 export default function Footer() {
@@ -41,9 +40,9 @@ export default function Footer() {
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {col.links.map((lnk) => (
-                    <Link key={lnk} href="/browse" className="footer-link">
+                    <span key={lnk} className="footer-link" style={{ cursor: "pointer" }}>
                       {lnk}
-                    </Link>
+                    </span>
                   ))}
                 </div>
               </div>
@@ -52,12 +51,12 @@ export default function Footer() {
         </div>
 
         <div className="footer-bottom">
-          <p style={{ fontSize: "12px", color: "oklch(40% 0.01 70)" }}>© 2025 Psy.Market. All rights reserved.</p>
+          <p style={{ fontSize: "12px", color: "oklch(40% 0.01 70)" }}>© 2026 Psy.Market. All rights reserved.</p>
           <div className="footer-bottom-links">
             {["Privacy Policy", "Terms of Service", "Cookie Policy"].map((label) => (
-              <Link key={label} href={`/${label.toLowerCase().replace(/\s+/g, "-")}`} className="footer-bottom-link">
+              <span key={label} className="footer-bottom-link" style={{ cursor: "pointer" }}>
                 {label}
-              </Link>
+              </span>
             ))}
           </div>
         </div>

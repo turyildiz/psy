@@ -7,13 +7,14 @@ import Link from "next/link";
 type Props = {
   title: string;
   link: string;
+  href?: string;
   items: ProductItem[];
   bigOnRight?: boolean;
   bg?: string;
   loading?: boolean;
 };
 
-export default function CategoryGrid({ title, link, items, bigOnRight, bg, loading }: Props) {
+export default function CategoryGrid({ title, link, href, items, bigOnRight, bg, loading }: Props) {
   const [ref, vis] = useReveal();
   const [big, ...rest] = items;
   const smalls = rest.slice(0, 4);
@@ -50,9 +51,10 @@ export default function CategoryGrid({ title, link, items, bigOnRight, bg, loadi
               {title}
             </span>
           </div>
-          <Link href="/browse" style={{ fontSize: "12px", color: "var(--rust)", textDecoration: "none", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>
-            {link} →
-          </Link>
+          {href
+            ? <Link href={href} style={{ fontSize: "12px", color: "var(--rust)", textDecoration: "none", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>{link} →</Link>
+            : <span style={{ fontSize: "12px", color: "var(--rust)", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>{link} →</span>
+          }
         </div>
 
         <div className={`category-grid ${bigOnRight ? "right" : "left"}`}>

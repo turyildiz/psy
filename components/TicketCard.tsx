@@ -7,8 +7,7 @@ export type TicketItem = {
   location: string;
   date: string;
   price: string;
-  seed: string;
-  tier: string;
+  imageUrl: string;
 };
 
 export default function TicketCard({ ticket }: { ticket: TicketItem }) {
@@ -32,28 +31,11 @@ export default function TicketCard({ ticket }: { ticket: TicketItem }) {
       <div style={{ position: "relative", overflow: "hidden" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={`https://picsum.photos/seed/${ticket.seed}/400/260`}
+          src={ticket.imageUrl}
           style={{ width: "100%", height: "150px", objectFit: "cover", display: "block", transition: "transform 0.5s", transform: hov ? "scale(1.06)" : "scale(1)", filter: "brightness(0.8)" }}
           alt=""
         />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to bottom, transparent 40%, oklch(22% 0.025 55) 100%)" }} />
-        <span
-          style={{
-            position: "absolute",
-            bottom: "8px",
-            left: "12px",
-            background: "oklch(100% 0 0 / 0.15)",
-            color: "white",
-            fontSize: "9px",
-            padding: "3px 8px",
-            borderRadius: "3px",
-            fontWeight: 700,
-            letterSpacing: "0.08em",
-            textTransform: "uppercase",
-          }}
-        >
-          {ticket.tier}
-        </span>
       </div>
       <div style={{ padding: "12px 14px 14px" }}>
         <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "14px", fontWeight: 600, color: "white", marginBottom: "4px", lineHeight: 1.2 }}>

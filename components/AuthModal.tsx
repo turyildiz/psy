@@ -206,24 +206,36 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
     if (validateHandleFormat(handle) || handleError || checkingHandle) return;
     setLoading(true);
     const supabase = createClient();
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-    if (signUpError || !data.user) { setLoading(false); setHandleError(signUpError?.message ?? "Signup failed"); return; }
-    const { error: profileError } = await supabase.from("profiles").insert({ user_id: data.user.id, handle, display_name: name, type: "personal", is_creator: false, is_verified: false });
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, handle, displayName: name, redirectTo: `${window.location.origin}/auth/callback` }),
+    });
+    const json = await res.json();
     setLoading(false);
-    if (profileError) { setHandleError("Could not save profile. Handle may be taken."); return; }
+    if (!res.ok) {
+      const msg = json.error ?? "Signup failed";
+      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already been registered")) {
+        setHandleError("That email is already registered. Try logging in.");
+      } else {
+        setHandleError(msg);
+      }
+      return;
+    }
     setSubmitted(true);
   };
 
   if (submitted) return (
     <div style={{ textAlign: "center", padding: "20px 0" }}>
-      <div style={{ width: "60px", height: "60px", borderRadius: "50%", background: "oklch(35% 0.08 150 / 0.3)", border: "1px solid oklch(55% 0.12 150 / 0.5)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
-        <svg width="26" height="20" viewBox="0 0 28 22" fill="none"><path d="M2 11l8 8L26 2" stroke="#5a9a6a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+      <div style={{ width: "60px", height: "60px", borderRadius: "50%", background: "oklch(35% 0.06 240 / 0.3)", border: "1px solid oklch(55% 0.1 240 / 0.5)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 20px" }}>
+        <svg width="26" height="22" viewBox="0 0 28 24" fill="none"><rect x="1" y="3" width="26" height="18" rx="3" stroke="oklch(65% 0.12 240)" strokeWidth="1.8" /><path d="M1 7l13 8 13-8" stroke="oklch(65% 0.12 240)" strokeWidth="1.8" strokeLinecap="round" /></svg>
       </div>
-      <h2 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "24px", fontWeight: 700, color: "white", marginBottom: "8px" }}>Welcome, {name.split(" ")[0]}!</h2>
-      <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "6px" }}>Your account is ready.</p>
-      <p style={{ fontSize: "15px", color: "var(--rust)", fontWeight: 600, marginBottom: "28px" }}>@{handle}</p>
-      <button onClick={() => window.location.reload()} style={{ background: "var(--rust)", color: "white", border: "none", padding: "13px 32px", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>
-        Start Browsing
+      <h2 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "24px", fontWeight: 700, color: "white", marginBottom: "8px" }}>Check your email</h2>
+      <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "4px" }}>We sent a confirmation link to</p>
+      <p style={{ fontSize: "14px", color: "white", fontWeight: 600, marginBottom: "4px" }}>{email}</p>
+      <p style={{ fontSize: "12px", color: "oklch(45% 0.01 70)", marginBottom: "28px" }}>Click it to activate your account as <span style={{ color: "var(--rust)" }}>@{handle}</span></p>
+      <button onClick={() => window.location.reload()} style={{ background: "oklch(100% 0 0 / 0.06)", color: "oklch(65% 0.01 70)", border: "1px solid oklch(100% 0 0 / 0.12)", padding: "12px 32px", borderRadius: "8px", fontWeight: 600, fontSize: "14px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>
+        Close
       </button>
     </div>
   );

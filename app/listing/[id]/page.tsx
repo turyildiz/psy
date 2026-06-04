@@ -168,6 +168,18 @@ export default function ListingDetailPage() {
     else setContactLoading(false);
   };
   const [touchStartY, setTouchStartY] = useState<number | null>(null);
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+
+  useEffect(() => {
+    if (!lightboxOpen || !listing) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "ArrowLeft") setSelectedImage((i) => Math.max(i - 1, 0));
+      if (e.key === "ArrowRight") setSelectedImage((i) => Math.min(i + 1, listing.images.length - 1));
+      if (e.key === "Escape") setLightboxOpen(false);
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [lightboxOpen, listing]);
 
   if (listing === undefined || seller === undefined) return null;
 
@@ -231,7 +243,7 @@ export default function ListingDetailPage() {
         <div className="detail-breadcrumb">
           <Link href="/" className="detail-breadcrumb-link">Home</Link>
           <span className="detail-breadcrumb-sep">/</span>
-          <Link href="/browse" className="detail-breadcrumb-link">{categoryLabels[listing.category]}</Link>
+          <Link href={listing.category === "gear" ? "/music" : listing.category === "clothing" ? "/apparel" : listing.category === "accessories" ? "/jewellery" : "/browse"} className="detail-breadcrumb-link">{categoryLabels[listing.category]}</Link>
           <span className="detail-breadcrumb-sep">/</span>
           <span className="detail-breadcrumb-current">{listing.title}</span>
         </div>
@@ -246,6 +258,8 @@ export default function ListingDetailPage() {
               className="detail-image-main"
               onTouchStart={handleTouchStart}
               onTouchEnd={handleTouchEnd}
+              onClick={() => setLightboxOpen(true)}
+              style={{ cursor: "zoom-in" }}
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
@@ -419,7 +433,7 @@ export default function ListingDetailPage() {
               <h2 className="detail-related-heading">
                 More in {categoryLabels[listing.category]}
               </h2>
-              <Link href="/browse" className="detail-related-link">
+              <Link href={listing.category === "gear" ? "/music" : listing.category === "clothing" ? "/apparel" : listing.category === "accessories" ? "/jewellery" : "/browse"} className="detail-related-link">
                 View All →
               </Link>
             </div>
@@ -435,6 +449,68 @@ export default function ListingDetailPage() {
       </div>
 
       <Footer />
+
+      {/* Lightbox */}
+      {lightboxOpen && listing && (
+        <div
+          onClick={() => setLightboxOpen(false)}
+          style={{ position: "fixed", inset: 0, background: "oklch(0% 0 0 / 0.92)", zIndex: 2000, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center" }}
+        >
+          {/* Close */}
+          <button
+            onClick={() => setLightboxOpen(false)}
+            style={{ position: "absolute", top: "20px", right: "20px", background: "oklch(100% 0 0 / 0.12)", border: "1px solid oklch(100% 0 0 / 0.2)", borderRadius: "50%", width: "44px", height: "44px", fontSize: "20px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 1 }}
+          >
+            ✕
+          </button>
+
+          {/* Prev arrow */}
+          {selectedImage > 0 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedImage((i) => i - 1); }}
+              style={{ position: "absolute", left: "20px", top: "50%", transform: "translateY(-50%)", background: "oklch(100% 0 0 / 0.12)", border: "1px solid oklch(100% 0 0 / 0.2)", borderRadius: "50%", width: "52px", height: "52px", fontSize: "28px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              ‹
+            </button>
+          )}
+
+          {/* Main image */}
+          <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={listing.images[selectedImage]}
+              alt={listing.title}
+              style={{ maxWidth: "90vw", maxHeight: "80vh", objectFit: "contain", borderRadius: "8px", display: "block" }}
+            />
+          </div>
+
+          {/* Next arrow */}
+          {selectedImage < listing.images.length - 1 && (
+            <button
+              onClick={(e) => { e.stopPropagation(); setSelectedImage((i) => i + 1); }}
+              style={{ position: "absolute", right: "20px", top: "50%", transform: "translateY(-50%)", background: "oklch(100% 0 0 / 0.12)", border: "1px solid oklch(100% 0 0 / 0.2)", borderRadius: "50%", width: "52px", height: "52px", fontSize: "28px", color: "white", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
+            >
+              ›
+            </button>
+          )}
+
+          {/* Thumbnail strip */}
+          {listing.images.length > 1 && (
+            <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: "8px", marginTop: "20px", overflowX: "auto", maxWidth: "90vw", padding: "4px" }}>
+              {listing.images.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt=""
+                  onClick={() => setSelectedImage(i)}
+                  style={{ width: "64px", height: "64px", objectFit: "cover", borderRadius: "6px", cursor: "pointer", border: i === selectedImage ? "2px solid var(--rust)" : "2px solid oklch(100% 0 0 / 0.2)", flexShrink: 0, transition: "border-color 0.15s" }}
+                />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       <style>{`
         .listing-detail-grid {

@@ -7,6 +7,7 @@ import { useReveal } from "@/hooks/useReveal";
 type Props<T> = {
   title: string;
   link: string;
+  href?: string;
   items: T[];
   renderItem: (item: T, index: number) => React.ReactNode;
   bg?: string;
@@ -17,7 +18,7 @@ type Props<T> = {
 const GAP = 16;
 const ARROW_SPACE = 52;
 
-export default function Carousel<T>({ title, link, items, renderItem, bg, light, visibleCount = 5 }: Props<T>) {
+export default function Carousel<T>({ title, link, href, items, renderItem, bg, light, visibleCount = 5 }: Props<T>) {
   const [idx, setIdx] = useState(0);
   const [itemW, setItemW] = useState(0);
   const [cardsVisible, setCardsVisible] = useState(visibleCount);
@@ -52,9 +53,10 @@ export default function Carousel<T>({ title, link, items, renderItem, bg, light,
           {title}
         </span>
       </div>
-      <Link href="/browse" style={{ fontSize: "12px", color: "var(--rust)", textDecoration: "none", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>
-        {link} →
-      </Link>
+      {href
+        ? <Link href={href} style={{ fontSize: "12px", color: "var(--rust)", textDecoration: "none", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>{link} →</Link>
+        : <span style={{ fontSize: "12px", color: "var(--rust)", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>{link} →</span>
+      }
     </div>
   );
 

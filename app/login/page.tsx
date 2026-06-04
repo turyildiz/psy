@@ -97,7 +97,11 @@ export default function LoginPage() {
 
     if (authError) {
       setStatus("idle");
-      setErrorMsg("Invalid email or password");
+      if (authError.message.toLowerCase().includes("email not confirmed")) {
+        setErrorMsg("Please confirm your email first — check your inbox for the confirmation link.");
+      } else {
+        setErrorMsg("Invalid email or password");
+      }
       return;
     }
 

@@ -189,27 +189,21 @@ export default function SignupPage() {
     if (handleError || checkingHandle) return;
 
     setLoading(true);
-    const supabase = createClient();
 
-    const { data, error: signUpError } = await supabase.auth.signUp({ email, password });
-    if (signUpError || !data.user) {
-      setLoading(false);
-      setHandleError(signUpError?.message ?? "Signup failed");
-      return;
-    }
-
-    const { error: profileError } = await supabase.from("profiles").insert({
-      user_id: data.user.id,
-      handle,
-      display_name: name,
-      type: "personal",
-      is_creator: false,
-      is_verified: false,
+    const res = await fetch("/api/auth/signup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email, password, handle, displayName: name, redirectTo: `${window.location.origin}/auth/callback` }),
     });
-
+    const json = await res.json();
     setLoading(false);
-    if (profileError) {
-      setHandleError("Could not save profile. Handle may be taken.");
+    if (!res.ok) {
+      const msg = json.error ?? "Signup failed";
+      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already been registered")) {
+        setHandleError("That email is already registered. Try logging in instead.");
+      } else {
+        setHandleError(msg);
+      }
       return;
     }
 
@@ -242,23 +236,27 @@ export default function SignupPage() {
   /* ── Success ── */
   if (submitted) return shell(
     <div style={{ textAlign: "center" }}>
-      <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "oklch(35% 0.08 150 / 0.3)", border: "1px solid oklch(55% 0.12 150 / 0.5)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
-        <svg width="28" height="22" viewBox="0 0 28 22" fill="none">
-          <path d="M2 11l8 8L26 2" stroke="#5a9a6a" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <div style={{ width: "64px", height: "64px", borderRadius: "50%", background: "oklch(35% 0.06 240 / 0.3)", border: "1px solid oklch(55% 0.1 240 / 0.5)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 24px" }}>
+        <svg width="28" height="24" viewBox="0 0 28 24" fill="none">
+          <rect x="1" y="3" width="26" height="18" rx="3" stroke="oklch(65% 0.12 240)" strokeWidth="1.8" />
+          <path d="M1 7l13 8 13-8" stroke="oklch(65% 0.12 240)" strokeWidth="1.8" strokeLinecap="round" />
         </svg>
       </div>
       <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "26px", fontWeight: 700, color: "white", marginBottom: "10px" }}>
-        Welcome, {name.split(" ")[0]}!
+        Check your email
       </h1>
-      <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "8px" }}>
-        Your account has been created.
+      <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "6px" }}>
+        We sent a confirmation link to
       </p>
-      <p style={{ fontSize: "15px", color: "var(--rust)", fontWeight: 600, marginBottom: "32px" }}>@{handle}</p>
+      <p style={{ fontSize: "15px", color: "white", fontWeight: 600, marginBottom: "6px" }}>{email}</p>
+      <p style={{ fontSize: "13px", color: "oklch(45% 0.01 70)", marginBottom: "32px" }}>
+        Click the link to activate your account as <span style={{ color: "var(--rust)" }}>@{handle}</span>
+      </p>
       <Link
-        href="/browse"
-        style={{ display: "block", background: "var(--rust)", color: "white", padding: "14px", borderRadius: "8px", fontWeight: 700, textDecoration: "none", fontSize: "15px", textAlign: "center" }}
+        href="/"
+        style={{ display: "block", background: "oklch(100% 0 0 / 0.06)", color: "oklch(65% 0.01 70)", padding: "14px", borderRadius: "8px", fontWeight: 600, textDecoration: "none", fontSize: "14px", textAlign: "center", border: "1px solid oklch(100% 0 0 / 0.12)" }}
       >
-        Start Browsing
+        Back to homepage
       </Link>
     </div>
   );

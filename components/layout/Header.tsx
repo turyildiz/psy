@@ -8,22 +8,22 @@ import { createClient } from "@/lib/supabase/client";
 import AuthModal from "@/components/AuthModal";
 
 const CATEGORIES = [
-  { label: "Apparel", href: "/browse" },
-  { label: "Art & Decor", href: "/browse" },
-  { label: "Jewellery", href: "/browse" },
+  { label: "Apparel", href: "/apparel" },
+  { label: "Art & Decor", href: null },
+  { label: "Jewellery", href: "/jewellery" },
   { label: "Music", href: "/music" },
-  { label: "Tickets", href: "/browse" },
-  { label: "Vintage", href: "/browse" },
-  { label: "New Arrivals", href: "/browse" },
+  { label: "Tickets", href: null },
+  { label: "Vintage", href: null },
+  { label: "New Arrivals", href: null },
 ];
 
 const QUICK_LINKS = [
-  { label: "Apparel", href: "/browse", icon: "👕" },
+  { label: "Apparel", href: "/apparel", icon: "👕" },
   { label: "Music Gear", href: "/music", icon: "🎹" },
-  { label: "Jewellery", href: "/browse", icon: "💎" },
-  { label: "Tickets", href: "/browse", icon: "🎪" },
-  { label: "Vintage", href: "/browse", icon: "✨" },
-  { label: "New Arrivals", href: "/browse", icon: "🆕" },
+  { label: "Jewellery", href: "/jewellery", icon: "💎" },
+  { label: "Tickets", href: null, icon: "🎪" },
+  { label: "Vintage", href: null, icon: "✨" },
+  { label: "New Arrivals", href: null, icon: "🆕" },
 ];
 
 export default function Header() {
@@ -64,11 +64,13 @@ export default function Header() {
         setAuthLoading(false);
         return;
       }
-      const { data: profile } = await supabase
+      const { data: profiles } = await supabase
         .from("profiles")
         .select("handle, display_name, avatar_url")
         .eq("user_id", data.user.id)
-        .single();
+        .order("created_at", { ascending: false })
+        .limit(1);
+      const profile = profiles?.[0] ?? null;
       if (profile) {
         const handle = profile.handle;
         const initial = (profile.display_name || profile.handle).charAt(0).toUpperCase();
@@ -156,7 +158,9 @@ export default function Header() {
             {/* Desktop nav + search icon */}
             <div className="header-nav-center">
               {CATEGORIES.map(({ label, href }) => (
-                <Link key={label} href={href} className="header-category-link">{label}</Link>
+                href
+                  ? <Link key={label} href={href} className="header-category-link">{label}</Link>
+                  : <span key={label} className="header-category-link" style={{ cursor: "default" }}>{label}</span>
               ))}
               <button
                 onClick={() => { setSearchOpen(!searchOpen); closeAll(); }}
@@ -267,14 +271,13 @@ export default function Header() {
                 </p>
                 <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                   {QUICK_LINKS.map(({ label, href, icon }) => (
-                    <Link
-                      key={label}
-                      href={href}
-                      style={{ display: "flex", alignItems: "center", gap: "7px", background: "oklch(100% 0 0 / 0.06)", border: "1px solid oklch(100% 0 0 / 0.12)", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", color: "oklch(80% 0.01 70)", textDecoration: "none", fontWeight: 500, transition: "all 0.15s", fontFamily: "Manrope, var(--font-manrope)" }}
-                    >
-                      <span>{icon}</span>
-                      {label}
-                    </Link>
+                    href
+                      ? <Link key={label} href={href} style={{ display: "flex", alignItems: "center", gap: "7px", background: "oklch(100% 0 0 / 0.06)", border: "1px solid oklch(100% 0 0 / 0.12)", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", color: "oklch(80% 0.01 70)", textDecoration: "none", fontWeight: 500, transition: "all 0.15s", fontFamily: "Manrope, var(--font-manrope)" }}>
+                          <span>{icon}</span>{label}
+                        </Link>
+                      : <span key={label} style={{ display: "flex", alignItems: "center", gap: "7px", background: "oklch(100% 0 0 / 0.06)", border: "1px solid oklch(100% 0 0 / 0.12)", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", color: "oklch(80% 0.01 70)", fontWeight: 500, fontFamily: "Manrope, var(--font-manrope)", cursor: "default" }}>
+                          <span>{icon}</span>{label}
+                        </span>
                   ))}
                 </div>
               </div>
@@ -300,7 +303,9 @@ export default function Header() {
         </div>
         <nav style={{ padding: "8px 0" }}>
           {CATEGORIES.map(({ label, href }) => (
-            <Link key={label} href={href} onClick={closeAll} className="mobile-drawer-link">{label}</Link>
+            href
+              ? <Link key={label} href={href} onClick={closeAll} className="mobile-drawer-link">{label}</Link>
+              : <span key={label} className="mobile-drawer-link" style={{ cursor: "default" }}>{label}</span>
           ))}
         </nav>
       </div>

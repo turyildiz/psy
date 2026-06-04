@@ -1,20 +1,19 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { useReveal } from "@/hooks/useReveal";
 
 type FestivalItem = {
   name: string;
   location: string;
   date: string;
-  seed: string;
+  imageUrl: string;
 };
 
 const FESTIVALS: FestivalItem[] = [
-  { name: "Boom Festival", location: "Idanha-a-Nova, Portugal", date: "AUG 12–18, 2025", seed: "boom-dark-88" },
-  { name: "Ozora Festival", location: "Ozora, Hungary", date: "JUL 28 – AUG 3, 2025", seed: "ozora-dark-77" },
-  { name: "Universo Paralello", location: "Bahia, Brazil", date: "DEC 27 – JAN 3, 2026", seed: "univ-dark-66" },
+  { name: "Boom Festival", location: "Idanha-a-Nova, Portugal", date: "AUG 12–18, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567590913.jpg" },
+  { name: "Ozora Festival", location: "Ozora, Hungary", date: "JUL 28 – AUG 3, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
+  { name: "Universo Paralello", location: "Bahia, Brazil", date: "DEC 27 – JAN 3, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591790.jpg" },
 ];
 
 function FestivalCard({ festival, delay, vis }: { festival: FestivalItem; delay: number; vis: boolean }) {
@@ -37,7 +36,7 @@ function FestivalCard({ festival, delay, vis }: { festival: FestivalItem; delay:
         onMouseLeave={() => setHov(false)}
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={`https://picsum.photos/seed/${festival.seed}/700/420`} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.07)" : "scale(1)" }} alt={festival.name} />
+        <img src={festival.imageUrl} style={{ width: "100%", height: "100%", objectFit: "cover", transition: "transform 0.6s", transform: hov ? "scale(1.07)" : "scale(1)" }} alt={festival.name} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to top, oklch(0% 0 0 / 0.9) 30%, oklch(0% 0 0 / 0.05) 100%)" }} />
         <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "24px" }}>
           <div style={{ display: "inline-flex", border: "1px solid var(--rust)", color: "var(--rust)", fontSize: "10px", padding: "3px 9px", borderRadius: "3px", letterSpacing: "0.1em", marginBottom: "10px", fontWeight: 700, textTransform: "uppercase" }}>
@@ -71,9 +70,9 @@ export default function FestivalSection() {
               Festival Radar
             </span>
           </div>
-          <Link href="/browse" style={{ fontSize: "12px", color: "var(--rust)", textDecoration: "none", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>
+          <span style={{ fontSize: "12px", color: "var(--rust)", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>
             View Calendar →
-          </Link>
+          </span>
         </div>
 
         <div className="festival-grid">

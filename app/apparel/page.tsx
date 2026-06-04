@@ -17,6 +17,14 @@ const CONDITION_COLORS: Record<string, string> = {
   vintage: "#7a4a90",
 };
 
+const SUBCATEGORY_TAGS = ["hoodie", "tee", "jacket", "dress", "leggings", "pants", "cloak", "kimono"];
+const TAG_LABELS: Record<string, string> = {
+  hoodie: "Hoodies", tee: "Tees", jacket: "Jackets", dress: "Dresses",
+  leggings: "Leggings", pants: "Pants", cloak: "Cloaks", kimono: "Kimonos",
+};
+const SORT_OPTIONS = ["Newest First", "Price: Low to High", "Price: High to Low"];
+const PRICE_RANGES = ["Any Price", "Under €50", "€50–€100", "€100–€200", "€200+"];
+
 function FeaturedCard({ item }: { item: Listing }) {
   const [hov, setHov] = useState(false);
   const condColor = CONDITION_COLORS[item.condition] || "var(--text-light)";
@@ -29,7 +37,7 @@ function FeaturedCard({ item }: { item: Listing }) {
       >
         <div style={{ position: "relative", overflow: "hidden" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0]} alt={item.title} style={{ width: "100%", height: "260px", objectFit: "cover", display: "block", transition: "transform 0.55s ease", transform: hov ? "scale(1.04)" : "scale(1)" }} />
+          <img src={item.images[0]} alt={item.title} style={{ width: "100%", height: "320px", objectFit: "cover", display: "block", transition: "transform 0.55s ease", transform: hov ? "scale(1.04)" : "scale(1)" }} />
           <span style={{ position: "absolute", top: "12px", left: "12px", background: "var(--rust)", color: "white", fontSize: "9px", padding: "4px 10px", borderRadius: "4px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Featured
           </span>
@@ -64,8 +72,9 @@ function FeaturedCard({ item }: { item: Listing }) {
   );
 }
 
-function GearCard({ item }: { item: Listing }) {
+function ApparelCard({ item }: { item: Listing }) {
   const [hov, setHov] = useState(false);
+  const condColor = CONDITION_COLORS[item.condition] || "var(--text-light)";
   return (
     <Link href={`/listing/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
       <div
@@ -75,15 +84,20 @@ function GearCard({ item }: { item: Listing }) {
       >
         <div style={{ overflow: "hidden" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0]} alt={item.title} className="gear-card-img" style={{ width: "100%", height: "180px", objectFit: "cover", display: "block", transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
+          <img src={item.images[0]} alt={item.title} style={{ width: "100%", height: "220px", objectFit: "cover", display: "block", transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
         </div>
         <div style={{ padding: "11px 13px 14px" }}>
-          <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</p>
-          <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
-            €{(item.priceCents / 100).toFixed(0)}
-          </p>
+          <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "4px", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</p>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
+            <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
+              €{(item.priceCents / 100).toFixed(0)}
+            </p>
+            <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "4px", background: `${condColor}18`, color: condColor, fontWeight: 600 }}>
+              {conditionLabels[item.condition]}
+            </span>
+          </div>
           {item.sellerHandle && (
-            <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "6px", paddingTop: "6px", borderTop: "1px solid var(--sand)" }}>
+            <div style={{ display: "flex", alignItems: "center", gap: "4px", paddingTop: "6px", borderTop: "1px solid var(--sand)" }}>
               {item.sellerAvatar
                 ? <img src={item.sellerAvatar} alt="" style={{ width: "16px", height: "16px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
                 : <div style={{ width: "16px", height: "16px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: 700, color: "white", flexShrink: 0 }}>{(item.sellerName || item.sellerHandle).charAt(0).toUpperCase()}</div>
@@ -111,10 +125,7 @@ function SectionHeading({ children, count }: { children: React.ReactNode; count?
   );
 }
 
-const SORT_OPTIONS = ["Newest First", "Price: Low to High", "Price: High to Low"];
-const PRICE_RANGES = ["Any Price", "Under €50", "€50–€100", "€100–€200", "€200+"];
-
-export default function MusicPage() {
+export default function ApparelPage() {
   const [allListings, setAllListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeTags, setActiveTags] = useState<string[]>([]);
@@ -127,20 +138,13 @@ export default function MusicPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "gear").eq("status", "active")
+    supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "clothing").eq("status", "active")
       .then(({ data }) => { setAllListings((data ?? []).map(toListing)); setLoading(false); });
   }, []);
 
-  // Compute top 8 tags by frequency across all listings
-  const topTags = Object.entries(
-    allListings.flatMap((l) => l.tags).reduce<Record<string, number>>((acc, t) => {
-      acc[t] = (acc[t] ?? 0) + 1;
-      return acc;
-    }, {})
-  )
-    .sort((a, b) => b[1] - a[1])
-    .slice(0, 8)
-    .map(([tag]) => tag);
+  const availableTags = SUBCATEGORY_TAGS.filter(tag =>
+    allListings.some(l => l.tags.includes(tag))
+  );
 
   const filtered = allListings.filter((l) => {
     if (activeTags.length > 0 && !activeTags.some((t) => l.tags.includes(t))) return false;
@@ -168,17 +172,17 @@ export default function MusicPage() {
       {/* Hero */}
       <div style={{ position: "relative", background: "var(--dark)", overflow: "hidden", minHeight: "300px", display: "flex", alignItems: "center" }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/music-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "60% center", opacity: 1 }} />
+        <img src="https://images.psy.market/listings/ai-generated/1780562083573.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 30%", opacity: 1 }} />
         <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, oklch(10% 0.01 55 / 0.92) 0%, oklch(10% 0.01 55 / 0.6) 45%, oklch(10% 0.01 55 / 0.05) 100%)" }} />
-        <div className="stagger-item site-shell music-hero-text" style={{ '--i': 0, position: "relative", zIndex: 1, paddingTop: "52px", paddingBottom: "52px" } as CSSProperties}>
+        <div className="stagger-item site-shell" style={{ '--i': 0, position: "relative", zIndex: 1, paddingTop: "52px", paddingBottom: "52px" } as CSSProperties}>
           <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--rust)", marginBottom: "10px" }}>
             Marketplace
           </p>
           <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "white", margin: "0 0 10px", letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-            Music Gear
+            Apparel
           </h1>
           <p style={{ fontSize: "15px", color: "oklch(72% 0.01 70)", maxWidth: "420px", lineHeight: 1.6, margin: 0 }}>
-            Explore synths, controllers, and everything you need to shape your sound.
+            Festival wear, sacred geometry prints, and handcrafted clothing for the dancefloor and beyond.
           </p>
         </div>
       </div>
@@ -189,14 +193,13 @@ export default function MusicPage() {
           <div className="browse-filter-row">
             <div className="browse-pills-group">
               <button onClick={() => setActiveTags([])} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", background: activeTags.length === 0 ? "var(--rust)" : "transparent", border: `1px solid ${activeTags.length === 0 ? "var(--rust)" : "var(--sand)"}`, color: activeTags.length === 0 ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>
-                All Gear
+                All Apparel
               </button>
-              {topTags.map((tag) => {
+              {availableTags.map((tag) => {
                 const active = activeTags.includes(tag);
-                const label = tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, " ");
                 return (
                   <button key={tag} onClick={() => toggleTag(tag)} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", background: active ? "var(--rust)" : "transparent", border: `1px solid ${active ? "var(--rust)" : "var(--sand)"}`, color: active ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>
-                    {label}
+                    {TAG_LABELS[tag] ?? tag}
                   </button>
                 );
               })}
@@ -228,31 +231,31 @@ export default function MusicPage() {
       </div>
 
       {/* Content */}
-      <div className="site-shell music-content" style={{ paddingTop: "48px", paddingBottom: "80px" }}>
+      <div className="site-shell" style={{ paddingTop: "48px", paddingBottom: "80px" }}>
         {loading ? (
           <>
             <div style={{ marginBottom: "48px" }}>
               <div className="skeleton-block" style={{ width: "160px", height: "22px", marginBottom: "24px" }} />
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "20px" }}>
-                {[0, 1, 2].map((i) => <div key={i} className="skeleton-block" style={{ height: "330px", borderRadius: "12px" }} />)}
+                {[0, 1, 2].map((i) => <div key={i} className="skeleton-block" style={{ height: "380px", borderRadius: "12px" }} />)}
               </div>
             </div>
             <div className="skeleton-block" style={{ width: "140px", height: "20px", marginBottom: "20px" }} />
-            <div className="music-gear-grid">
-              {Array.from({ length: 10 }).map((_, i) => <div key={i} className="skeleton-block" style={{ height: "230px" }} />)}
+            <div className="apparel-grid">
+              {Array.from({ length: 8 }).map((_, i) => <div key={i} className="skeleton-block" style={{ height: "270px" }} />)}
             </div>
           </>
         ) : filtered.length === 0 ? (
           <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-light)" }}>
-            <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "24px", marginBottom: "8px" }}>No gear found</p>
+            <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "24px", marginBottom: "8px" }}>No items found</p>
             <p style={{ fontSize: "14px" }}>Try a different filter</p>
           </div>
         ) : (
           <>
             {hasFeatured && (
               <div style={{ marginBottom: "56px" }}>
-                <SectionHeading>Featured Gear</SectionHeading>
-                <div className="music-featured-grid">
+                <SectionHeading>Featured Pieces</SectionHeading>
+                <div className="apparel-featured-grid">
                   {featuredItems.map((item, i) => (
                     <div key={item.id} className="stagger-item" style={{ '--i': i } as CSSProperties}>
                       <FeaturedCard item={item} />
@@ -264,11 +267,11 @@ export default function MusicPage() {
 
             {gridItems.length > 0 && (
               <div>
-                <SectionHeading count={filtered.length}>All Music Gear</SectionHeading>
-                <div className="music-gear-grid">
+                <SectionHeading count={filtered.length}>All Apparel</SectionHeading>
+                <div className="apparel-grid">
                   {gridItems.map((item, i) => (
                     <div key={item.id} className="stagger-item" style={{ '--i': Math.min(i, 9) } as CSSProperties}>
-                      <GearCard item={item} />
+                      <ApparelCard item={item} />
                     </div>
                   ))}
                 </div>
@@ -281,12 +284,12 @@ export default function MusicPage() {
       <Footer />
 
       <style>{`
-        .music-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
-        .music-gear-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-        @media (max-width: 1024px) { .music-gear-grid { grid-template-columns: repeat(4, 1fr); } }
+        .apparel-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .apparel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
+        @media (max-width: 1024px) { .apparel-grid { grid-template-columns: repeat(4, 1fr); } }
         @media (max-width: 768px) {
-          .music-featured-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .music-gear-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .apparel-featured-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+          .apparel-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
         }
       `}</style>
     </div>

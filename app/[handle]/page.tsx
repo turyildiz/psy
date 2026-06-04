@@ -134,6 +134,7 @@ function SellerProfilePageInner() {
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
   const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
   const [listings, setListings] = useState<Listing[]>([]);
+  const [listingsLoading, setListingsLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
   const [newListingOpen, setNewListingOpen] = useState(false);
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
@@ -185,6 +186,7 @@ function SellerProfilePageInner() {
       const { data: ls } = await supabase
         .from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("profile_id", data.id).eq("status", "active").order("created_at", { ascending: false });
       setListings((ls ?? []).map(toListing));
+      setListingsLoading(false);
     });
   }, [handle]);
 
@@ -413,7 +415,13 @@ function SellerProfilePageInner() {
             )}
           </div>
 
-          {listings.length === 0 ? (
+          {listingsLoading ? (
+            <div className="seller-grid">
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div key={i} className="skeleton-block" style={{ height: "280px", borderRadius: "10px" }} />
+              ))}
+            </div>
+          ) : listings.length === 0 ? (
             <div style={{ textAlign: "center", padding: "80px 0", color: "var(--text-light)" }}>
               <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "20px", marginBottom: "8px" }}>No active listings</p>
               <p style={{ fontSize: "14px" }}>Check back soon.</p>
@@ -481,6 +489,9 @@ function SellerProfilePageInner() {
         }
         @media (max-width: 768px) {
           .seller-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+        }
+        @media (max-width: 640px) {
+          .seller-grid { grid-template-columns: 1fr !important; gap: 10px; }
           .seller-hero { flex-wrap: wrap; gap: 20px; }
           .seller-hero-cta { width: 100%; }
           .seller-hero-cta a { width: 100%; box-sizing: border-box; }

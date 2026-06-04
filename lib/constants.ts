@@ -1,9 +1,9 @@
 import type { ListingCategory, ListingCondition } from "@/types/marketplace";
 
 export const categoryLabels: Record<ListingCategory, string> = {
-  clothing: "Clothing",
-  accessories: "Accessories",
-  gear: "Gear",
+  clothing: "Apparel",
+  accessories: "Jewellery",
+  gear: "Music",
   art: "Art",
   other: "Other",
 };
