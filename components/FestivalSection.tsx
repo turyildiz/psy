@@ -14,6 +14,7 @@ const FESTIVALS: FestivalItem[] = [
   { name: "Boom Festival", location: "Idanha-a-Nova, Portugal", date: "AUG 12–18, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567590913.jpg" },
   { name: "DROPS Festival", location: "Slovenia", date: "AUG 11–16, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585298177.jpg" },
   { name: "Ozora Festival", location: "Ozora, Hungary", date: "JUL 28 – AUG 3, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
+  { name: "Masters of Puppets", location: "Leeuwarden, NL", date: "JUL 6–13, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585482973.jpg" },
   { name: "Universo Paralello", location: "Bahia, Brazil", date: "DEC 27, 2026 – JAN 3, 2027", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591790.jpg" },
 ];
 
