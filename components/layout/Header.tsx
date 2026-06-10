@@ -133,10 +133,7 @@ export default function Header() {
     setLoggingOut(true);
     try { sessionStorage.removeItem("psy_auth"); } catch {}
     const supabase = createClient();
-    await Promise.all([
-      supabase.auth.signOut(),
-      new Promise<void>((r) => setTimeout(r, 800)),
-    ]);
+    await supabase.auth.signOut();
     window.location.href = "/";
   };
 

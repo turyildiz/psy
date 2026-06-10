@@ -87,3 +87,53 @@ export type MessageThread = {
   lastMessageAt: string;
   unreadCount: number;
 };
+
+export type Festival = {
+  id: string;
+  slug: string;
+  name: string;
+  city?: string;
+  country: string;
+  venue?: string;
+  dateStart: string;
+  dateEnd?: string;
+  coverImageUrl?: string;
+  logoUrl?: string;
+  description?: string;
+  websiteUrl?: string;
+  facebookUrl?: string;
+  instagramUrl?: string;
+  soundcloudUrl?: string;
+  createdAt: string;
+};
+
+export const RSVP_ROLES = ["attending", "selling"] as const;
+export type RsvpRole = (typeof RSVP_ROLES)[number];
+
+export type FestivalRsvp = {
+  id: string;
+  festivalId: string;
+  profileId: string;
+  role: RsvpRole;
+  createdAt: string;
+  profile?: Profile;
+};
+
+export const NOTICE_CATEGORIES = ["rideshare", "lost_found", "looking_for", "giving_away", "shoutout"] as const;
+export type NoticeCategory = (typeof NOTICE_CATEGORIES)[number];
+
+export const NOTICE_EMOJIS = ["❤️", "🙏", "🔥", "😂", "🫂"] as const;
+export type NoticeEmoji = (typeof NOTICE_EMOJIS)[number];
+
+export type NoticePost = {
+  id: string;
+  eventId: string;
+  profileId: string;
+  category: NoticeCategory;
+  title: string;
+  body: string;
+  contactHandle?: string;
+  createdAt: string;
+  profile?: Pick<Profile, "handle" | "displayName" | "avatarUrl">;
+  reactions?: { emoji: string; count: number; userReacted: boolean }[];
+};

@@ -89,11 +89,7 @@ export default function LoginPage() {
     setStatus("checking");
     const supabase = createClient();
 
-    // Run auth + minimum spinner time in parallel so spinner always shows
-    const [{ error: authError }] = await Promise.all([
-      supabase.auth.signInWithPassword({ email, password }),
-      new Promise<void>((r) => setTimeout(r, 700)),
-    ]);
+    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
     if (authError) {
       setStatus("idle");
@@ -106,9 +102,6 @@ export default function LoginPage() {
     }
 
     setStatus("success");
-    await new Promise<void>((r) => setTimeout(r, 900));
-    setFading(true);
-    await new Promise<void>((r) => setTimeout(r, 400));
     const next = new URLSearchParams(window.location.search).get("next") ?? "/";
     window.location.href = next;
   };

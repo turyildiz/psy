@@ -1,10 +1,12 @@
 # psy.market — Refined Product Requirements Document
 
+> **Implementation note (2026-06-04):** This PRD is still useful as the product target/history, but it is no longer a fully accurate description of the current repository. The current app includes Cloudflare R2 upload infrastructure, `conversations`-based messaging, profile/shop route `/{handle}`, and no implemented `/admin` route tree yet. Read `AGENTS.md` and `.agent-context/CURRENT_STATE.md` before using this PRD for implementation work.
+
 **Version:** 3.0
 **Date:** February 9, 2026
 **Owner:** Turgay Yildiz (Nettmedia)
 **Developer:** Gonzo AI (Nettmedia)
-**Status:** Refined — Ready for Implementation
+**Status:** Historical target — requires reconciliation with current implementation
 
 ---
 

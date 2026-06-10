@@ -1,9 +1,11 @@
 # psy.market — Engineering Specification
 
+> **Implementation note (2026-06-04):** This engineering spec is partially stale. It documents the original intended Supabase Storage/admin-review/message-thread architecture, but the current repository has diverged in storage, messaging, routing, and admin implementation. Read `AGENTS.md` and `.agent-context/CURRENT_STATE.md` before using this file as an implementation source of truth.
+
 **Version:** 1.1
 **Date:** February 9, 2026
 **Source:** REFINED_PRD.md v3.0
-**Status:** Ready for Implementation
+**Status:** Historical target — requires reconciliation with current implementation
 
 ---
 

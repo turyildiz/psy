@@ -35,7 +35,7 @@ const LANE_GAP = 10;
 const SIDE_PAD = 80;
 const HEADER_H = 50;
 const TIMELINE_START = new Date("2026-06-01");
-const TIMELINE_END = new Date("2027-02-01");
+const TIMELINE_END = new Date("2027-03-01");
 const TOTAL_DAYS = Math.ceil(
   (TIMELINE_END.getTime() - TIMELINE_START.getTime()) / 86400000
 );
@@ -143,6 +143,7 @@ function Ticker({ festivals }: { festivals: Festival[] }) {
 function FestivalTimeline({ festivals }: { festivals: Festival[] }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const [hoverId, setHoverId] = useState<string | null>(null);
+  const [showTodayBtn, setShowTodayBtn] = useState(false);
 
   const lanes = assignLanes(festivals);
   const numLanes =
@@ -158,11 +159,38 @@ function FestivalTimeline({ festivals }: { festivals: Festival[] }) {
   const canvasH = HEADER_H + numLanes * (CARD_H + LANE_GAP) + 40;
   const todayStr = new Date().toISOString().split("T")[0];
 
+  const scrollToToday = () => {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: Math.max(0, todayX - el.clientWidth / 3.5), behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el || festivals.length === 0) return;
+    // Land on today first, then smoothly scroll to next upcoming festival
+    el.scrollLeft = Math.max(0, todayX - el.clientWidth / 3.5);
+    const upcoming = [...festivals]
+      .filter(f => (f.dateEnd ?? f.dateStart) >= todayStr)
+      .sort((a, b) => a.dateStart.localeCompare(b.dateStart));
+    if (upcoming.length > 0) {
+      const targetX = Math.max(0, dayOffset(upcoming[0].dateStart) * DAY_PX + SIDE_PAD - el.clientWidth / 3);
+      setTimeout(() => {
+        el.scrollTo({ left: targetX, behavior: "smooth" });
+      }, 800);
+    }
+  }, [todayX, todayStr, festivals.length]); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    el.scrollLeft = Math.max(0, todayX - el.clientWidth / 3.5);
-  }, [todayX, festivals.length]);
+    const onScroll = () => {
+      const atToday = Math.abs(el.scrollLeft - Math.max(0, todayX - el.clientWidth / 3.5));
+      setShowTodayBtn(atToday > el.clientWidth * 0.6);
+    };
+    el.addEventListener("scroll", onScroll, { passive: true });
+    return () => el.removeEventListener("scroll", onScroll);
+  }, [todayX]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -208,7 +236,22 @@ function FestivalTimeline({ festivals }: { festivals: Festival[] }) {
           from { opacity: 0; transform: translateY(8px); }
           to   { opacity: 1; transform: translateY(0); }
         }
+        @keyframes swipe-drift {
+          0%   { opacity: 0; transform: translateX(0); }
+          20%  { opacity: 1; transform: translateX(0); }
+          60%  { opacity: 1; transform: translateX(-22px); }
+          100% { opacity: 0; transform: translateX(-28px); }
+        }
+        @keyframes today-btn-in {
+          from { opacity: 0; transform: translateY(8px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        .swipe-hint { display: none; }
+        @media (hover: none) and (pointer: coarse) {
+          .swipe-hint { display: flex; }
+        }
       `}</style>
+      <div style={{ position: "relative" }}>
       <div
         ref={scrollRef}
         style={{
@@ -441,7 +484,63 @@ function FestivalTimeline({ festivals }: { festivals: Festival[] }) {
               </Link>
             );
           })}
+
+          {/* Swipe hint — mobile only, fades out automatically */}
+          <div
+            className="swipe-hint"
+            style={{
+              position: "absolute",
+              bottom: 24,
+              left: "50%",
+              transform: "translateX(-50%)",
+              pointerEvents: "none",
+              zIndex: 30,
+              alignItems: "center",
+              gap: 8,
+              animation: "swipe-drift 2.8s ease 0.8s forwards",
+              opacity: 0,
+            }}
+          >
+            <span style={{ fontSize: 18, opacity: 0.5 }}>←</span>
+            <span style={{
+              fontSize: 10,
+              fontWeight: 700,
+              letterSpacing: "0.18em",
+              color: "oklch(75% 0.05 250)",
+              textTransform: "uppercase",
+              fontFamily: "var(--font-bricolage)",
+            }}>swipe to explore</span>
+            <span style={{ fontSize: 18, opacity: 0.5 }}>→</span>
+          </div>
         </div>
+      </div>
+
+      {/* Today button — appears when scrolled away from today */}
+      {showTodayBtn && (
+        <button
+          onClick={scrollToToday}
+          style={{
+            position: "absolute",
+            bottom: 20,
+            right: 16,
+            zIndex: 40,
+            background: "oklch(11% 0.03 250)",
+            border: "1px solid oklch(65% 0.18 40 / 0.6)",
+            color: "oklch(65% 0.18 40)",
+            fontSize: 10,
+            fontWeight: 800,
+            letterSpacing: "0.14em",
+            padding: "6px 14px",
+            borderRadius: 6,
+            cursor: "pointer",
+            fontFamily: "var(--font-bricolage)",
+            animation: "today-btn-in 0.2s ease both",
+            boxShadow: "0 0 12px oklch(65% 0.18 40 / 0.2)",
+          }}
+        >
+          ↩ TODAY
+        </button>
+      )}
       </div>
     </>
   );

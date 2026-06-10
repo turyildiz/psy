@@ -19,6 +19,7 @@ const tickets: TicketItem[] = [
   { name: "Universo Paralello", location: "Bahia, Brazil", date: "Dec 27–Jan 3, 2027", price: "€420", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591790.jpg" },
   { name: "Antaris Project", location: "Brandenburg, DE", date: "Jul 3–7", price: "€140", imageUrl: "https://images.psy.market/festivals/ai-generated/1780569015502.jpg" },
   { name: "Masters of Puppets", location: "Czech Republic", date: "Jul 6–13", price: "€190", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585482973.jpg" },
+  { name: "DROPS Festival", location: "Slovenia", date: "Aug 11–16", price: "€160", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585298177.jpg" },
 ];
 
 export default function HomePage() {

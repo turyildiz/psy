@@ -1,24 +1,30 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import Link from "next/link";
 import { useReveal } from "@/hooks/useReveal";
+import { createClient } from "@/lib/supabase/client";
 
 type FestivalItem = {
+  slug: string;
   name: string;
   location: string;
   date: string;
   imageUrl: string;
 };
 
-const FESTIVALS: FestivalItem[] = [
-  { name: "Masters of Puppets", location: "Czech Republic", date: "JUL 6–13, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585482973.jpg" },
-  { name: "Ozora Festival", location: "Ozora, Hungary", date: "JUL 28 – AUG 3, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
-  { name: "Mo:Dem Festival", location: "Primislje, Croatia", date: "AUG 3–9, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585779974.jpg" },
-  { name: "DROPS Festival", location: "Slovenia", date: "AUG 11–16, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585298177.jpg" },
-  { name: "Modular Festival", location: "Switzerland", date: "SEP 3–7, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780585621814.jpg" },
-  { name: "Space Safari", location: "Belgium", date: "SEP 4–7, 2026", imageUrl: "https://images.psy.market/festivals/ai-generated/1780586154816.jpg" },
-  { name: "Universo Paralello", location: "Bahia, Brazil", date: "DEC 27, 2026 – JAN 3, 2027", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591790.jpg" },
-];
+function formatDateRangeShort(start: string, end?: string): string {
+  const s = new Date(start);
+  if (!end) return s.toLocaleDateString("en-GB", { month: "short", day: "numeric" }).toUpperCase();
+  const e = new Date(end);
+  const sm = s.toLocaleDateString("en-GB", { month: "short" });
+  const em = e.toLocaleDateString("en-GB", { month: "short" });
+  const sy = s.getFullYear();
+  const ey = e.getFullYear();
+  if (sm === em && sy === ey) return `${sm.toUpperCase()} ${s.getDate()}–${e.getDate()}, ${sy}`;
+  if (sy !== ey) return `${sm.toUpperCase()} ${s.getDate()}, ${sy} – ${em.toUpperCase()} ${e.getDate()}, ${ey}`;
+  return `${sm.toUpperCase()} ${s.getDate()} – ${em.toUpperCase()} ${e.getDate()}, ${sy}`;
+}
 
 const GAP = 20;
 const ARROW_SPACE = 52;
@@ -26,6 +32,7 @@ const ARROW_SPACE = 52;
 function FestivalCard({ festival }: { festival: FestivalItem }) {
   const [hov, setHov] = useState(false);
   return (
+    <Link href={`/festivals/${festival.slug}`} style={{ textDecoration: "none", display: "block", flexShrink: 0 }}>
     <div
       style={{
         position: "relative",
@@ -33,7 +40,6 @@ function FestivalCard({ festival }: { festival: FestivalItem }) {
         overflow: "hidden",
         cursor: "pointer",
         height: "340px",
-        flexShrink: 0,
         boxShadow: hov ? "0 20px 56px oklch(0% 0 0 / 0.45)" : "0 4px 18px oklch(0% 0 0 / 0.28)",
         transform: hov ? "translateY(-5px)" : "none",
         transition: "all 0.35s ease",
@@ -59,6 +65,7 @@ function FestivalCard({ festival }: { festival: FestivalItem }) {
         </p>
       </div>
     </div>
+    </Link>
   );
 }
 
@@ -69,6 +76,27 @@ export default function FestivalSection() {
   const [itemW, setItemW] = useState(0);
   const [visible, setVisible] = useState(3);
   const [isMobile, setIsMobile] = useState(false);
+  const [festivals, setFestivals] = useState<FestivalItem[]>([]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const today = new Date().toISOString().split("T")[0];
+    supabase
+      .from("events")
+      .select("slug, name, city, country, start_date, end_date, cover_image_url")
+      .gte("end_date", today)
+      .order("start_date", { ascending: true })
+      .limit(8)
+      .then(({ data }) => {
+        setFestivals((data ?? []).map((row) => ({
+          slug: row.slug as string,
+          name: row.name as string,
+          location: [row.city, row.country].filter(Boolean).join(", "),
+          date: formatDateRangeShort(row.start_date as string, (row.end_date as string) ?? undefined),
+          imageUrl: (row.cover_image_url as string) ?? "",
+        })));
+      });
+  }, []);
 
   useEffect(() => {
     const update = () => {
@@ -86,7 +114,7 @@ export default function FestivalSection() {
     return () => window.removeEventListener("resize", update);
   }, []);
 
-  const max = Math.max(0, FESTIVALS.length - Math.ceil(visible));
+  const max = Math.max(0, festivals.length - Math.ceil(visible));
   const translateX = idx * (itemW + GAP);
 
   return (
@@ -99,15 +127,15 @@ export default function FestivalSection() {
               Festival Radar
             </span>
           </div>
-          <span style={{ fontSize: "12px", color: "var(--rust)", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase" }}>
+          <Link href="/festivals" style={{ fontSize: "12px", color: "var(--rust)", letterSpacing: "0.06em", fontWeight: 500, textTransform: "uppercase", textDecoration: "none" }}>
             View Calendar →
-          </span>
+          </Link>
         </div>
 
         {isMobile ? (
           /* Mobile: horizontal swipe scroll */
           <div style={{ overflowX: "auto", scrollSnapType: "x mandatory", display: "flex", gap: `${GAP}px`, paddingBottom: "8px", scrollbarWidth: "none" }}>
-            {FESTIVALS.map((f, i) => (
+            {festivals.map((f, i) => (
               <div key={i} style={{ scrollSnapAlign: "start", flexShrink: 0, width: "80vw" }}>
                 <FestivalCard festival={f} />
               </div>
@@ -128,7 +156,7 @@ export default function FestivalSection() {
             {/* Track */}
             <div style={{ flex: 1, overflow: "hidden", margin: "0 8px" }}>
               <div style={{ display: "flex", gap: `${GAP}px`, transform: `translateX(-${translateX}px)`, transition: "transform 0.4s ease" }}>
-                {FESTIVALS.map((f, i) => (
+                {festivals.map((f, i) => (
                   <div key={i} style={{ width: itemW || "auto", flexShrink: 0 }}>
                     <FestivalCard festival={f} />
                   </div>
