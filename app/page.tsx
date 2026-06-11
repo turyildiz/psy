@@ -3,6 +3,8 @@
 import { useState, useEffect } from "react";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import HomeHero from "@/components/HomeHero";
+import WallTeaser from "@/components/WallTeaser";
 import CategoryGrid from "@/components/CategoryGrid";
 import Carousel from "@/components/Carousel";
 import SellerCard from "@/components/SellerCard";
@@ -56,22 +58,18 @@ export default function HomePage() {
     <div>
       <Header />
 
-      <CategoryGrid title="Trending: Festival Fashion" link="View All" href="/apparel" items={fashionItems} loading={fashionItems.length === 0} />
+      {/* Dark statement opening */}
+      <HomeHero />
 
-      <Carousel
-        title="Community Spotlight"
-        link="Meet the Tribe"
-        items={sellers}
-        renderItem={(s) => <SellerCard seller={s} />}
-        bg="var(--cream-mid)"
-      />
+      {/* Commerce world — light */}
+      <CategoryGrid title="Trending: Festival Fashion" link="View All" href="/apparel" items={fashionItems} bg="var(--cream)" loading={fashionItems.length === 0} />
 
+      <CategoryGrid title="Jewellery & Accessories" link="View All" href="/jewellery" items={jewelleryItems} bigOnRight bg="var(--cream-mid)" loading={jewelleryItems.length === 0} />
 
-      <CategoryGrid title="Jewellery & Accessories" link="View All" href="/jewellery" items={jewelleryItems} bigOnRight bg="var(--cream)" loading={jewelleryItems.length === 0} />
-
+      {/* Culture world — one dark band: festivals, the walls, tickets */}
       <FestivalSection />
 
-      <CategoryGrid title="Music & Instruments" link="View All" href="/music" items={musicItems} bg="var(--cream-mid)" loading={musicItems.length === 0} />
+      <WallTeaser />
 
       <Carousel
         title="Tickets"
@@ -80,6 +78,17 @@ export default function HomePage() {
         renderItem={(t) => <TicketCard ticket={t} />}
         bg="var(--dark)"
         light
+      />
+
+      {/* Back to commerce + community — light */}
+      <CategoryGrid title="Music & Instruments" link="View All" href="/music" items={musicItems} bg="var(--cream)" loading={musicItems.length === 0} />
+
+      <Carousel
+        title="Community Spotlight"
+        link="Meet the Tribe"
+        items={sellers}
+        renderItem={(s) => <SellerCard seller={s} />}
+        bg="var(--cream-mid)"
       />
 
       <Footer />

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -710,7 +710,9 @@ export default function FestivalPage() {
   const [festival, setFestival] = useState<Festival | null>(null);
   const [loading, setLoading] = useState(true);
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
-  const [tab, setTab] = useState<"info" | "going" | "board">("info");
+  const searchParams = useSearchParams();
+  const tabParam = searchParams?.get("tab");
+  const [tab, setTab] = useState<"info" | "going" | "board">(tabParam === "board" || tabParam === "going" ? tabParam : "info");
 
   useEffect(() => {
     if (!slug) return;

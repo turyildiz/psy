@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, useEffect, type CSSProperties } from "react";
+import { useState, useEffect, Suspense, type CSSProperties } from "react";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
@@ -141,6 +142,17 @@ function ProductCard({ item }: { item: Listing }) {
 /* ── Page ── */
 
 export default function BrowsePage() {
+  return (
+    <Suspense fallback={null}>
+      <BrowseContent />
+    </Suspense>
+  );
+}
+
+function BrowseContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const q = searchParams?.get("q")?.trim() ?? "";
   const [allListings, setAllListings] = useState<Listing[]>([]);
   const [loading, setLoading] = useState(true);
   const [subcats, setSubcats] = useState<string[]>([]);
@@ -150,9 +162,11 @@ export default function BrowsePage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "clothing").eq("status", "active")
-      .then(({ data }) => { setAllListings((data ?? []).map(toListing)); setLoading(false); });
-  }, []);
+    setLoading(true);
+    let query = supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("status", "active");
+    if (!q) query = query.eq("category", "clothing");
+    query.then(({ data }) => { setAllListings((data ?? []).map(toListing)); setLoading(false); });
+  }, [q]);
 
   const toggleSubcat = (s: string) => {
     if (s === "All") { setSubcats([]); return; }
@@ -161,8 +175,10 @@ export default function BrowsePage() {
     );
   };
 
+  const ql = q.toLowerCase();
   const filtered = allListings.filter((p) => {
-    if (subcats.length > 0 && !subcats.some((s) => p.tags.includes(SUBCAT_TAG[s]))) return false;
+    if (ql && !(`${p.title} ${p.description} ${p.tags.join(" ")}`.toLowerCase().includes(ql))) return false;
+    if (!ql && subcats.length > 0 && !subcats.some((s) => p.tags.includes(SUBCAT_TAG[s]))) return false;
     const price = p.priceCents / 100;
     if (priceRange === "Under €50" && price >= 50) return false;
     if (priceRange === "€50–€100" && (price < 50 || price > 100)) return false;
@@ -274,12 +290,17 @@ export default function BrowsePage() {
         <div style={{ display: "flex", alignItems: "baseline", gap: "12px", marginBottom: "24px", flexWrap: "wrap" }}>
           <p style={{ fontSize: "11px", color: "var(--text-light)", letterSpacing: "0.08em", textTransform: "uppercase" }}>
             <Link href="/" style={{ color: "var(--text-light)", textDecoration: "none" }}>Home</Link>
-            {" → Apparel"}
+            {q ? " → Search" : " → Apparel"}
           </p>
           <div style={{ width: "1px", height: "12px", background: "var(--sand)" }} />
           <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "20px", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.02em", margin: 0 }}>
-            Festival Fashion
+            {q ? <>Search: &ldquo;{q}&rdquo;</> : "Festival Fashion"}
           </h1>
+          {q && (
+            <button onClick={() => router.push("/browse")} style={{ fontSize: "12px", color: "var(--rust)", background: "none", border: "1px solid var(--sand)", borderRadius: "20px", padding: "3px 12px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>
+              Clear ×
+            </button>
+          )}
           <span style={{ fontSize: "12px", color: "var(--text-light)" }}>{filtered.length} results</span>
         </div>
         {loading ? (
