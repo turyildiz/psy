@@ -2,6 +2,55 @@
 
 ---
 
+## 2026-06-11 — The Wall corkboard redesign by Claude
+
+### Iteration v6 — full dark festival page + Wall chrome (third reference, "This is it")
+- **Whole festival detail page is now dark** (oklch 14%): title, tabs, breadcrumb, loading/404 states + dark passes on Info tab (light text, dark link buttons) and Who's Going tab (dark profile cards, dark RSVP dropdown)
+- **Wall intro header**: ornament glyph, "The Wall" title + subtitle, three trust chips (Real People / Be Respectful / Stay Safe) with stroke icons
+- **Controls row**: green "Post a note" button (or "Log in to post" link), live search input (filters title/body/handle), sort dropdown (Newest / Oldest / Most loved)
+- **Filter pills**: dark pills with per-category counts; active pill is light
+- **Notes**: category badge is now a dark translucent chip with icon; red URGENT chip auto-shows when title/body matches /urgent|dringend/i (no DB column needed)
+- **Pagination**: 12 notes visible, "Load more notes" pill inside the board
+- **New dark wall texture** generated with Gemini (`public/textures/wall-dark.jpg`, 124KB, bottom stone ledge cropped off); colour splotches + per-festival cover-art bleed layer kept
+- Form submit button now green to match
+
+### Iteration v5 — photoreal texture base
+- Generated a photoreal weathered-plaster wall texture with Gemini (gemini-2.5-flash-image, one-off API call using the bereket-pipeline GEMINI_API_KEY), compressed to 1024px JPEG (~222KB) at `public/textures/wall-grunge.jpg`
+- `.wall-board` now uses the photo texture as base layer (center/cover); procedural linear-gradient plaster removed; kept fine noise + purple/green splotch radials + bottom grime radial on top
+- Festival cover art still bleeds through via `.wall-art` multiply layer
+
+### Iteration v4 — "real festival wall" (second reference image)
+- Board is no longer cork: plastered/grungy festival wall — warm beige concrete via layered turbulence, paint splotches (purple/green), dirt patches in corners
+- **Festival's own cover art bleeds through** the wall as faded graffiti (`.wall-art`: absolutely-positioned cover image, multiply blend, masked ellipse right side) — automatic per festival
+- Three attachment variants per note (hash-deterministic): pinned / taped at corners (no pin) / spiral-notebook page (white paper, punched holes via CSS mask, forced near-white)
+- Masonry now 2 wide columns on desktop (notes read like posters), 1 on mobile
+- `NoticeBoardTab` now takes `coverUrl` prop
+- Removed unused paperclip accessory from v3
+
+### Iteration v3 (after Turgay's reference image — "that's perfect")
+- Board: realistic tan cork (two-scale SVG turbulence) + 12px dark wood frame, inner bevel/vignette shadows
+- Notes: weathered coloured paper per category (sun-bleached blue/yellow/green/cream/white), paper grain, two creases, faint stain, worn-edge vignette, torn edges via per-note clip-path variants, curled bottom-right corner
+- Typography: Permanent Marker (new next/font) for uppercase underlined titles, Caveat 19px for handwritten bodies; form inputs match
+- Physical variety per note (hash-deterministic): pin colour (5 options), pin x-position (3 options), tear shape (3 options), accessory (none/tape strip/paperclip SVG)
+- Category icons: minimal inline stroke SVGs (car/magnifier/eye/package/megaphone) — replaced emojis after feedback; filter tabs are coloured paper chips with icons, slight rotation
+- Feedback loop: v1 cartoon cork + pastel papers + emojis → "childish"; v2 dark felt + neutral papers → "too clean"; v3 matches Turgay's AI reference mock
+
+
+### The Wall (festivals/[slug], "board" tab) — full visual redesign
+- **Corkboard aesthetic** (as originally planned in context docs): cork-textured board with wood frame (`.wall-board`), masonry layout via CSS columns (3/2/1 responsive)
+- **Paper notes**: pinned sticky notes with deterministic per-post rotation (hash of post id), CSS pin with category-colored head, hover straightens note
+- **Category colors**: pastel paper per category (rideshare=blue, lost_found=yellow, looking_for=green, giving_away=pink, shoutout=cream) — `CATEGORY_PAPER` map in page.tsx
+- **Caveat font** added via next/font in `app/layout.tsx` (`--font-caveat`) — used for note titles, filter tabs, empty state
+- **Filter tabs** restyled as little paper tabs (slight rotations)
+- **Post form** restyled as a blank paper note in the selected category color; button is now "Pin it 📌"
+- **Realtime**: `postgres_changes` subscription on `notice_posts` filtered by event_id → board refetches when anyone pins/removes a note. NOTE: requires `notice_posts` to be in the `supabase_realtime` publication — NOT yet verified/enabled in Supabase.
+- **"N new notes since your last visit"** banner: localStorage key `psy-wall-seen-{festivalId}`; unseen notes get a rotated red NEW sticker (`.is-new`)
+- All existing functionality preserved: post/delete/reactions/filter/login-gating
+- New CSS: `.wall-*` classes appended to `app/globals.css`
+- Built + deployed to staging (localhost:3030). NOT pushed to GitHub/production yet.
+
+---
+
 ## 2026-06-07 (afternoon) — Festival + performance fixes by Claude
 
 ### Festival Calendar (continued from morning)

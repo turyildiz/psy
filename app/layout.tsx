@@ -1,11 +1,23 @@
 import type { Metadata } from "next";
-import { Manrope, Bricolage_Grotesque } from "next/font/google";
+import { Manrope, Bricolage_Grotesque, Caveat, Permanent_Marker } from "next/font/google";
 import "./globals.css";
 
 const manrope = Manrope({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700"],
   variable: "--font-manrope",
+});
+
+const caveat = Caveat({
+  subsets: ["latin"],
+  weight: ["500", "700"],
+  variable: "--font-caveat",
+});
+
+const permanentMarker = Permanent_Marker({
+  subsets: ["latin"],
+  weight: ["400"],
+  variable: "--font-marker",
 });
 
 const bricolageGrotesque = Bricolage_Grotesque({
@@ -26,7 +38,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${manrope.variable} ${bricolageGrotesque.variable}`}>
+    <html lang="en" className={`${manrope.variable} ${bricolageGrotesque.variable} ${caveat.variable} ${permanentMarker.variable}`}>
       <body>{children}</body>
     </html>
   );

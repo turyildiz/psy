@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
@@ -45,12 +45,100 @@ function formatDateRange(start: string, end?: string): string {
 }
 
 const CATEGORY_LABELS: Record<NoticeCategory, string> = {
-  rideshare: "🚗 Rideshare",
-  lost_found: "📱 Lost & Found",
-  looking_for: "👋 Looking For",
-  giving_away: "🎁 Giving Away",
-  shoutout: "💬 Shoutout",
+  rideshare: "Rideshare",
+  lost_found: "Lost & Found",
+  looking_for: "Looking For",
+  giving_away: "Giving Away",
+  shoutout: "Shoutout",
 };
+
+// Weathered coloured paper per category — desaturated, sun-bleached tones
+const CATEGORY_PAPER: Record<NoticeCategory, string> = {
+  rideshare:   "oklch(86% 0.05 235)",
+  lost_found:  "oklch(88% 0.10 95)",
+  looking_for: "oklch(87% 0.08 130)",
+  giving_away: "oklch(93% 0.03 85)",
+  shoutout:    "oklch(95% 0.012 90)",
+};
+
+// Dark ink used for icons/labels on the paper
+const NOTE_INK = "oklch(28% 0.03 60)";
+
+// Physical variety, assigned deterministically per note
+const PIN_COLORS = ["oklch(50% 0.19 28)", "oklch(44% 0.15 255)", "oklch(46% 0.12 150)", "oklch(62% 0.13 85)", "oklch(28% 0.02 60)"];
+const PIN_XS = ["22%", "50%", "78%"];
+const NOTE_TEARS = [
+  "0.8% 0.4%, 26% 0.9%, 52% 0.2%, 78% 1%, 99.4% 0.5%, 99.8% 27%, 99.1% 53%, 99.9% 76%, 99.3% 99.4%, 73% 99%, 49% 99.8%, 24% 99.1%, 0.6% 99.6%, 1% 74%, 0.2% 51%, 0.9% 28%",
+  "0.3% 0.8%, 22% 0.2%, 47% 1.1%, 74% 0.4%, 99.6% 0.9%, 99.2% 24%, 99.8% 49%, 99.1% 73%, 99.7% 99.2%, 76% 99.7%, 53% 99%, 27% 99.8%, 0.7% 99.1%, 0.2% 77%, 1% 52%, 0.4% 26%",
+  "1.1% 0.2%, 28% 1%, 55% 0.4%, 80% 0.9%, 99% 0.3%, 99.7% 29%, 99% 55%, 99.8% 80%, 99% 99%, 71% 99.5%, 46% 99%, 21% 99.6%, 0.9% 99%, 0.5% 72%, 0.9% 47%, 0.3% 22%",
+];
+
+
+// Minimal stroke icons per category (lucide-style paths, inline like the rest of the codebase)
+const CATEGORY_ICON_PATHS: Record<NoticeCategory, React.ReactNode> = {
+  rideshare: (
+    <>
+      <path d="M19 17h2c.6 0 1-.4 1-1v-3c0-.9-.7-1.7-1.5-1.9C18.7 10.6 16 10 16 10s-1.3-1.4-2.2-2.3c-.5-.4-1.1-.7-1.8-.7H5c-.6 0-1.1.4-1.4.9l-1.4 2.9A3.7 3.7 0 0 0 2 12v4c0 .6.4 1 1 1h2" />
+      <circle cx="7" cy="17" r="2" />
+      <path d="M9 17h6" />
+      <circle cx="17" cy="17" r="2" />
+    </>
+  ),
+  lost_found: (
+    <>
+      <circle cx="11" cy="11" r="8" />
+      <path d="m21 21-4.3-4.3" />
+    </>
+  ),
+  looking_for: (
+    <>
+      <path d="M2.062 12.348a1 1 0 0 1 0-.696 10.75 10.75 0 0 1 19.876 0 1 1 0 0 1 0 .696 10.75 10.75 0 0 1-19.876 0" />
+      <circle cx="12" cy="12" r="3" />
+    </>
+  ),
+  giving_away: (
+    <>
+      <path d="m7.5 4.27 9 5.15" />
+      <path d="M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z" />
+      <path d="m3.3 7 8.7 5 8.7-5" />
+      <path d="M12 22V12" />
+    </>
+  ),
+  shoutout: (
+    <>
+      <path d="m3 11 18-5v12L3 14v-3z" />
+      <path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" />
+    </>
+  ),
+};
+
+function CategoryIcon({ cat, size = 13, color }: { cat: NoticeCategory; size?: number; color?: string }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color ?? "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+      {CATEGORY_ICON_PATHS[cat]}
+    </svg>
+  );
+}
+
+function PinIcon({ size = 13 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ flexShrink: 0 }} aria-hidden>
+      <path d="M12 17v5" />
+      <path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1z" />
+    </svg>
+  );
+}
+
+function noteHash(id: string): number {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
+// Deterministic small rotation per note so the board looks hand-pinned but stable
+function noteRotation(id: string): number {
+  return ((noteHash(id) % 9) - 4) * 0.55; // -2.2° … +2.2°
+}
 
 const NOTICE_EMOJIS: NoticeEmoji[] = ["❤️", "🙏", "🔥", "😂", "🫂"];
 
@@ -134,11 +222,11 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
             </button>
           )}
           {showPicker && (
-            <div style={{ position: "absolute", top: "110%", left: 0, background: "white", border: "1px solid var(--cream-mid)", borderRadius: 8, boxShadow: "0 8px 24px oklch(0% 0 0 / 0.12)", zIndex: 50, minWidth: 200, overflow: "hidden" }}>
-              <button onClick={() => handleRsvp("attending")} style={{ display: "block", width: "100%", padding: "12px 18px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: 14, borderBottom: "1px solid var(--cream-mid)" }}>
+            <div style={{ position: "absolute", top: "110%", left: 0, background: "oklch(20% 0.015 55)", border: "1px solid oklch(30% 0.015 55)", borderRadius: 8, boxShadow: "0 8px 24px oklch(0% 0 0 / 0.4)", zIndex: 50, minWidth: 200, overflow: "hidden" }}>
+              <button onClick={() => handleRsvp("attending")} style={{ display: "block", width: "100%", padding: "12px 18px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "oklch(92% 0.01 80)", borderBottom: "1px solid oklch(30% 0.015 55)" }}>
                 👋 Attending
               </button>
-              <button onClick={() => handleRsvp("selling")} style={{ display: "block", width: "100%", padding: "12px 18px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: 14 }}>
+              <button onClick={() => handleRsvp("selling")} style={{ display: "block", width: "100%", padding: "12px 18px", textAlign: "left", background: "none", border: "none", cursor: "pointer", fontSize: 14, color: "oklch(92% 0.01 80)" }}>
                 🛍️ I&apos;ll be selling
               </button>
             </div>
@@ -149,14 +237,14 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
       {/* Stats */}
       {!loading && (
         <div style={{ display: "flex", gap: 20, marginBottom: 24 }}>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}><strong style={{ color: "var(--text)" }}>{sellers.length}</strong> sellers</span>
-          <span style={{ fontSize: 13, color: "var(--muted)" }}><strong style={{ color: "var(--text)" }}>{attendees.length}</strong> attending</span>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}><strong style={{ color: "oklch(92% 0.01 80)" }}>{sellers.length}</strong> sellers</span>
+          <span style={{ fontSize: 13, color: "var(--muted)" }}><strong style={{ color: "oklch(92% 0.01 80)" }}>{attendees.length}</strong> attending</span>
         </div>
       )}
 
       {loading ? (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
-          {[1,2,3,4,5].map(i => <div key={i} style={{ height: 220, borderRadius: 8, background: "var(--cream-mid)", animation: "pulse 1.5s infinite" }} />)}
+          {[1,2,3,4,5].map(i => <div key={i} style={{ height: 220, borderRadius: 8, background: "oklch(24% 0.015 55)", animation: "pulse 1.5s infinite" }} />)}
         </div>
       ) : rsvps.length === 0 ? (
         <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 14 }}>No one has RSVPed yet. Be the first!</div>
@@ -165,8 +253,8 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 16 }}>
             {visible.map((entry) => (
               <Link key={entry.id} href={`/${entry.profile.handle}`} style={{ textDecoration: "none" }}>
-                <div style={{ background: "white", borderRadius: 8, border: "1px solid var(--cream-mid)", overflow: "hidden", transition: "box-shadow 0.2s" }}>
-                  <div style={{ height: 140, background: "var(--cream-mid)", position: "relative" }}>
+                <div style={{ background: "oklch(20% 0.015 55)", borderRadius: 8, border: "1px solid oklch(30% 0.015 55)", overflow: "hidden", transition: "box-shadow 0.2s" }}>
+                  <div style={{ height: 140, background: "oklch(24% 0.015 55)", position: "relative" }}>
                     {entry.profile.avatarUrl && (
                       // eslint-disable-next-line @next/next/no-img-element
                       <img src={entry.profile.avatarUrl} alt={entry.profile.displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
@@ -178,7 +266,7 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
                     </div>
                   </div>
                   <div style={{ padding: "10px 12px" }}>
-                    <p style={{ fontFamily: "var(--font-bricolage)", fontWeight: 600, fontSize: 14, color: "var(--text)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.profile.displayName}</p>
+                    <p style={{ fontFamily: "var(--font-bricolage)", fontWeight: 600, fontSize: 14, color: "oklch(92% 0.01 80)", marginBottom: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{entry.profile.displayName}</p>
                     <p style={{ fontSize: 11, color: "var(--muted)" }}>@{entry.profile.handle}</p>
                   </div>
                 </div>
@@ -187,7 +275,7 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
           </div>
           {rsvps.length > visible.length && (
             <div style={{ textAlign: "center", marginTop: 24 }}>
-              <button onClick={() => setPage(p => p + 1)} style={{ padding: "10px 24px", border: "1px solid var(--cream-mid)", background: "white", borderRadius: 6, cursor: "pointer", fontSize: 14, color: "var(--text)" }}>
+              <button onClick={() => setPage(p => p + 1)} style={{ padding: "10px 24px", border: "1px solid oklch(30% 0.015 55)", background: "oklch(20% 0.015 55)", borderRadius: 6, cursor: "pointer", fontSize: 14, color: "oklch(92% 0.01 80)" }}>
                 Load more ({rsvps.length - visible.length} more)
               </button>
             </div>
@@ -199,13 +287,19 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
 }
 
 // ---- Notice Board Tab ----
-function NoticeBoardTab({ festivalId, myProfileId }: { festivalId: string; myProfileId: string | null }) {
+function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: string; myProfileId: string | null; coverUrl?: string }) {
   const [posts, setPosts] = useState<NoticePost[]>([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [form, setForm] = useState({ category: "shoutout" as NoticeCategory, title: "", body: "", contactHandle: "" });
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<NoticeCategory | "all">("all");
+  const [query, setQuery] = useState("");
+  const [sort, setSort] = useState<"newest" | "oldest" | "loved">("newest");
+  const [visibleCount, setVisibleCount] = useState(12);
+  const [newCount, setNewCount] = useState(0);
+  const lastSeenRef = useRef(0);
+  const seenInitRef = useRef(false);
 
   const fetchPosts = async () => {
     const supabase = createClient();
@@ -242,6 +336,29 @@ function NoticeBoardTab({ festivalId, myProfileId }: { festivalId: string; myPro
   };
 
   useEffect(() => { fetchPosts(); }, [festivalId, myProfileId]);
+
+  // "N new notes since your last visit" — tracked per festival in localStorage
+  useEffect(() => {
+    if (loading || seenInitRef.current) return;
+    seenInitRef.current = true;
+    const key = `psy-wall-seen-${festivalId}`;
+    const last = Number(localStorage.getItem(key) ?? 0);
+    lastSeenRef.current = last;
+    if (last > 0) {
+      setNewCount(posts.filter(p => new Date(p.createdAt).getTime() > last).length);
+    }
+    localStorage.setItem(key, String(Date.now()));
+  }, [loading, festivalId, posts]);
+
+  // Live board: refetch when notes are pinned/removed by anyone
+  useEffect(() => {
+    const supabase = createClient();
+    const channel = supabase
+      .channel(`wall-${festivalId}`)
+      .on("postgres_changes", { event: "*", schema: "public", table: "notice_posts", filter: `event_id=eq.${festivalId}` }, () => fetchPosts())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [festivalId]);
 
   const submitPost = async () => {
     if (!myProfileId || !form.title.trim() || !form.body.trim()) return;
@@ -280,26 +397,102 @@ function NoticeBoardTab({ festivalId, myProfileId }: { festivalId: string; myPro
     fetchPosts();
   };
 
-  const filtered = filter === "all" ? posts : posts.filter(p => p.category === filter);
+  const counts = posts.reduce((acc, p) => { acc[p.category] = (acc[p.category] ?? 0) + 1; return acc; }, {} as Record<string, number>);
+  const q = query.trim().toLowerCase();
+  const filtered = posts
+    .filter(p => filter === "all" || p.category === filter)
+    .filter(p => !q || p.title.toLowerCase().includes(q) || p.body.toLowerCase().includes(q) || (p.profile?.handle ?? "").toLowerCase().includes(q))
+    .sort((a, b) => {
+      if (sort === "oldest") return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      if (sort === "loved") return (b.reactions?.reduce((s, r) => s + r.count, 0) ?? 0) - (a.reactions?.reduce((s, r) => s + r.count, 0) ?? 0);
+      return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+    });
+  const visiblePosts = filtered.slice(0, visibleCount);
 
   return (
     <div>
-      {/* Post button */}
-      {myProfileId && !showForm && (
-        <div style={{ marginBottom: 24 }}>
-          <button onClick={() => setShowForm(true)} style={{ padding: "10px 22px", background: "var(--rust)", color: "white", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 14, cursor: "pointer" }}>
-            + Post on board
+      {/* The Wall intro */}
+      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginBottom: 24 }}>
+        <div style={{ display: "flex", gap: 14, alignItems: "flex-start", minWidth: 0 }}>
+          <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="oklch(68% 0.10 140)" strokeWidth="1.1" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, marginTop: 3 }}>
+            <path d="M12 2.5 21 20H3Z" />
+            <circle cx="12" cy="14" r="3" />
+            <path d="M12 2.5V8" />
+          </svg>
+          <div>
+            <h2 style={{ fontFamily: "var(--font-bricolage)", fontSize: 24, fontWeight: 700, color: "oklch(94% 0.01 80)", margin: 0, letterSpacing: "-0.02em" }}>The Wall</h2>
+            <p style={{ fontSize: 13.5, color: "oklch(62% 0.02 70)", margin: "4px 0 0", maxWidth: 420, lineHeight: 1.55 }}>
+              Your community board for rides, lost items, gear, and good vibes. Help each other out.
+            </p>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 20, flexWrap: "wrap" }}>
+          {([
+            ["Real People", "Verified community", <><path key="a" d="M21.8 10A10 10 0 1 1 17 3.34" /><path key="b" d="m9 11 3 3L22 4" /></>],
+            ["Be Respectful", "Keep it kind & helpful", <path key="a" d="M19 14c1.5-1.4 3-3.2 3-5.5A5.5 5.5 0 0 0 16.5 3c-1.8 0-3 .5-4.5 2-1.5-1.5-2.7-2-4.5-2A5.5 5.5 0 0 0 2 8.5c0 2.3 1.5 4.1 3 5.5l7 7Z" />],
+            ["Stay Safe", "Meet smart, trust your gut", <path key="a" d="M20 13c0 5-3.5 7.5-7.7 9a.6.6 0 0 1-.6 0C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.2-2.7a1.2 1.2 0 0 1 1.6 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z" />],
+          ] as [string, string, React.ReactNode][]).map(([t, s, icon]) => (
+            <div key={t} style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="oklch(68% 0.10 140)" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0 }}>{icon}</svg>
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "oklch(88% 0.01 80)", lineHeight: 1.3 }}>{t}</div>
+                <div style={{ fontSize: 11, color: "oklch(58% 0.02 70)", lineHeight: 1.3 }}>{s}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Controls: post + search + sort */}
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 16 }}>
+        {myProfileId ? (
+          <button onClick={() => setShowForm(v => !v)} style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "oklch(68% 0.15 135)", color: "oklch(16% 0.03 140)", border: "none", borderRadius: 8, fontWeight: 700, fontSize: 13.5, cursor: "pointer", fontFamily: "var(--font-manrope)" }}>
+            <PinIcon size={14} /> Post a note
           </button>
+        ) : (
+          <Link href="/login" style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "10px 20px", background: "oklch(68% 0.15 135)", color: "oklch(16% 0.03 140)", borderRadius: 8, fontWeight: 700, fontSize: 13.5, textDecoration: "none", fontFamily: "var(--font-manrope)" }}>
+            <PinIcon size={14} /> Log in to post
+          </Link>
+        )}
+        <div style={{ position: "relative", flex: 1, minWidth: 170 }}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="oklch(55% 0.02 70)" strokeWidth="2" strokeLinecap="round" aria-hidden style={{ position: "absolute", left: 12, top: "50%", transform: "translateY(-50%)" }}>
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.3-4.3" />
+          </svg>
+          <input
+            value={query}
+            onChange={e => { setQuery(e.target.value); setVisibleCount(12); }}
+            placeholder="Search the wall…"
+            style={{ width: "100%", boxSizing: "border-box", background: "oklch(20% 0.015 55)", border: "1px solid oklch(30% 0.015 55)", borderRadius: 8, padding: "10px 12px 10px 34px", fontSize: 13.5, color: "oklch(90% 0.01 80)", outline: "none", fontFamily: "var(--font-manrope)" }}
+          />
+        </div>
+        <select
+          value={sort}
+          onChange={e => setSort(e.target.value as "newest" | "oldest" | "loved")}
+          aria-label="Sort notes"
+          style={{ background: "oklch(20% 0.015 55)", border: "1px solid oklch(30% 0.015 55)", borderRadius: 8, padding: "10px 12px", fontSize: 13, color: "oklch(85% 0.01 80)", cursor: "pointer", fontFamily: "var(--font-manrope)" }}
+        >
+          <option value="newest">Newest</option>
+          <option value="oldest">Oldest</option>
+          <option value="loved">Most loved</option>
+        </select>
+      </div>
+
+      {/* New-notes banner */}
+      {newCount > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <span className="wall-new-banner">{newCount} new note{newCount > 1 ? "s" : ""} since your last visit</span>
         </div>
       )}
 
-      {/* New post form */}
+      {/* New note form — a blank paper note in the selected category's paper */}
       {showForm && (
-        <div style={{ background: "white", border: "1px solid var(--cream-mid)", borderRadius: 10, padding: "20px", marginBottom: 28, boxShadow: "0 4px 16px oklch(0% 0 0 / 0.06)" }}>
+        <div style={{ position: "relative", background: CATEGORY_PAPER[form.category], borderRadius: 2, padding: "30px 18px 18px", marginBottom: 28, maxWidth: 460, boxShadow: "0 4px 12px oklch(0% 0 0 / 0.22)", transform: "rotate(-0.5deg)" }}>
+          <span className="wall-pin" style={{ "--pin-color": PIN_COLORS[0] } as React.CSSProperties} />
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
             {(Object.entries(CATEGORY_LABELS) as [NoticeCategory, string][]).map(([cat, label]) => (
               <button key={cat} onClick={() => setForm(f => ({ ...f, category: cat }))}
-                style={{ padding: "6px 12px", borderRadius: 20, border: "1px solid", fontSize: 12, cursor: "pointer", fontWeight: 500, background: form.category === cat ? "var(--dark)" : "white", color: form.category === cat ? "white" : "var(--text)", borderColor: form.category === cat ? "var(--dark)" : "var(--cream-mid)" }}>
+                style={{ display: "inline-flex", alignItems: "center", gap: 6, padding: "5px 11px", borderRadius: 20, border: "1px solid", fontSize: 12, cursor: "pointer", fontWeight: 500, background: form.category === cat ? "var(--dark)" : "oklch(100% 0 0 / 0.55)", color: form.category === cat ? "white" : "var(--text)", borderColor: form.category === cat ? "var(--dark)" : "oklch(0% 0 0 / 0.15)" }}>
+                <CategoryIcon cat={cat} size={12} color={form.category === cat ? "white" : NOTE_INK} />
                 {label}
               </button>
             ))}
@@ -307,107 +500,158 @@ function NoticeBoardTab({ festivalId, myProfileId }: { festivalId: string; myPro
           <input
             value={form.title}
             onChange={e => setForm(f => ({ ...f, title: e.target.value.slice(0, 80) }))}
-            placeholder="Title (required, max 80 chars)"
-            style={{ width: "100%", border: "1px solid var(--cream-mid)", borderRadius: 6, padding: "9px 12px", fontSize: 14, outline: "none", fontFamily: "inherit", marginBottom: 10, boxSizing: "border-box", fontWeight: 600 }}
+            placeholder="Title — write it big"
+            style={{ width: "100%", border: "none", borderBottom: "1.5px dashed oklch(0% 0 0 / 0.2)", background: "transparent", padding: "4px 2px 8px", fontFamily: "var(--font-marker), cursive", fontSize: 16, textTransform: "uppercase", color: "oklch(22% 0.03 60)", outline: "none", marginBottom: 10, boxSizing: "border-box" }}
           />
           <textarea
             value={form.body}
             onChange={e => setForm(f => ({ ...f, body: e.target.value.slice(0, 200) }))}
             placeholder="What's on your mind? (max 200 chars)"
             rows={3}
-            style={{ width: "100%", border: "1px solid var(--cream-mid)", borderRadius: 6, padding: "10px 12px", fontSize: 14, resize: "none", outline: "none", fontFamily: "inherit", boxSizing: "border-box" }}
+            style={{ width: "100%", border: "none", background: "transparent", padding: "4px 2px", fontSize: 19, lineHeight: 1.3, resize: "none", outline: "none", fontFamily: "var(--font-caveat), cursive", fontWeight: 500, color: "oklch(24% 0.03 55)", boxSizing: "border-box" }}
           />
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 4, marginBottom: 12 }}>
-            <span style={{ fontSize: 11, color: "var(--muted)" }}>{form.body.length}/200</span>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 2, marginBottom: 10 }}>
+            <span style={{ fontSize: 11, color: "oklch(45% 0.02 60)" }}>{form.body.length}/200</span>
           </div>
           <input
             value={form.contactHandle}
             onChange={e => setForm(f => ({ ...f, contactHandle: e.target.value }))}
             placeholder="Contact handle (optional — Telegram, Instagram…)"
-            style={{ width: "100%", border: "1px solid var(--cream-mid)", borderRadius: 6, padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "inherit", marginBottom: 14, boxSizing: "border-box" }}
+            style={{ width: "100%", border: "1px solid oklch(0% 0 0 / 0.15)", borderRadius: 6, background: "oklch(100% 0 0 / 0.5)", padding: "8px 12px", fontSize: 13, outline: "none", fontFamily: "var(--font-manrope)", marginBottom: 14, boxSizing: "border-box" }}
           />
           <div style={{ display: "flex", gap: 10 }}>
-            <button onClick={submitPost} disabled={submitting || !form.title.trim() || !form.body.trim()} style={{ padding: "9px 20px", background: "var(--rust)", color: "white", border: "none", borderRadius: 6, fontWeight: 600, fontSize: 13, cursor: "pointer", opacity: submitting || !form.title.trim() || !form.body.trim() ? 0.6 : 1 }}>
-              {submitting ? "Posting…" : "Post"}
+            <button onClick={submitPost} disabled={submitting || !form.title.trim() || !form.body.trim()} style={{ padding: "9px 20px", background: "oklch(50% 0.13 140)", color: "white", border: "none", borderRadius: 6, fontWeight: 700, fontSize: 13, cursor: "pointer", opacity: submitting || !form.title.trim() || !form.body.trim() ? 0.6 : 1 }}>
+              {submitting ? "Pinning…" : "Pin it"}
             </button>
-            <button onClick={() => setShowForm(false)} style={{ padding: "9px 16px", background: "none", border: "1px solid var(--cream-mid)", borderRadius: 6, fontSize: 13, cursor: "pointer", color: "var(--muted)" }}>
+            <button onClick={() => setShowForm(false)} style={{ padding: "9px 16px", background: "oklch(100% 0 0 / 0.5)", border: "1px solid oklch(0% 0 0 / 0.15)", borderRadius: 6, fontSize: 13, cursor: "pointer", color: "var(--text)" }}>
               Cancel
             </button>
           </div>
         </div>
       )}
 
-      {/* Category filter */}
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
-        <button onClick={() => setFilter("all")} style={{ padding: "5px 14px", borderRadius: 20, border: "1px solid", fontSize: 12, cursor: "pointer", background: filter === "all" ? "var(--text)" : "white", color: filter === "all" ? "white" : "var(--text)", borderColor: filter === "all" ? "var(--text)" : "var(--cream-mid)" }}>
-          All
+      {/* Category filter — dark pills with counts */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 18 }}>
+        <button className="wall-tab" onClick={() => { setFilter("all"); setVisibleCount(12); }}
+          style={{ background: filter === "all" ? "oklch(93% 0.012 85)" : "oklch(20% 0.015 55 / 0.85)", color: filter === "all" ? "oklch(20% 0.02 55)" : "oklch(78% 0.015 70)" }}>
+          All Notes
+          <span className="wall-tab-count" style={filter === "all" ? { background: "oklch(0% 0 0 / 0.1)" } : undefined}>{posts.length}</span>
         </button>
         {(Object.entries(CATEGORY_LABELS) as [NoticeCategory, string][]).map(([cat, label]) => (
-          <button key={cat} onClick={() => setFilter(cat)} style={{ padding: "5px 14px", borderRadius: 20, border: "1px solid", fontSize: 12, cursor: "pointer", background: filter === cat ? "var(--text)" : "white", color: filter === cat ? "white" : "var(--text)", borderColor: filter === cat ? "var(--text)" : "var(--cream-mid)" }}>
+          <button key={cat} className="wall-tab" onClick={() => { setFilter(cat); setVisibleCount(12); }}
+            style={{ background: filter === cat ? "oklch(93% 0.012 85)" : "oklch(20% 0.015 55 / 0.85)", color: filter === cat ? "oklch(20% 0.02 55)" : "oklch(78% 0.015 70)" }}>
+            <CategoryIcon cat={cat} size={13} color={filter === cat ? "oklch(20% 0.02 55)" : "oklch(70% 0.02 70)"} />
             {label}
+            <span className="wall-tab-count" style={filter === cat ? { background: "oklch(0% 0 0 / 0.1)" } : undefined}>{counts[cat] ?? 0}</span>
           </button>
         ))}
       </div>
 
-      {loading ? (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {[1,2,3].map(i => <div key={i} style={{ height: 110, borderRadius: 8, background: "var(--cream-mid)", animation: "pulse 1.5s infinite" }} />)}
-        </div>
-      ) : filtered.length === 0 ? (
-        <div style={{ padding: "60px 0", textAlign: "center", color: "var(--muted)", fontSize: 14 }}>
-          {filter === "all" ? "No posts yet — be the first!" : "No posts in this category yet."}
-        </div>
-      ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-          {filtered.map((post) => (
-            <div key={post.id} style={{ background: "white", border: "1px solid var(--cream-mid)", borderRadius: 10, padding: "16px 18px", position: "relative" }}>
-              {/* Category badge */}
-              <span style={{ fontSize: 10, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "var(--rust)", marginBottom: 6, display: "block" }}>
-                {CATEGORY_LABELS[post.category]}
-              </span>
-              {post.title && (
-                <p style={{ fontSize: 15, fontWeight: 700, color: "var(--text)", marginBottom: 6, lineHeight: 1.3 }}>{post.title}</p>
-              )}
-              <p style={{ fontSize: 14, color: "var(--text)", lineHeight: 1.5, marginBottom: 10 }}>{post.body}</p>
-              {post.contactHandle && (
-                <p style={{ fontSize: 12, color: "var(--muted)", marginBottom: 10 }}>Contact: <strong>{post.contactHandle}</strong></p>
-              )}
-              {/* Footer */}
-              <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-                <Link href={`/${post.profile?.handle}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none" }}>
-                  {post.profile?.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={post.profile.avatarUrl} alt="" style={{ width: 22, height: 22, borderRadius: "50%", objectFit: "cover" }} />
-                  ) : (
-                    <div style={{ width: 22, height: 22, borderRadius: "50%", background: "var(--cream-mid)" }} />
+      {/* The wall — plastered festival board, the festival's art bleeds through */}
+      <div className="wall-board">
+        {coverUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img className="wall-art" src={coverUrl} alt="" aria-hidden />
+        )}
+        {loading ? (
+          <div className="wall-masonry">
+            {[1, 2, 3, 4, 5, 6].map(i => (
+              <div key={i} className="wall-note" style={{ background: "oklch(95% 0.02 80)", height: 150, animation: "pulse 1.5s infinite", "--note-rot": `${(i % 2 === 0 ? 1 : -1) * 1.2}deg` } as React.CSSProperties} />
+            ))}
+          </div>
+        ) : filtered.length === 0 ? (
+          <div style={{ padding: "70px 20px", textAlign: "center" }}>
+            <p style={{ fontFamily: "var(--font-caveat), cursive", fontWeight: 700, fontSize: 26, color: "oklch(96% 0.02 80)", textShadow: "0 1px 3px oklch(0% 0 0 / 0.3)", margin: 0 }}>
+              {q ? "Nothing on the wall matches your search." : filter === "all" ? "The board is empty — pin the first note!" : "No notes in this category yet."}
+            </p>
+          </div>
+        ) : (
+          <div className="wall-masonry">
+            {visiblePosts.map((post) => {
+              const h = noteHash(post.id);
+              // attachment style: 0 = pinned, 1 = taped at the corners, 2 = spiral notebook page
+              const attachment = (h >> 5) % 3;
+              const paper = attachment === 2 ? "oklch(96% 0.008 90)" : (CATEGORY_PAPER[post.category] ?? CATEGORY_PAPER.shoutout);
+              const pinColor = PIN_COLORS[h % PIN_COLORS.length];
+              const pinX = PIN_XS[(h >> 3) % PIN_XS.length];
+              const tear = NOTE_TEARS[h % NOTE_TEARS.length];
+              const isNew = lastSeenRef.current > 0 && new Date(post.createdAt).getTime() > lastSeenRef.current;
+              const isUrgent = /urgent|dringend/i.test(`${post.title} ${post.body}`);
+              return (
+                <div key={post.id} className={`wall-note${attachment === 2 ? " wall-note-notebook" : ""}${isNew ? " is-new" : ""}`}
+                  style={{ backgroundColor: paper, "--note-rot": `${noteRotation(post.id)}deg`, "--pin-color": pinColor, "--pin-x": pinX, "--tear": tear } as React.CSSProperties}>
+                  {attachment !== 1 && <span className="wall-pin" />}
+                  {attachment === 1 && (
+                    <>
+                      <span className="wall-tape-corner" style={{ top: -5, left: -20, transform: "rotate(-45deg)" }} />
+                      <span className="wall-tape-corner" style={{ top: -5, right: -20, transform: "rotate(45deg)" }} />
+                      {h % 2 === 0 && <span className="wall-tape-corner" style={{ bottom: -5, left: "38%", transform: "rotate(3deg)", top: "auto" }} />}
+                    </>
                   )}
-                  <span style={{ fontSize: 12, color: "var(--muted)" }}>@{post.profile?.handle}</span>
-                </Link>
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>·</span>
-                <span style={{ fontSize: 11, color: "var(--muted)" }}>
-                  {new Date(post.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
-                </span>
-                {/* Reactions */}
-                <div style={{ display: "flex", gap: 6, marginLeft: "auto", flexWrap: "wrap" }}>
-                  {NOTICE_EMOJIS.map((emoji) => {
-                    const r = post.reactions?.find(rx => rx.emoji === emoji);
-                    return (
-                      <button key={emoji} onClick={() => toggleReaction(post.id, emoji)}
-                        style={{ display: "flex", alignItems: "center", gap: 3, padding: "3px 8px", borderRadius: 20, border: "1px solid", fontSize: 13, cursor: myProfileId ? "pointer" : "default", background: r?.userReacted ? "oklch(93% 0.04 40)" : "white", borderColor: r?.userReacted ? "var(--rust)" : "var(--cream-mid)", color: "var(--text)", transition: "all 0.15s" }}>
-                        {emoji}{r?.count ? <span style={{ fontSize: 11, color: "var(--muted)" }}>{r.count}</span> : null}
-                      </button>
-                    );
-                  })}
+                  {/* Category chip + urgent flag */}
+                  <span style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 6, marginBottom: 7 }}>
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 5, fontSize: 9.5, fontWeight: 700, letterSpacing: "0.06em", textTransform: "uppercase", color: "oklch(92% 0.01 80)", background: "oklch(16% 0.012 55 / 0.8)", padding: "3px 8px", borderRadius: 4 }}>
+                      <CategoryIcon cat={post.category} size={10} color="oklch(92% 0.01 80)" />
+                      {CATEGORY_LABELS[post.category]}
+                    </span>
+                    {isUrgent && (
+                      <span style={{ fontSize: 9, fontWeight: 800, letterSpacing: "0.08em", textTransform: "uppercase", color: "white", background: "oklch(52% 0.2 28)", padding: "3px 8px", borderRadius: 4, transform: "rotate(1.5deg)" }}>
+                        Urgent
+                      </span>
+                    )}
+                  </span>
+                  {post.title && <p className="wall-note-title">{post.title}</p>}
+                  <p className="wall-note-body">{post.body}</p>
+                  {post.contactHandle && (
+                    <p style={{ fontSize: 12, color: "oklch(38% 0.03 60)", marginBottom: 10, fontFamily: "var(--font-manrope)" }}>
+                      Contact: <strong>{post.contactHandle}</strong>
+                    </p>
+                  )}
+                  {/* Footer: author + date */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: "1px dashed oklch(0% 0 0 / 0.15)", paddingTop: 8, marginTop: 2 }}>
+                    <Link href={`/${post.profile?.handle}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none", minWidth: 0 }}>
+                      {post.profile?.avatarUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img src={post.profile.avatarUrl} alt="" style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
+                      ) : (
+                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "oklch(0% 0 0 / 0.1)", flexShrink: 0 }} />
+                      )}
+                      <span style={{ fontSize: 12, color: "oklch(38% 0.03 60)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{post.profile?.handle}</span>
+                    </Link>
+                    <span style={{ fontSize: 11, color: "oklch(48% 0.025 60)", marginLeft: "auto", flexShrink: 0 }}>
+                      {new Date(post.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
+                    </span>
+                    {post.profileId === myProfileId && (
+                      <button onClick={() => deletePost(post.id)} title="Remove note" style={{ fontSize: 12, color: "oklch(45% 0.03 60)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>✕</button>
+                    )}
+                  </div>
+                  {/* Reactions */}
+                  <div style={{ display: "flex", gap: 5, marginTop: 8, flexWrap: "wrap" }}>
+                    {NOTICE_EMOJIS.map((emoji) => {
+                      const r = post.reactions?.find(rx => rx.emoji === emoji);
+                      if (!r?.count && !myProfileId) return null;
+                      return (
+                        <button key={emoji} onClick={() => toggleReaction(post.id, emoji)}
+                          style={{ display: "flex", alignItems: "center", gap: 3, padding: "2px 7px", borderRadius: 20, border: "1px solid", fontSize: 12, cursor: myProfileId ? "pointer" : "default", background: r?.userReacted ? "oklch(100% 0 0 / 0.8)" : "oklch(100% 0 0 / 0.35)", borderColor: r?.userReacted ? "var(--rust)" : "oklch(0% 0 0 / 0.12)", color: "var(--text)", transition: "all 0.15s" }}>
+                          {emoji}{r?.count ? <span style={{ fontSize: 11, color: "oklch(38% 0.03 60)" }}>{r.count}</span> : null}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-                {/* Delete own post */}
-                {post.profileId === myProfileId && (
-                  <button onClick={() => deletePost(post.id)} style={{ fontSize: 11, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", marginLeft: 4 }}>✕</button>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+              );
+            })}
+          </div>
+        )}
+        {!loading && filtered.length > visibleCount && (
+          <div style={{ textAlign: "center", marginTop: 6, position: "relative" }}>
+            <button onClick={() => setVisibleCount(c => c + 12)}
+              style={{ padding: "10px 26px", background: "oklch(18% 0.012 55 / 0.85)", border: "1px solid oklch(40% 0.02 60)", borderRadius: 999, color: "oklch(85% 0.01 80)", fontSize: 13, fontWeight: 600, cursor: "pointer", fontFamily: "var(--font-manrope)" }}>
+              Load more notes ({filtered.length - visibleCount} more)
+            </button>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -424,7 +668,7 @@ function InfoTab({ festival }: { festival: Festival }) {
   return (
     <div style={{ maxWidth: 480 }}>
       {festival.description && (
-        <p style={{ fontSize: 15, color: "var(--text)", lineHeight: 1.7, marginBottom: 28 }}>{festival.description}</p>
+        <p style={{ fontSize: 15, color: "oklch(92% 0.01 80)", lineHeight: 1.7, marginBottom: 28 }}>{festival.description}</p>
       )}
       <div style={{ marginBottom: 24 }}>
         <div style={{ fontSize: 11, fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase", color: "var(--muted)", marginBottom: 10 }}>Details</div>
@@ -436,7 +680,7 @@ function InfoTab({ festival }: { festival: Festival }) {
             ].map(({ label, value }) => (
               <tr key={label}>
                 <td style={{ padding: "8px 0", fontSize: 13, color: "var(--muted)", fontWeight: 500, width: 90, verticalAlign: "top" }}>{label}</td>
-                <td style={{ padding: "8px 0 8px 16px", fontSize: 13, color: "var(--text)", borderBottom: "1px solid var(--cream-mid)" }}>{value}</td>
+                <td style={{ padding: "8px 0 8px 16px", fontSize: 13, color: "oklch(92% 0.01 80)", borderBottom: "1px solid oklch(30% 0.015 55)" }}>{value}</td>
               </tr>
             ))}
           </tbody>
@@ -448,7 +692,7 @@ function InfoTab({ festival }: { festival: Festival }) {
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
             {links.map(({ label, icon, href }) => (
               <a key={label} href={href} target="_blank" rel="noopener noreferrer"
-                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "1px solid var(--cream-mid)", borderRadius: 6, textDecoration: "none", fontSize: 13, color: "var(--text)", background: "white", transition: "border-color 0.2s" }}>
+                style={{ display: "flex", alignItems: "center", gap: 6, padding: "8px 14px", border: "1px solid oklch(30% 0.015 55)", borderRadius: 6, textDecoration: "none", fontSize: 13, color: "oklch(92% 0.01 80)", background: "oklch(20% 0.015 55)", transition: "border-color 0.2s" }}>
                 <span>{icon}</span> {label}
               </a>
             ))}
@@ -486,12 +730,12 @@ export default function FestivalPage() {
 
   if (loading) {
     return (
-      <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
+      <div style={{ background: "oklch(14% 0.015 55)", minHeight: "100vh" }}>
         <Header />
-        <div style={{ height: 300, background: "var(--cream-mid)", animation: "pulse 1.5s infinite" }} />
+        <div style={{ height: 300, background: "oklch(24% 0.015 55)", animation: "pulse 1.5s infinite" }} />
         <div className="site-shell" style={{ paddingTop: 32 }}>
-          <div style={{ height: 40, width: 300, background: "var(--cream-mid)", borderRadius: 6, marginBottom: 16, animation: "pulse 1.5s infinite" }} />
-          <div style={{ height: 20, width: 180, background: "var(--cream-mid)", borderRadius: 4, animation: "pulse 1.5s infinite" }} />
+          <div style={{ height: 40, width: 300, background: "oklch(24% 0.015 55)", borderRadius: 6, marginBottom: 16, animation: "pulse 1.5s infinite" }} />
+          <div style={{ height: 20, width: 180, background: "oklch(24% 0.015 55)", borderRadius: 4, animation: "pulse 1.5s infinite" }} />
         </div>
       </div>
     );
@@ -499,10 +743,10 @@ export default function FestivalPage() {
 
   if (!festival) {
     return (
-      <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
+      <div style={{ background: "oklch(14% 0.015 55)", minHeight: "100vh" }}>
         <Header />
         <div className="site-shell" style={{ paddingTop: 80, textAlign: "center" }}>
-          <h1 style={{ fontFamily: "var(--font-bricolage)", fontSize: 32, color: "var(--text)" }}>Festival not found</h1>
+          <h1 style={{ fontFamily: "var(--font-bricolage)", fontSize: 32, color: "oklch(92% 0.01 80)" }}>Festival not found</h1>
           <Link href="/festivals" style={{ color: "var(--rust)", fontSize: 14 }}>← Back to Festival Calendar</Link>
         </div>
       </div>
@@ -516,7 +760,7 @@ export default function FestivalPage() {
   ] as const;
 
   return (
-    <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
+    <div style={{ background: "oklch(14% 0.015 55)", minHeight: "100vh" }}>
       <Header />
 
       {/* Hero image */}
@@ -538,23 +782,23 @@ export default function FestivalPage() {
         <div style={{ display: "flex", alignItems: "flex-start", gap: 20, marginBottom: 32 }}>
           {festival.logoUrl && (
             // eslint-disable-next-line @next/next/no-img-element
-            <img src={festival.logoUrl} alt="" style={{ width: 72, height: 72, objectFit: "contain", borderRadius: 8, background: "white", border: "1px solid var(--cream-mid)", padding: 8, flexShrink: 0 }} />
+            <img src={festival.logoUrl} alt="" style={{ width: 72, height: 72, objectFit: "contain", borderRadius: 8, background: "white", border: "1px solid oklch(30% 0.015 55)", padding: 8, flexShrink: 0 }} />
           )}
           <div>
-            <h1 style={{ fontFamily: "var(--font-bricolage)", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 700, color: "var(--text)", letterSpacing: "-0.03em", margin: 0, lineHeight: 1.1, marginBottom: 8 }}>
+            <h1 style={{ fontFamily: "var(--font-bricolage)", fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 700, color: "oklch(92% 0.01 80)", letterSpacing: "-0.03em", margin: 0, lineHeight: 1.1, marginBottom: 8 }}>
               {festival.name}
             </h1>
-            <p style={{ fontSize: 14, color: "var(--muted)", margin: 0 }}>
+            <p style={{ fontSize: 14, color: "oklch(62% 0.02 70)", margin: 0 }}>
               {formatDateRange(festival.dateStart, festival.dateEnd)} · {[festival.city, festival.country].filter(Boolean).join(", ")}
             </p>
           </div>
         </div>
 
         {/* Tabs */}
-        <div style={{ borderBottom: "2px solid var(--cream-mid)", display: "flex", gap: 0, marginBottom: 32 }}>
+        <div style={{ borderBottom: "2px solid oklch(30% 0.015 55)", display: "flex", gap: 0, marginBottom: 32 }}>
           {TABS.map(({ key, label }) => (
             <button key={key} onClick={() => setTab(key)}
-              style={{ padding: "10px 24px", background: "none", border: "none", fontSize: 14, fontWeight: tab === key ? 600 : 400, color: tab === key ? "var(--text)" : "var(--muted)", cursor: "pointer", borderBottom: tab === key ? "2px solid var(--rust)" : "2px solid transparent", marginBottom: -2, transition: "color 0.15s" }}>
+              style={{ padding: "10px 24px", background: "none", border: "none", fontSize: 14, fontWeight: tab === key ? 600 : 400, color: tab === key ? "oklch(92% 0.01 80)" : "oklch(62% 0.02 70)", cursor: "pointer", borderBottom: tab === key ? "2px solid var(--rust)" : "2px solid transparent", marginBottom: -2, transition: "color 0.15s" }}>
               {label}
             </button>
           ))}
@@ -563,7 +807,7 @@ export default function FestivalPage() {
         {/* Tab content */}
         {tab === "info" && <InfoTab festival={festival} />}
         {tab === "going" && <WhoGoingTab festivalId={festival.id} myProfileId={myProfileId} />}
-        {tab === "board" && <NoticeBoardTab festivalId={festival.id} myProfileId={myProfileId} />}
+        {tab === "board" && <NoticeBoardTab festivalId={festival.id} myProfileId={myProfileId} coverUrl={festival.coverImageUrl} />}
       </div>
 
       <Footer />
