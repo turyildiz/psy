@@ -15,6 +15,7 @@ const CATEGORIES = [
   { label: "Tickets", href: null },
   { label: "Vintage", href: null },
   { label: "New Arrivals", href: null },
+  { label: "Contact us", href: "/contact" },
 ];
 
 const QUICK_LINKS = [

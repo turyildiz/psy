@@ -28,3 +28,11 @@ Last updated: 2026-06-07 by Claude
 - Admin approval queue — decided against for V1, may revisit post-launch
 - Legal pages content — need writing before public launch
 - Featured listings monetization — mechanism TBD
+
+## Proposed / pending review
+
+| Decision | Proposed choice | Notes |
+|---|---|---|
+| VPS staging auto-deploy | GitHub Actions SSH deploy on every push to `main` | Documented in `docs/STAGING_AUTO_DEPLOY_PRD.md`; preferred over a public VPS webhook listener because it avoids exposing a deploy endpoint and keeps logs in GitHub Actions. |
+| Staging checkout strategy | `git reset --hard origin/main` | Pending Turgay approval; cleanest if `/home/repos/psy` is treated as deployment state. Alternative: `git pull --ff-only origin main`. |
+| Staging restart strategy | Confirm before implementation | Current pattern is `fuser -k 3030/tcp` and systemd restart; may switch to explicit `psy.service` restart after confirming service scope. |

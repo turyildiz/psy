@@ -82,10 +82,15 @@ CREATE TABLE notice_posts (
 **Placement:** Tab on each `/festivals/[slug]` page. Possibly standalone `/board` later.
 
 ---
-
 ## After festival sprint
 
+### Infrastructure / deployment
+
+- Review and implement VPS staging auto-deploy for `psy.heyturgay.com` so any push to GitHub `main` rebuilds staging automatically. Proposed PRD: `docs/STAGING_AUTO_DEPLOY_PRD.md`.
+- Decide before implementation: `git reset --hard origin/main` vs `git pull --ff-only`, and `fuser -k 3030/tcp` vs explicit `psy.service` restart.
+
 ### High priority
+
 - Edit profile page (`/profile/edit`) — button exists, page not built
 - Edit listing page (`/listing/[id]/edit`) — icon exists, page not built
 - Fix browse page search (`?q=` param currently ignored)

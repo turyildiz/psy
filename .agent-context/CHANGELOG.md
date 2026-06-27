@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-06-27 — Documented VPS staging auto-deploy proposal by Hermes
+
+- Created `docs/STAGING_AUTO_DEPLOY_PRD.md` for GitHub Actions → SSH → VPS staging auto-deploy on every push to `main`.
+- Updated `README.md` to link the new focused docs folder and clarify that `psy.heyturgay.com` is VPS staging, separate from Vercel production.
+- Updated `.agent-context/NEXT_STEPS.md` and `.agent-context/DECISIONS.md` with pending deployment decisions: checkout strategy (`reset --hard` vs `pull --ff-only`) and restart strategy (`fuser -k 3030/tcp` vs explicit service restart).
+
+---
+
+## 2026-06-11 (evening) — Shipped Wall to production + homepage redesign branch by Claude
+
+- Pushed Wall v6 to main (d35066e) → Vercel production deploy. This is the rollback anchor.
+- Created branch `redesign/homepage` (5a4de1b, pushed): HomeHero (dark texture hero + working search + live stats), WallTeaser (latest notes → ?tab=board deep links), two-world section order, /browse ?q= support (fixes header search), /festivals/[slug] ?tab= support. Staging runs this branch.
+
+---
+
 ## 2026-06-11 — The Wall corkboard redesign by Claude
 
 ### Iteration v6 — full dark festival page + Wall chrome (third reference, "This is it")

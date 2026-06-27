@@ -68,3 +68,4 @@ After writing any file in `.agent-context/`: `chmod 664 /home/repos/psy/.agent-c
 - `REFINED_PRD.md` — product requirements (v3.0). Useful for product intent but **stale in several areas** — trust CURRENT_STATE.md over this for implementation reality.
 - `SPEC.md` — technical spec (partially stale — trust git log over spec).
 - `USER_ROLES.md` — role definitions.
+- `docs/STAGING_AUTO_DEPLOY_PRD.md` — proposed VPS staging auto-deploy plan; not implemented yet.

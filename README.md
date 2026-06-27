@@ -39,6 +39,10 @@ The older product docs remain useful but are partly stale:
 - `SPEC.md`
 - `USER_ROLES.md`
 
+Focused docs live in `docs/`:
+
+- `docs/STAGING_AUTO_DEPLOY_PRD.md` — proposed GitHub Actions → VPS staging auto-deploy plan for `psy.heyturgay.com`.
+
 ## Main implemented routes
 
 Public/mostly public:
@@ -92,6 +96,8 @@ npm run dev
 ```
 
 The public tunnel memory for this project is `psy.heyturgay.com`, expected to target local port `3030`.
+
+`psy.heyturgay.com` is VPS staging, separate from Vercel production. See `docs/STAGING_AUTO_DEPLOY_PRD.md` for the proposed plan to auto-rebuild/restart VPS staging whenever GitHub `main` changes.
 
 ## Safe verification
 
