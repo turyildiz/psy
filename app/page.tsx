@@ -56,7 +56,7 @@ export default function HomePage() {
     <div>
       <Header />
 
-      <CategoryGrid title="Trending: Psy Fashion" link="View All" href="/apparel" items={fashionItems} loading={fashionItems.length === 0} />
+      <CategoryGrid title="Trending: Festival Fashion" link="View All" href="/apparel" items={fashionItems} loading={fashionItems.length === 0} />
 
       <Carousel
         title="Community Spotlight"
