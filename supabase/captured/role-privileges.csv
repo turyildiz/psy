@@ -1,0 +1,2 @@
+current_user,connect,create_db,create_public_schema,select_profiles,insert_profiles,update_profiles,delete_profiles
+audit_readonly,t,f,f,t,f,f,f

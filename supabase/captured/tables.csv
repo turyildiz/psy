@@ -1,0 +1,47 @@
+schema_name,table_name,relkind,relpersistence,rls_enabled,rls_forced,comment
+auth,audit_log_entries,r,p,t,f,Auth: Audit trail for user actions.
+auth,custom_oauth_providers,r,p,f,f,
+auth,flow_state,r,p,t,f,Stores metadata for all OAuth/SSO login flows
+auth,identities,r,p,t,f,Auth: Stores identities associated to a user.
+auth,instances,r,p,t,f,Auth: Manages users across multiple sites.
+auth,mfa_amr_claims,r,p,t,f,auth: stores authenticator method reference claims for multi factor authentication
+auth,mfa_challenges,r,p,t,f,auth: stores metadata about challenge requests made
+auth,mfa_factors,r,p,t,f,auth: stores metadata about factors
+auth,oauth_authorizations,r,p,f,f,
+auth,oauth_client_states,r,p,f,f,Stores OAuth states for third-party provider authentication flows where Supabase acts as the OAuth client.
+auth,oauth_clients,r,p,f,f,
+auth,oauth_consents,r,p,f,f,
+auth,one_time_tokens,r,p,t,f,
+auth,refresh_tokens,r,p,t,f,Auth: Store of tokens used to refresh JWT tokens once they expire.
+auth,saml_providers,r,p,t,f,Auth: Manages SAML Identity Provider connections.
+auth,saml_relay_states,r,p,t,f,Auth: Contains SAML Relay State information for each Service Provider initiated login.
+auth,schema_migrations,r,p,t,f,Auth: Manages updates to the auth system.
+auth,sessions,r,p,t,f,Auth: Stores session data associated to a user.
+auth,sso_domains,r,p,t,f,Auth: Manages SSO email address domain mapping to an SSO Identity Provider.
+auth,sso_providers,r,p,t,f,Auth: Manages SSO identity provider information; see saml_providers for SAML.
+auth,users,r,p,t,f,Auth: Stores user login data within a secure schema.
+auth,webauthn_challenges,r,p,f,f,
+auth,webauthn_credentials,r,p,f,f,
+public,blocked_handles,r,p,t,f,
+public,conversations,r,p,t,f,
+public,event_notifications,r,p,t,f,
+public,events,r,p,t,f,
+public,favorites,r,p,t,f,
+public,featured_sellers,r,p,t,f,
+public,follows,r,p,t,f,
+public,listings,r,p,t,f,
+public,messages,r,p,t,f,
+public,notice_posts,r,p,t,f,
+public,notice_reactions,r,p,t,f,
+public,profiles,r,p,t,f,
+public,reserved_handles,r,p,t,f,
+public,users,r,p,t,f,
+public,vendor_events,r,p,t,f,
+storage,buckets,r,p,t,f,
+storage,buckets_analytics,r,p,t,f,
+storage,buckets_vectors,r,p,t,f,
+storage,migrations,r,p,t,f,
+storage,objects,r,p,t,f,
+storage,s3_multipart_uploads,r,p,t,f,
+storage,s3_multipart_uploads_parts,r,p,t,f,
+storage,vector_indexes,r,p,t,f,

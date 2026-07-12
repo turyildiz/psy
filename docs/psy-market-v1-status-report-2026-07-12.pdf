@@ -1,0 +1,621 @@
+%PDF-1.4
+%‚„œ”
+1 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>
+endobj
+2 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>
+endobj
+3 0 obj
+<< /Length 4616 >>
+stream
+BT
+/F1 9.2 Tf
+12.0 TL
+52 790 Td
+/F2 10.2 Tf
+(PSY.MARKET - V1 STATUS REPORT) Tj
+T*
+/F1 9.2 Tf
+(Read-only product and codebase audit) Tj
+T*
+/F1 9.2 Tf
+(12 July 2026) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(EXECUTIVE VERDICT) Tj
+T*
+/F1 9.2 Tf
+(REFINED_PRD.md is the best available source of truth for intended V1 scope. The codebase is) Tj
+T*
+/F1 9.2 Tf
+(a functioning marketplace prototype, but it does not yet implement the PRD's complete V1) Tj
+T*
+/F1 9.2 Tf
+(workflow and is not ready for a public production launch.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(DOCUMENT PRECEDENCE AND DATES) Tj
+T*
+/F1 9.2 Tf
+(- psy-market-refined-prd-v3.pdf - modified 2026-06-28 09:54 UTC; v3.0 dated 2026-02-09;) Tj
+T*
+/F1 9.2 Tf
+(   image-only rendered snapshot.) Tj
+T*
+/F1 9.2 Tf
+(- REFINED_PRD.md - modified 2026-06-28 09:48 UTC; v3.0 dated 2026-02-09; authoritative) Tj
+T*
+/F1 9.2 Tf
+(   product-scope source.) Tj
+T*
+/F1 9.2 Tf
+(- SPEC.md - modified 2026-06-28 09:48 UTC; v1.1 dated 2026-02-09; subordinate engineering) Tj
+T*
+/F1 9.2 Tf
+(   design derived from PRD v3.0.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F1 9.2 Tf
+(The PDF's six-minute newer filesystem timestamp reflects rendering/copying, not a newer) Tj
+T*
+/F1 9.2 Tf
+(product revision. Both Markdown documents warn that they are historical or partially stale.) Tj
+T*
+/F1 9.2 Tf
+(REFINED_PRD.md is authoritative for intended scope; the repository is authoritative for) Tj
+T*
+/F1 9.2 Tf
+(implementation status.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(KEY DOCUMENT CONTRADICTIONS) Tj
+T*
+/F1 9.2 Tf
+(- Status: headers say historical/stale, while footers say Ready for Implementation.) Tj
+T*
+/F1 9.2 Tf
+(- Storage: PRD/SPEC prescribe Supabase Storage; primary current flows use Cloudflare R2,) Tj
+T*
+/F1 9.2 Tf
+(   while legacy pages still use Supabase Storage.) Tj
+T*
+/F1 9.2 Tf
+(- Messaging: PRD/SPEC prescribe synthetic thread IDs; current code uses conversations) Tj
+T*
+/F1 9.2 Tf
+(   plus messages tables.) Tj
+T*
+/F1 9.2 Tf
+(- Profiles: PRD uses /seller/[handle]; current canonical route is /[handle].) Tj
+T*
+/F1 9.2 Tf
+(- Admin: PRD requires a complete /admin system; no /admin route exists.) Tj
+T*
+/F1 9.2 Tf
+(- Notifications: email is described as opt-in but also default-on.) Tj
+T*
+/F1 9.2 Tf
+(- Onboarding: PRD says no handle indicates incompleteness; SPEC uses user_XXXXXXXX;) Tj
+T*
+/F1 9.2 Tf
+(   current signup sets the requested handle directly.) Tj
+T*
+/F1 9.2 Tf
+(- Moderation: ban/suspend is required, but the documented schema has no persisted state) Tj
+T*
+/F1 9.2 Tf
+(   for it.) Tj
+T*
+/F1 9.2 Tf
+(- Messaging deletion: PRD excludes it in V1; current UI permits conversation deletion.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(CURRENT V1 PRODUCT SCOPE) Tj
+T*
+/F1 9.2 Tf
+(- Global, EU-focused psytrance marketplace for listing, browsing, and contacting sellers;) Tj
+T*
+/F1 9.2 Tf
+(   payment and delivery remain off-platform.) Tj
+T*
+/F1 9.2 Tf
+(- Guest browsing; authentication for selling, messaging, and profile management.) Tj
+T*
+/F1 9.2 Tf
+(- One public profile per account with handle, display name, biography, avatar, location,) Tj
+T*
+/F1 9.2 Tf
+(   social links, and creator flag.) Tj
+T*
+/F1 9.2 Tf
+(- Validated listings with images and draft -> pending -> active -> sold lifecycle, including) Tj
+T*
+/F1 9.2 Tf
+(   rejection and resubmission.) Tj
+T*
+/F1 9.2 Tf
+(- Search, filters, sorting, infinite scrolling, and a manually managed featured carousel.) Tj
+T*
+/F1 9.2 Tf
+(- Listing-specific realtime messaging with text, images, links, read receipts, inbox) Tj
+T*
+/F1 9.2 Tf
+(   grouping, and optional email notifications.) Tj
+T*
+/F1 9.2 Tf
+(- Admin approval/rejection, user moderation, analytics, featured controls, and 24-hour) Tj
+T*
+/F1 9.2 Tf
+(   automatic approval.) Tj
+T*
+/F1 9.2 Tf
+(- Account settings/deletion, legal pages, dynamic metadata, Open Graph, sitemap, and) Tj
+T*
+/F1 9.2 Tf
+(   responsive polish.) Tj
+T*
+/F1 9.2 Tf
+(- Out of V1: integrated payments, reviews, favorites, follows, reports, multi-profile) Tj
+T*
+/F1 9.2 Tf
+(   support, automated paid promotion, multi-currency, push, stale expiry, popular sort,) Tj
+T*
+/F1 9.2 Tf
+(   mobile apps, and community posts.) Tj
+T*
+/F1 9.2 Tf
+(- Success criteria: 50+ listings; 100+ registered users; 20+ active listings; zero scam) Tj
+T*
+/F1 9.2 Tf
+(   reports/positive feedback; first featured-listing sale.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(DONE - VERIFIED WORKING END-TO-END) Tj
+T*
+/F1 9.2 Tf
+(- Email/password login and logout - app/login/page.tsx, components/AuthModal.tsx,) Tj
+T*
+/F1 9.2 Tf
+(   components/layout/Header.tsx, middleware.ts.) Tj
+T*
+ET
+BT
+/F1 8 Tf
+262.5 28 Td
+(Page 1 of 3) Tj
+ET
+endstream
+endobj
+4 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 3 0 R >>
+endobj
+5 0 obj
+<< /Length 4476 >>
+stream
+BT
+/F1 9.2 Tf
+12.0 TL
+52 790 Td
+/F1 9.2 Tf
+(- Email signup and profile initialization - app/signup/page.tsx ->) Tj
+T*
+/F1 9.2 Tf
+(   app/api/auth/signup/route.ts -> Supabase Auth and profiles; callback in) Tj
+T*
+/F1 9.2 Tf
+(   app/auth/callback/page.tsx.) Tj
+T*
+/F1 9.2 Tf
+(- Public marketplace display - homepage/category/listing/profile pages query real) Tj
+T*
+/F1 9.2 Tf
+(   listings and profiles.) Tj
+T*
+/F1 9.2 Tf
+(- Public profile routing - /[handle] loads profiles/listings; /seller/[handle] redirects) Tj
+T*
+/F1 9.2 Tf
+(   there.) Tj
+T*
+/F1 9.2 Tf
+(- Profile editing and password changes - profiles update in Supabase; avatars upload) Tj
+T*
+/F1 9.2 Tf
+(   through authenticated R2 presigning.) Tj
+T*
+/F1 9.2 Tf
+(- Direct listing creation - NewListingModal uploads to R2 and inserts into listings, but) Tj
+T*
+/F1 9.2 Tf
+(   bypasses moderation.) Tj
+T*
+/F1 9.2 Tf
+(- Listing editing - EditListingModal updates listing fields and R2 image URLs.) Tj
+T*
+/F1 9.2 Tf
+(- Festival calendar, RSVP, and notice wall - real UI/database paths through events,) Tj
+T*
+/F1 9.2 Tf
+(   vendor_events, notice_posts, and notice_reactions.) Tj
+T*
+/F1 9.2 Tf
+(- Production build verification - npm run build passed under Next.js 14.2.35 and) Tj
+T*
+/F1 9.2 Tf
+(   generated all 21 routes.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(PARTIALLY DONE) Tj
+T*
+/F1 9.2 Tf
+(- Signup/onboarding - email works; Google OAuth, dedicated onboarding, optional location,) Tj
+T*
+/F1 9.2 Tf
+(   and versioned trigger proof are missing.) Tj
+T*
+/F1 9.2 Tf
+(- Browse/search - some client-side filtering/sorting exists; q is ignored and database) Tj
+T*
+/F1 9.2 Tf
+(   search, full filters, cursor pagination, and featured carousel are missing.) Tj
+T*
+/F1 9.2 Tf
+(- Listing lifecycle - create/edit work, but listings publish directly as active; draft,) Tj
+T*
+/F1 9.2 Tf
+(   pending, rejection, resubmission, sold, and moderation are absent.) Tj
+T*
+/F1 9.2 Tf
+(- Validation - weaker than PRD, allows eight images, lacks shared/server validation, and) Tj
+T*
+/F1 9.2 Tf
+(   can continue after failed uploads.) Tj
+T*
+/F1 9.2 Tf
+(- Storage - mixed R2 and Supabase Storage implementations.) Tj
+T*
+/F1 9.2 Tf
+(- Upload security - authentication exists, but server-side MIME, type, size, and count) Tj
+T*
+/F1 9.2 Tf
+(   restrictions do not.) Tj
+T*
+/F1 9.2 Tf
+(- Messaging - conversations, text insertion, inbox, and realtime exist; direct thread) Tj
+T*
+/F1 9.2 Tf
+(   navigation and unread state are broken; images, links, complete receipts, email, and) Tj
+T*
+/F1 9.2 Tf
+(   length enforcement are missing.) Tj
+T*
+/F1 9.2 Tf
+(- View counts - displayed but never incremented.) Tj
+T*
+/F1 9.2 Tf
+(- Navigation/footer - several dead labels and nonexistent legal/password-reset links.) Tj
+T*
+/F1 9.2 Tf
+(- SEO - only global title and description; no canonical, dynamic listing metadata, Open) Tj
+T*
+/F1 9.2 Tf
+(   Graph, or sitemap.) Tj
+T*
+/F1 9.2 Tf
+(- Database layer - live Supabase is used, but schema, migrations, RLS, triggers, RPCs,) Tj
+T*
+/F1 9.2 Tf
+(   and realtime configuration are not versioned.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(NOT STARTED - IN PRD V1 SCOPE) Tj
+T*
+/F1 9.2 Tf
+(- Google OAuth.) Tj
+T*
+/F1 9.2 Tf
+(- Complete role-protected /admin route tree.) Tj
+T*
+/F1 9.2 Tf
+(- Approval/rejection queue and rejection/resubmission workflow.) Tj
+T*
+/F1 9.2 Tf
+(- User ban/suspend and role management.) Tj
+T*
+/F1 9.2 Tf
+(- Featured management and browse carousel.) Tj
+T*
+/F1 9.2 Tf
+(- Automatic approval after 24 hours.) Tj
+T*
+/F1 9.2 Tf
+(- Database-backed search, filters, sorting, and infinite scroll.) Tj
+T*
+/F1 9.2 Tf
+(- Message images, clickable links, complete receipts, and email notifications.) Tj
+T*
+/F1 9.2 Tf
+(- Email preference management.) Tj
+T*
+/F1 9.2 Tf
+(- My-listings/dashboard status management.) Tj
+T*
+/F1 9.2 Tf
+(- Mark-as-sold flow.) Tj
+T*
+/F1 9.2 Tf
+(- Self-service account deletion.) Tj
+T*
+/F1 9.2 Tf
+(- Privacy Policy and Terms of Service pages.) Tj
+T*
+/F1 9.2 Tf
+(- Dynamic metadata, Open Graph, and sitemap.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(BUILT BUT NOT IN PRD) Tj
+T*
+/F1 9.2 Tf
+(- Festival calendar and festival detail pages.) Tj
+T*
+/F1 9.2 Tf
+(- Festival attendance/seller RSVPs.) Tj
+T*
+/F1 9.2 Tf
+(- Festival notice wall with categories, realtime updates, and reactions.) Tj
+T*
+/F1 9.2 Tf
+(- Homepage ticket display, currently hard-coded.) Tj
+T*
+/F1 9.2 Tf
+(- Music, apparel, and jewellery editorial category landing pages.) Tj
+T*
+ET
+BT
+/F1 8 Tf
+262.5 28 Td
+(Page 2 of 3) Tj
+ET
+endstream
+endobj
+6 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 5 0 R >>
+endobj
+7 0 obj
+<< /Length 3994 >>
+stream
+BT
+/F1 9.2 Tf
+12.0 TL
+52 790 Td
+/F1 9.2 Tf
+(- Conversation deletion, conflicting with PRD V1.) Tj
+T*
+/F1 9.2 Tf
+(- Profile-type editing for artist/label/festival identities.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(LAUNCH BLOCKERS - NON-FEATURE) Tj
+T*
+/F1 9.2 Tf
+(- Public service runs npm run dev rather than a production build/server.) Tj
+T*
+/F1 9.2 Tf
+(- No versioned database schema or RLS; authorization and reproducibility cannot be) Tj
+T*
+/F1 9.2 Tf
+(   established from Git.) Tj
+T*
+/F1 9.2 Tf
+(- Unsafe auth redirects accept unvalidated callback/next values.) Tj
+T*
+/F1 9.2 Tf
+(- Auth callback logs token prefixes and potentially URL hashes containing auth material.) Tj
+T*
+/F1 9.2 Tf
+(- No Impressum, Datenschutz/Privacy, AGB/Terms, or cookie-policy routes; existing legal) Tj
+T*
+/F1 9.2 Tf
+(   links fail.) Tj
+T*
+/F1 9.2 Tf
+(- Password recovery is linked but not implemented.) Tj
+T*
+/F1 9.2 Tf
+(- R2 upload path lacks server-enforced size/type limits.) Tj
+T*
+/F1 9.2 Tf
+(- SMTP variables are unused; no application email sender exists. Supabase confirmation) Tj
+T*
+/F1 9.2 Tf
+(   email depends on external configuration.) Tj
+T*
+/F1 9.2 Tf
+(- No error monitoring such as Sentry.) Tj
+T*
+/F1 9.2 Tf
+(- Domain/config remains staging-oriented: psy.heyturgay.com fallback is active because) Tj
+T*
+/F1 9.2 Tf
+(   NEXT_PUBLIC_SITE_URL is absent.) Tj
+T*
+/F1 9.2 Tf
+(- No committed production deployment definition, CI workflow, or health check.) Tj
+T*
+/F1 9.2 Tf
+(- No automated tests or lint script; no runtime engine pin.) Tj
+T*
+/F1 9.2 Tf
+(- Newsletter form is inert.) Tj
+T*
+/F1 9.2 Tf
+(- Payments are intentionally absent and are not a blocker if V1 remains contact-only.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(OPEN QUESTIONS) Tj
+T*
+/F1 9.2 Tf
+(- Keep the full PRD V1, or reduce V1 to the simpler direct-publish marketplace?) Tj
+T*
+/F1 9.2 Tf
+(- Require admin review and 24-hour auto-approval, or permit immediate publication?) Tj
+T*
+/F1 9.2 Tf
+(- Standardize on Cloudflare R2 or Supabase Storage?) Tj
+T*
+/F1 9.2 Tf
+(- Canonical profile route: /[handle] or /seller/[handle]?) Tj
+T*
+/F1 9.2 Tf
+(- Add festival/RSVP/notice-wall functionality formally to V1?) Tj
+T*
+/F1 9.2 Tf
+(- Confirm contact-only/off-platform launch with no payment provider.) Tj
+T*
+/F1 9.2 Tf
+(- Legal requirement: PRD placeholders or German/EU Impressum, Datenschutz, and AGB?) Tj
+T*
+/F1 9.2 Tf
+(- Email notifications default-on or explicit opt-in?) Tj
+T*
+/F1 9.2 Tf
+(- Keep or remove conversation deletion?) Tj
+T*
+/F1 9.2 Tf
+(- Remove, label, or connect static ticket cards?) Tj
+T*
+/F1 9.2 Tf
+(- Deploy on Vercel at psy.market or on the VPS behind Cloudflare?) Tj
+T*
+/F1 9.2 Tf
+(- Which accounts receive admin/super-admin privileges?) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F2 10.2 Tf
+(ORDERED V1 PUNCH LIST) Tj
+T*
+/F1 9.2 Tf
+(1. [S] Freeze V1 decisions and reconcile the PRD.) Tj
+T*
+/F1 9.2 Tf
+(2. [M] Capture and audit live Supabase schema, migrations, RLS, triggers, RPCs, and realtime) Tj
+T*
+/F1 9.2 Tf
+(configuration.) Tj
+T*
+/F1 9.2 Tf
+(3. [S] Fix auth redirects/token logging and add password reset.) Tj
+T*
+/F1 9.2 Tf
+(4. [M] Standardize and secure file uploads.) Tj
+T*
+/F1 9.2 Tf
+(5. [L] Complete listing lifecycle and server-side validation.) Tj
+T*
+/F1 9.2 Tf
+(6. [L] Build minimum admin/moderation system.) Tj
+T*
+/F1 9.2 Tf
+(7. [L] Finish database-backed browse and discovery.) Tj
+T*
+/F1 9.2 Tf
+(8. [M] Repair and complete messaging.) Tj
+T*
+/F1 9.2 Tf
+(9. [M] Complete account controls and listing management.) Tj
+T*
+/F1 9.2 Tf
+(10. [M] Add legal pages and repair dead UI.) Tj
+T*
+/F1 9.2 Tf
+(11. [M] Implement SEO baseline.) Tj
+T*
+/F1 9.2 Tf
+(12. [M] Add production operations: secrets, monitoring, health checks, tests, runtime) Tj
+T*
+/F1 9.2 Tf
+(pinning, and deployment workflow.) Tj
+T*
+/F1 9.2 Tf
+(13. [M] Perform production-domain cutover and full launch verification.) Tj
+T*
+/F1 9.2 Tf
+() Tj
+T*
+/F1 9.2 Tf
+(No implementation tasks were started during this audit.) Tj
+T*
+ET
+BT
+/F1 8 Tf
+262.5 28 Td
+(Page 3 of 3) Tj
+ET
+endstream
+endobj
+8 0 obj
+<< /Type /Page /Parent 9 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 1 0 R /F2 2 0 R >> >> /Contents 7 0 R >>
+endobj
+9 0 obj
+<< /Type /Pages /Count 3 /Kids [4 0 R 6 0 R 8 0 R] >>
+endobj
+10 0 obj
+<< /Type /Catalog /Pages 9 0 R >>
+endobj
+11 0 obj
+<< /Title (psy.market V1 Status Report) /Author (Hermes Agent) /Subject (V1 scope and implementation audit) >>
+endobj
+xref
+0 12
+0000000000 65535 f 
+0000000015 00000 n 
+0000000085 00000 n 
+0000000160 00000 n 
+0000004828 00000 n 
+0000004964 00000 n 
+0000009492 00000 n 
+0000009628 00000 n 
+0000013674 00000 n 
+0000013810 00000 n 
+0000013879 00000 n 
+0000013929 00000 n 
+trailer
+<< /Size 12 /Root 10 0 R /Info 11 0 R >>
+startxref
+14056
+%%EOF

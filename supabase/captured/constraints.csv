@@ -1,0 +1,181 @@
+schema_name,table_name,constraint_name,constraint_type,condeferrable,condeferred,definition
+auth,audit_log_entries,audit_log_entries_pkey,p,f,f,PRIMARY KEY (id)
+auth,custom_oauth_providers,custom_oauth_providers_authorization_url_https,c,f,f,CHECK (authorization_url IS NULL OR authorization_url ~~ 'https://%'::text)
+auth,custom_oauth_providers,custom_oauth_providers_authorization_url_length,c,f,f,CHECK (authorization_url IS NULL OR char_length(authorization_url) <= 2048)
+auth,custom_oauth_providers,custom_oauth_providers_client_id_length,c,f,f,CHECK (char_length(client_id) >= 1 AND char_length(client_id) <= 512)
+auth,custom_oauth_providers,custom_oauth_providers_discovery_url_length,c,f,f,CHECK (discovery_url IS NULL OR char_length(discovery_url) <= 2048)
+auth,custom_oauth_providers,custom_oauth_providers_identifier_format,c,f,f,"CHECK (identifier ~ '^[a-z0-9][a-z0-9:-]{0,48}[a-z0-9]$'::text)"
+auth,custom_oauth_providers,custom_oauth_providers_identifier_key,u,f,f,UNIQUE (identifier)
+auth,custom_oauth_providers,custom_oauth_providers_issuer_length,c,f,f,CHECK (issuer IS NULL OR char_length(issuer) >= 1 AND char_length(issuer) <= 2048)
+auth,custom_oauth_providers,custom_oauth_providers_jwks_uri_https,c,f,f,CHECK (jwks_uri IS NULL OR jwks_uri ~~ 'https://%'::text)
+auth,custom_oauth_providers,custom_oauth_providers_jwks_uri_length,c,f,f,CHECK (jwks_uri IS NULL OR char_length(jwks_uri) <= 2048)
+auth,custom_oauth_providers,custom_oauth_providers_name_length,c,f,f,CHECK (char_length(name) >= 1 AND char_length(name) <= 100)
+auth,custom_oauth_providers,custom_oauth_providers_oauth2_requires_endpoints,c,f,f,CHECK (provider_type <> 'oauth2'::text OR authorization_url IS NOT NULL AND token_url IS NOT NULL AND userinfo_url IS NOT NULL)
+auth,custom_oauth_providers,custom_oauth_providers_oidc_discovery_url_https,c,f,f,CHECK (provider_type <> 'oidc'::text OR discovery_url IS NULL OR discovery_url ~~ 'https://%'::text)
+auth,custom_oauth_providers,custom_oauth_providers_oidc_issuer_https,c,f,f,CHECK (provider_type <> 'oidc'::text OR issuer IS NULL OR issuer ~~ 'https://%'::text)
+auth,custom_oauth_providers,custom_oauth_providers_oidc_requires_issuer,c,f,f,CHECK (provider_type <> 'oidc'::text OR issuer IS NOT NULL)
+auth,custom_oauth_providers,custom_oauth_providers_pkey,p,f,f,PRIMARY KEY (id)
+auth,custom_oauth_providers,custom_oauth_providers_provider_type_check,c,f,f,"CHECK (provider_type = ANY (ARRAY['oauth2'::text, 'oidc'::text]))"
+auth,custom_oauth_providers,custom_oauth_providers_token_url_https,c,f,f,CHECK (token_url IS NULL OR token_url ~~ 'https://%'::text)
+auth,custom_oauth_providers,custom_oauth_providers_token_url_length,c,f,f,CHECK (token_url IS NULL OR char_length(token_url) <= 2048)
+auth,custom_oauth_providers,custom_oauth_providers_userinfo_url_https,c,f,f,CHECK (userinfo_url IS NULL OR userinfo_url ~~ 'https://%'::text)
+auth,custom_oauth_providers,custom_oauth_providers_userinfo_url_length,c,f,f,CHECK (userinfo_url IS NULL OR char_length(userinfo_url) <= 2048)
+auth,flow_state,flow_state_pkey,p,f,f,PRIMARY KEY (id)
+auth,identities,identities_pkey,p,f,f,PRIMARY KEY (id)
+auth,identities,identities_provider_id_provider_unique,u,f,f,"UNIQUE (provider_id, provider)"
+auth,identities,identities_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,instances,instances_pkey,p,f,f,PRIMARY KEY (id)
+auth,mfa_amr_claims,amr_id_pk,p,f,f,PRIMARY KEY (id)
+auth,mfa_amr_claims,mfa_amr_claims_session_id_authentication_method_pkey,u,f,f,"UNIQUE (session_id, authentication_method)"
+auth,mfa_amr_claims,mfa_amr_claims_session_id_fkey,f,f,f,FOREIGN KEY (session_id) REFERENCES auth.sessions(id) ON DELETE CASCADE
+auth,mfa_challenges,mfa_challenges_auth_factor_id_fkey,f,f,f,FOREIGN KEY (factor_id) REFERENCES auth.mfa_factors(id) ON DELETE CASCADE
+auth,mfa_challenges,mfa_challenges_pkey,p,f,f,PRIMARY KEY (id)
+auth,mfa_factors,mfa_factors_last_challenged_at_key,u,f,f,UNIQUE (last_challenged_at)
+auth,mfa_factors,mfa_factors_pkey,p,f,f,PRIMARY KEY (id)
+auth,mfa_factors,mfa_factors_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,oauth_authorizations,oauth_authorizations_authorization_code_key,u,f,f,UNIQUE (authorization_code)
+auth,oauth_authorizations,oauth_authorizations_authorization_code_length,c,f,f,CHECK (char_length(authorization_code) <= 255)
+auth,oauth_authorizations,oauth_authorizations_authorization_id_key,u,f,f,UNIQUE (authorization_id)
+auth,oauth_authorizations,oauth_authorizations_client_id_fkey,f,f,f,FOREIGN KEY (client_id) REFERENCES auth.oauth_clients(id) ON DELETE CASCADE
+auth,oauth_authorizations,oauth_authorizations_code_challenge_length,c,f,f,CHECK (char_length(code_challenge) <= 128)
+auth,oauth_authorizations,oauth_authorizations_expires_at_future,c,f,f,CHECK (expires_at > created_at)
+auth,oauth_authorizations,oauth_authorizations_nonce_length,c,f,f,CHECK (char_length(nonce) <= 255)
+auth,oauth_authorizations,oauth_authorizations_pkey,p,f,f,PRIMARY KEY (id)
+auth,oauth_authorizations,oauth_authorizations_redirect_uri_length,c,f,f,CHECK (char_length(redirect_uri) <= 2048)
+auth,oauth_authorizations,oauth_authorizations_resource_length,c,f,f,CHECK (char_length(resource) <= 2048)
+auth,oauth_authorizations,oauth_authorizations_scope_length,c,f,f,CHECK (char_length(scope) <= 4096)
+auth,oauth_authorizations,oauth_authorizations_state_length,c,f,f,CHECK (char_length(state) <= 4096)
+auth,oauth_authorizations,oauth_authorizations_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,oauth_client_states,oauth_client_states_pkey,p,f,f,PRIMARY KEY (id)
+auth,oauth_clients,oauth_clients_client_name_length,c,f,f,CHECK (char_length(client_name) <= 1024)
+auth,oauth_clients,oauth_clients_client_uri_length,c,f,f,CHECK (char_length(client_uri) <= 2048)
+auth,oauth_clients,oauth_clients_logo_uri_length,c,f,f,CHECK (char_length(logo_uri) <= 2048)
+auth,oauth_clients,oauth_clients_pkey,p,f,f,PRIMARY KEY (id)
+auth,oauth_clients,oauth_clients_token_endpoint_auth_method_check,c,f,f,"CHECK (token_endpoint_auth_method = ANY (ARRAY['client_secret_basic'::text, 'client_secret_post'::text, 'none'::text]))"
+auth,oauth_consents,oauth_consents_client_id_fkey,f,f,f,FOREIGN KEY (client_id) REFERENCES auth.oauth_clients(id) ON DELETE CASCADE
+auth,oauth_consents,oauth_consents_pkey,p,f,f,PRIMARY KEY (id)
+auth,oauth_consents,oauth_consents_revoked_after_granted,c,f,f,CHECK (revoked_at IS NULL OR revoked_at >= granted_at)
+auth,oauth_consents,oauth_consents_scopes_length,c,f,f,CHECK (char_length(scopes) <= 2048)
+auth,oauth_consents,oauth_consents_scopes_not_empty,c,f,f,CHECK (char_length(TRIM(BOTH FROM scopes)) > 0)
+auth,oauth_consents,oauth_consents_user_client_unique,u,f,f,"UNIQUE (user_id, client_id)"
+auth,oauth_consents,oauth_consents_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,one_time_tokens,one_time_tokens_pkey,p,f,f,PRIMARY KEY (id)
+auth,one_time_tokens,one_time_tokens_token_hash_check,c,f,f,CHECK (char_length(token_hash) > 0)
+auth,one_time_tokens,one_time_tokens_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,refresh_tokens,refresh_tokens_pkey,p,f,f,PRIMARY KEY (id)
+auth,refresh_tokens,refresh_tokens_session_id_fkey,f,f,f,FOREIGN KEY (session_id) REFERENCES auth.sessions(id) ON DELETE CASCADE
+auth,refresh_tokens,refresh_tokens_token_unique,u,f,f,UNIQUE (token)
+auth,saml_providers,entity_id not empty,c,f,f,CHECK (char_length(entity_id) > 0)
+auth,saml_providers,metadata_url not empty,c,f,f,CHECK (metadata_url = NULL::text OR char_length(metadata_url) > 0)
+auth,saml_providers,metadata_xml not empty,c,f,f,CHECK (char_length(metadata_xml) > 0)
+auth,saml_providers,saml_providers_entity_id_key,u,f,f,UNIQUE (entity_id)
+auth,saml_providers,saml_providers_pkey,p,f,f,PRIMARY KEY (id)
+auth,saml_providers,saml_providers_sso_provider_id_fkey,f,f,f,FOREIGN KEY (sso_provider_id) REFERENCES auth.sso_providers(id) ON DELETE CASCADE
+auth,saml_relay_states,request_id not empty,c,f,f,CHECK (char_length(request_id) > 0)
+auth,saml_relay_states,saml_relay_states_flow_state_id_fkey,f,f,f,FOREIGN KEY (flow_state_id) REFERENCES auth.flow_state(id) ON DELETE CASCADE
+auth,saml_relay_states,saml_relay_states_pkey,p,f,f,PRIMARY KEY (id)
+auth,saml_relay_states,saml_relay_states_sso_provider_id_fkey,f,f,f,FOREIGN KEY (sso_provider_id) REFERENCES auth.sso_providers(id) ON DELETE CASCADE
+auth,schema_migrations,schema_migrations_pkey,p,f,f,PRIMARY KEY (version)
+auth,sessions,sessions_oauth_client_id_fkey,f,f,f,FOREIGN KEY (oauth_client_id) REFERENCES auth.oauth_clients(id) ON DELETE CASCADE
+auth,sessions,sessions_pkey,p,f,f,PRIMARY KEY (id)
+auth,sessions,sessions_scopes_length,c,f,f,CHECK (char_length(scopes) <= 4096)
+auth,sessions,sessions_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,sso_domains,domain not empty,c,f,f,CHECK (char_length(domain) > 0)
+auth,sso_domains,sso_domains_pkey,p,f,f,PRIMARY KEY (id)
+auth,sso_domains,sso_domains_sso_provider_id_fkey,f,f,f,FOREIGN KEY (sso_provider_id) REFERENCES auth.sso_providers(id) ON DELETE CASCADE
+auth,sso_providers,resource_id not empty,c,f,f,CHECK (resource_id = NULL::text OR char_length(resource_id) > 0)
+auth,sso_providers,sso_providers_pkey,p,f,f,PRIMARY KEY (id)
+auth,users,users_email_change_confirm_status_check,c,f,f,CHECK (email_change_confirm_status >= 0 AND email_change_confirm_status <= 2)
+auth,users,users_phone_key,u,f,f,UNIQUE (phone)
+auth,users,users_pkey,p,f,f,PRIMARY KEY (id)
+auth,webauthn_challenges,webauthn_challenges_challenge_type_check,c,f,f,"CHECK (challenge_type = ANY (ARRAY['signup'::text, 'registration'::text, 'authentication'::text]))"
+auth,webauthn_challenges,webauthn_challenges_pkey,p,f,f,PRIMARY KEY (id)
+auth,webauthn_challenges,webauthn_challenges_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+auth,webauthn_credentials,webauthn_credentials_pkey,p,f,f,PRIMARY KEY (id)
+auth,webauthn_credentials,webauthn_credentials_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,blocked_handles,bh_handle_format,c,f,f,CHECK (handle ~ '^[a-zA-Z0-9_]+$'::text)
+public,blocked_handles,bh_handle_length,c,f,f,CHECK (char_length(handle) >= 1 AND char_length(handle) <= 30)
+public,blocked_handles,blocked_handles_handle_key,u,f,f,UNIQUE (handle)
+public,blocked_handles,blocked_handles_pkey,p,f,f,PRIMARY KEY (id)
+public,conversations,conversations_buyer_profile_id_fkey,f,f,f,FOREIGN KEY (buyer_profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,conversations,conversations_listing_id_fkey,f,f,f,FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE SET NULL
+public,conversations,conversations_pkey,p,f,f,PRIMARY KEY (id)
+public,conversations,conversations_seller_profile_id_fkey,f,f,f,FOREIGN KEY (seller_profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,conversations,unique_conversation,u,f,f,"UNIQUE (listing_id, buyer_profile_id, seller_profile_id)"
+public,event_notifications,event_notifications_event_id_fkey,f,f,f,FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+public,event_notifications,event_notifications_pkey,p,f,f,PRIMARY KEY (id)
+public,event_notifications,event_notifications_profile_id_event_id_key,u,f,f,"UNIQUE (profile_id, event_id)"
+public,event_notifications,event_notifications_profile_id_fkey,f,f,f,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,events,event_dates_valid,c,f,f,CHECK (end_date >= start_date)
+public,events,event_name_length,c,f,f,CHECK (char_length(name) >= 3 AND char_length(name) <= 100)
+public,events,event_slug_format,c,f,f,CHECK (slug ~ '^[a-z0-9-]+$'::text)
+public,events,event_venue_length,c,f,f,CHECK (venue IS NULL OR char_length(venue) <= 200)
+public,events,events_created_by_fkey,f,f,f,FOREIGN KEY (created_by) REFERENCES profiles(id)
+public,events,events_pkey,p,f,f,PRIMARY KEY (id)
+public,events,events_slug_key,u,f,f,UNIQUE (slug)
+public,favorites,favorites_listing_id_fkey,f,f,f,FOREIGN KEY (listing_id) REFERENCES listings(id) ON DELETE CASCADE
+public,favorites,favorites_pkey,p,f,f,PRIMARY KEY (id)
+public,favorites,favorites_profile_id_fkey,f,f,f,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,favorites,favorites_profile_id_listing_id_key,u,f,f,"UNIQUE (profile_id, listing_id)"
+public,featured_sellers,featured_sellers_category_check,c,f,f,"CHECK (category = ANY (ARRAY['clothing'::text, 'accessories'::text, 'gear'::text, 'art'::text, 'other'::text]))"
+public,featured_sellers,featured_sellers_pkey,p,f,f,PRIMARY KEY (id)
+public,featured_sellers,featured_sellers_profile_id_category_key,u,f,f,"UNIQUE (profile_id, category)"
+public,featured_sellers,featured_sellers_profile_id_fkey,f,f,f,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,follows,follows_check,c,f,f,CHECK (follower_profile_id <> following_profile_id)
+public,follows,follows_follower_profile_id_fkey,f,f,f,FOREIGN KEY (follower_profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,follows,follows_follower_profile_id_following_profile_id_key,u,f,f,"UNIQUE (follower_profile_id, following_profile_id)"
+public,follows,follows_following_profile_id_fkey,f,f,f,FOREIGN KEY (following_profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,follows,follows_pkey,p,f,f,PRIMARY KEY (id)
+public,listings,description_length,c,f,f,CHECK (char_length(description) >= 20 AND char_length(description) <= 2000)
+public,listings,listings_pkey,p,f,f,PRIMARY KEY (id)
+public,listings,listings_profile_id_fkey,f,f,f,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,listings,price_range,c,f,f,CHECK (price >= 50 AND price <= 5000000)
+public,listings,size_length,c,f,f,CHECK (char_length(size) >= 1 AND char_length(size) <= 20)
+public,listings,title_length,c,f,f,CHECK (char_length(title) >= 5 AND char_length(title) <= 100)
+public,messages,messages_body_check,c,f,f,CHECK (length(TRIM(BOTH FROM body)) > 0)
+public,messages,messages_conversation_id_fkey,f,f,f,FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
+public,messages,messages_pkey,p,f,f,PRIMARY KEY (id)
+public,messages,messages_sender_profile_id_fkey,f,f,f,FOREIGN KEY (sender_profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,notice_posts,notice_posts_body_check,c,f,f,CHECK (char_length(body) >= 1 AND char_length(body) <= 200)
+public,notice_posts,notice_posts_category_check,c,f,f,"CHECK (category = ANY (ARRAY['rideshare'::text, 'lost_found'::text, 'looking_for'::text, 'giving_away'::text, 'shoutout'::text]))"
+public,notice_posts,notice_posts_event_id_fkey,f,f,f,FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+public,notice_posts,notice_posts_pkey,p,f,f,PRIMARY KEY (id)
+public,notice_posts,notice_posts_profile_id_fkey,f,f,f,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,notice_reactions,notice_reactions_emoji_check,c,f,f,"CHECK (emoji = ANY (ARRAY['❤️'::text, '🙏'::text, '🔥'::text, '😂'::text, '🫂'::text]))"
+public,notice_reactions,notice_reactions_pkey,p,f,f,PRIMARY KEY (id)
+public,notice_reactions,notice_reactions_post_id_fkey,f,f,f,FOREIGN KEY (post_id) REFERENCES notice_posts(id) ON DELETE CASCADE
+public,notice_reactions,notice_reactions_post_id_profile_id_emoji_key,u,f,f,"UNIQUE (post_id, profile_id, emoji)"
+public,notice_reactions,notice_reactions_profile_id_fkey,f,f,f,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,profiles,bio_length,c,f,f,CHECK (bio IS NULL OR char_length(bio) <= 500)
+public,profiles,display_name_length,c,f,f,CHECK (char_length(display_name) >= 1 AND char_length(display_name) <= 100)
+public,profiles,handle_format,c,f,f,CHECK (handle ~ '^[a-zA-Z0-9_]+$'::text)
+public,profiles,handle_length,c,f,f,CHECK (char_length(handle) >= 3 AND char_length(handle) <= 30)
+public,profiles,location_length,c,f,f,CHECK (location IS NULL OR char_length(location) <= 100)
+public,profiles,profiles_handle_key,u,f,f,UNIQUE (handle)
+public,profiles,profiles_pkey,p,f,f,PRIMARY KEY (id)
+public,profiles,profiles_user_id_fkey,f,f,f,FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,reserved_handles,reserved_handles_handle_key,u,f,f,UNIQUE (handle)
+public,reserved_handles,reserved_handles_pkey,p,f,f,PRIMARY KEY (id)
+public,reserved_handles,rh_handle_format,c,f,f,CHECK (handle ~ '^[a-zA-Z0-9_]+$'::text)
+public,reserved_handles,rh_handle_length,c,f,f,CHECK (char_length(handle) >= 3 AND char_length(handle) <= 30)
+public,users,users_id_fkey,f,f,f,FOREIGN KEY (id) REFERENCES auth.users(id) ON DELETE CASCADE
+public,users,users_pkey,p,f,f,PRIMARY KEY (id)
+public,vendor_events,vendor_events_event_id_fkey,f,f,f,FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE
+public,vendor_events,vendor_events_pkey,p,f,f,PRIMARY KEY (id)
+public,vendor_events,vendor_events_profile_id_event_id_key,u,f,f,"UNIQUE (profile_id, event_id)"
+public,vendor_events,vendor_events_profile_id_fkey,f,f,f,FOREIGN KEY (profile_id) REFERENCES profiles(id) ON DELETE CASCADE
+public,vendor_events,vendor_events_role_check,c,f,f,"CHECK (role = ANY (ARRAY['attending'::text, 'selling'::text]))"
+storage,buckets,buckets_pkey,p,f,f,PRIMARY KEY (id)
+storage,buckets_analytics,buckets_analytics_pkey,p,f,f,PRIMARY KEY (id)
+storage,buckets_vectors,buckets_vectors_pkey,p,f,f,PRIMARY KEY (id)
+storage,migrations,migrations_name_key,u,f,f,UNIQUE (name)
+storage,migrations,migrations_pkey,p,f,f,PRIMARY KEY (id)
+storage,objects,objects_bucketId_fkey,f,f,f,FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)
+storage,objects,objects_pkey,p,f,f,PRIMARY KEY (id)
+storage,s3_multipart_uploads,s3_multipart_uploads_bucket_id_fkey,f,f,f,FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)
+storage,s3_multipart_uploads,s3_multipart_uploads_pkey,p,f,f,PRIMARY KEY (id)
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_bucket_id_fkey,f,f,f,FOREIGN KEY (bucket_id) REFERENCES storage.buckets(id)
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_pkey,p,f,f,PRIMARY KEY (id)
+storage,s3_multipart_uploads_parts,s3_multipart_uploads_parts_upload_id_fkey,f,f,f,FOREIGN KEY (upload_id) REFERENCES storage.s3_multipart_uploads(id) ON DELETE CASCADE
+storage,vector_indexes,vector_indexes_bucket_id_fkey,f,f,f,FOREIGN KEY (bucket_id) REFERENCES storage.buckets_vectors(id)
+storage,vector_indexes,vector_indexes_pkey,p,f,f,PRIMARY KEY (id)

@@ -1,0 +1,11 @@
+schema_name,table_name,trigger_name,tgenabled,definition,function_schema,function_name
+auth,users,on_auth_user_created,O,CREATE TRIGGER on_auth_user_created AFTER INSERT ON auth.users FOR EACH ROW EXECUTE FUNCTION handle_new_user(),public,handle_new_user
+public,events,tr_events_updated_at,O,CREATE TRIGGER tr_events_updated_at BEFORE UPDATE ON events FOR EACH ROW EXECUTE FUNCTION update_updated_at(),public,update_updated_at
+public,listings,tr_listings_search_vector,O,"CREATE TRIGGER tr_listings_search_vector BEFORE INSERT OR UPDATE OF title, description, tags ON listings FOR EACH ROW EXECUTE FUNCTION update_listing_search_vector()",public,update_listing_search_vector
+public,listings,tr_listings_updated_at,O,CREATE TRIGGER tr_listings_updated_at BEFORE UPDATE ON listings FOR EACH ROW EXECUTE FUNCTION update_updated_at(),public,update_updated_at
+public,messages,on_message_insert,O,CREATE TRIGGER on_message_insert AFTER INSERT ON messages FOR EACH ROW EXECUTE FUNCTION update_conversation_last_message(),public,update_conversation_last_message
+public,profiles,tr_profiles_updated_at,O,CREATE TRIGGER tr_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at(),public,update_updated_at
+storage,buckets,enforce_bucket_name_length_trigger,O,CREATE TRIGGER enforce_bucket_name_length_trigger BEFORE INSERT OR UPDATE OF name ON storage.buckets FOR EACH ROW EXECUTE FUNCTION storage.enforce_bucket_name_length(),storage,enforce_bucket_name_length
+storage,buckets,protect_buckets_delete,O,CREATE TRIGGER protect_buckets_delete BEFORE DELETE ON storage.buckets FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete(),storage,protect_delete
+storage,objects,protect_objects_delete,O,CREATE TRIGGER protect_objects_delete BEFORE DELETE ON storage.objects FOR EACH STATEMENT EXECUTE FUNCTION storage.protect_delete(),storage,protect_delete
+storage,objects,update_objects_updated_at,O,CREATE TRIGGER update_objects_updated_at BEFORE UPDATE ON storage.objects FOR EACH ROW EXECUTE FUNCTION storage.update_updated_at_column(),storage,update_updated_at_column

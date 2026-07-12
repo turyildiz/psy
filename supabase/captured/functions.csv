@@ -1,0 +1,29 @@
+schema_name,function_name,identity_arguments,result_type,language,security_definer,volatility,acl
+auth,email,,text,sql,f,s,"{=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}"
+auth,jwt,,jsonb,sql,f,s,"{=X/supabase_auth_admin,postgres=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}"
+auth,role,,text,sql,f,s,"{=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}"
+auth,uid,,uuid,sql,f,s,"{=X/supabase_auth_admin,supabase_auth_admin=X/supabase_auth_admin,dashboard_user=X/supabase_auth_admin}"
+public,append_unread_for,"conv_id uuid, profile_id text",void,sql,t,v,"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+public,handle_new_user,,trigger,plpgsql,t,v,"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+public,increment_view_count,listing_id uuid,void,sql,t,v,"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+public,remove_unread_for,"conv_id uuid, profile_id text",void,sql,t,v,"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+public,update_conversation_last_message,,trigger,plpgsql,t,v,"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+public,update_listing_search_vector,,trigger,plpgsql,f,v,"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+public,update_updated_at,,trigger,plpgsql,f,v,"{=X/postgres,postgres=X/postgres,anon=X/postgres,authenticated=X/postgres,service_role=X/postgres}"
+storage,allow_any_operation,expected_operations text[],boolean,sql,f,s,
+storage,allow_only_operation,expected_operation text,boolean,sql,f,s,
+storage,can_insert_object,"bucketid text, name text, owner uuid, metadata jsonb",void,plpgsql,f,v,
+storage,enforce_bucket_name_length,,trigger,plpgsql,f,v,
+storage,extension,name text,text,plpgsql,f,i,
+storage,filename,name text,text,plpgsql,f,v,
+storage,foldername,name text,text[],plpgsql,f,i,
+storage,get_common_prefix,"p_key text, p_prefix text, p_delimiter text",text,sql,f,i,
+storage,get_size_by_bucket,,"TABLE(size bigint, bucket_id text)",plpgsql,f,s,
+storage,list_multipart_uploads_with_delimiter,"bucket_id text, prefix_param text, delimiter_param text, max_keys integer, next_key_token text, next_upload_token text","TABLE(key text, id text, created_at timestamp with time zone)",plpgsql,f,v,
+storage,list_objects_with_delimiter,"_bucket_id text, prefix_param text, delimiter_param text, max_keys integer, start_after text, next_token text, sort_order text","TABLE(name text, id uuid, metadata jsonb, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone)",plpgsql,f,s,
+storage,operation,,text,plpgsql,f,s,
+storage,protect_delete,,trigger,plpgsql,f,v,
+storage,search,"prefix text, bucketname text, limits integer, levels integer, offsets integer, search text, sortcolumn text, sortorder text","TABLE(name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)",plpgsql,f,s,
+storage,search_by_timestamp,"p_prefix text, p_bucket_id text, p_limit integer, p_level integer, p_start_after text, p_sort_order text, p_sort_column text, p_sort_column_after text","TABLE(key text, name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)",plpgsql,f,s,
+storage,search_v2,"prefix text, bucket_name text, limits integer, levels integer, start_after text, sort_order text, sort_column text, sort_column_after text","TABLE(key text, name text, id uuid, updated_at timestamp with time zone, created_at timestamp with time zone, last_accessed_at timestamp with time zone, metadata jsonb)",plpgsql,f,s,
+storage,update_updated_at_column,,trigger,plpgsql,f,v,

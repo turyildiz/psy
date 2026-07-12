@@ -1,0 +1,101 @@
+schema_name,table_name,policy_name,permissive,roles,cmd,using_expression,with_check_expression
+public,conversations,buyers create conversations,PERMISSIVE,{public},INSERT,,"(buyer_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))"
+public,conversations,participants delete conversations,PERMISSIVE,{public},DELETE,"((buyer_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid()))) OR (seller_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid()))))",
+public,conversations,participants view conversations,PERMISSIVE,{public},SELECT,"((buyer_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid()))) OR (seller_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid()))))",
+public,event_notifications,Users can manage their own event notifications,PERMISSIVE,{public},SELECT,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,event_notifications,Users can subscribe to event notifications,PERMISSIVE,{public},INSERT,,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))"
+public,event_notifications,Users can unsubscribe from event notifications,PERMISSIVE,{public},DELETE,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,events,Events are publicly readable,PERMISSIVE,{public},SELECT,true,
+public,favorites,Users can manage their own favorites,PERMISSIVE,{public},ALL,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,featured_sellers,Featured sellers public read,PERMISSIVE,{public},SELECT,true,
+public,follows,follows_delete,PERMISSIVE,{public},DELETE,"(follower_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,follows,follows_insert,PERMISSIVE,{public},INSERT,,"(follower_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))"
+public,follows,follows_select,PERMISSIVE,{public},SELECT,true,
+public,listings,Active and sold listings are publicly readable,PERMISSIVE,{public},SELECT,"((status = ANY (ARRAY['active'::listing_status, 'sold'::listing_status])) OR (profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid()))))",
+public,listings,Suspended profiles cannot insert listings,PERMISSIVE,{public},INSERT,,"(NOT (EXISTS ( SELECT 1
+   FROM profiles
+  WHERE ((profiles.id = listings.profile_id) AND (profiles.is_suspended = true)))))"
+public,listings,Users can create listings for their own profiles,PERMISSIVE,{public},INSERT,,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))"
+public,listings,Users can delete their own draft listings,PERMISSIVE,{public},DELETE,"((status = 'draft'::listing_status) AND (profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid()))))",
+public,listings,Users can update their own listings,PERMISSIVE,{public},UPDATE,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,messages,participants send messages,PERMISSIVE,{public},INSERT,,"((sender_profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid()))) AND (conversation_id IN ( SELECT conversations.id
+   FROM conversations
+  WHERE ((conversations.buyer_profile_id IN ( SELECT profiles.id
+           FROM profiles
+          WHERE (profiles.user_id = auth.uid()))) OR (conversations.seller_profile_id IN ( SELECT profiles.id
+           FROM profiles
+          WHERE (profiles.user_id = auth.uid())))))))"
+public,messages,participants view messages,PERMISSIVE,{public},SELECT,"(conversation_id IN ( SELECT conversations.id
+   FROM conversations
+  WHERE ((conversations.buyer_profile_id IN ( SELECT profiles.id
+           FROM profiles
+          WHERE (profiles.user_id = auth.uid()))) OR (conversations.seller_profile_id IN ( SELECT profiles.id
+           FROM profiles
+          WHERE (profiles.user_id = auth.uid()))))))",
+public,notice_posts,Logged-in users can create notice posts,PERMISSIVE,{public},INSERT,,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))"
+public,notice_posts,Notice posts are publicly readable,PERMISSIVE,{public},SELECT,true,
+public,notice_posts,Users can delete their own notice posts,PERMISSIVE,{public},DELETE,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,notice_reactions,Logged-in users can add reactions,PERMISSIVE,{public},INSERT,,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))"
+public,notice_reactions,Reactions are publicly readable,PERMISSIVE,{public},SELECT,true,
+public,notice_reactions,Users can remove their own reactions,PERMISSIVE,{public},DELETE,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,profiles,Profiles are publicly readable,PERMISSIVE,{public},SELECT,true,
+public,profiles,Users can insert their own profiles,PERMISSIVE,{public},INSERT,,(auth.uid() = user_id)
+public,profiles,Users can update their own profiles,PERMISSIVE,{public},UPDATE,(auth.uid() = user_id),
+public,users,Service role can manage all users,PERMISSIVE,{public},ALL,((auth.jwt() ->> 'role'::text) = 'service_role'::text),
+public,users,Users can read their own record,PERMISSIVE,{public},SELECT,(auth.uid() = id),
+public,vendor_events,Users can add themselves to events,PERMISSIVE,{public},INSERT,,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))"
+public,vendor_events,Users can remove themselves from events,PERMISSIVE,{public},DELETE,"(profile_id IN ( SELECT profiles.id
+   FROM profiles
+  WHERE (profiles.user_id = auth.uid())))",
+public,vendor_events,Vendor events are publicly readable,PERMISSIVE,{public},SELECT,true,
+storage,objects,Avatar public read,PERMISSIVE,{public},SELECT,(bucket_id = 'avatars'::text),
+storage,objects,Avatar upload,PERMISSIVE,{public},INSERT,,((bucket_id = 'avatars'::text) AND (auth.role() = 'authenticated'::text))
+storage,objects,Event cover public read,PERMISSIVE,{public},SELECT,(bucket_id = 'events'::text),
+storage,objects,Header public read,PERMISSIVE,{public},SELECT,(bucket_id = 'headers'::text),
+storage,objects,Header upload,PERMISSIVE,{public},INSERT,,((bucket_id = 'headers'::text) AND (auth.role() = 'authenticated'::text))
+storage,objects,Listing image public read,PERMISSIVE,{public},SELECT,(bucket_id = 'listings'::text),
+storage,objects,Listing image upload,PERMISSIVE,{public},INSERT,,((bucket_id = 'listings'::text) AND (auth.role() = 'authenticated'::text))
+storage,objects,Message image read by participants,PERMISSIVE,{public},SELECT,((bucket_id = 'messages'::text) AND (auth.role() = 'authenticated'::text)),
+storage,objects,Message image upload,PERMISSIVE,{public},INSERT,,((bucket_id = 'messages'::text) AND (auth.role() = 'authenticated'::text))

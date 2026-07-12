@@ -1,0 +1,47 @@
+[
+  {
+    "allowed_mime_types": null,
+    "created_at": "2026-02-12T20:25:53.714Z",
+    "file_size_limit": null,
+    "id": "avatars",
+    "name": "avatars",
+    "public": true,
+    "updated_at": "2026-02-12T20:25:53.714Z"
+  },
+  {
+    "allowed_mime_types": null,
+    "created_at": "2026-02-12T20:25:53.714Z",
+    "file_size_limit": null,
+    "id": "listings",
+    "name": "listings",
+    "public": true,
+    "updated_at": "2026-02-12T20:25:53.714Z"
+  },
+  {
+    "allowed_mime_types": null,
+    "created_at": "2026-02-12T20:25:53.714Z",
+    "file_size_limit": null,
+    "id": "messages",
+    "name": "messages",
+    "public": false,
+    "updated_at": "2026-02-12T20:25:53.714Z"
+  },
+  {
+    "allowed_mime_types": null,
+    "created_at": "2026-02-12T20:25:53.714Z",
+    "file_size_limit": null,
+    "id": "events",
+    "name": "events",
+    "public": true,
+    "updated_at": "2026-02-12T20:25:53.714Z"
+  },
+  {
+    "allowed_mime_types": null,
+    "created_at": "2026-04-23T16:29:26.508Z",
+    "file_size_limit": null,
+    "id": "headers",
+    "name": "headers",
+    "public": true,
+    "updated_at": "2026-04-23T16:29:26.508Z"
+  }
+]
