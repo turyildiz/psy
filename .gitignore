@@ -17,4 +17,5 @@
 *.html
 npm-debug.log*
 .playwright-mcp
+/openclaw-workspace-state.json
 /logo.png
