@@ -280,77 +280,37 @@ commit;
 
 ---
 
-## CHUNK 4 — Repair listing RLS and add reactive unpublish authority
+## CHUNK 4 — Admin listing and notice-wall moderation actions
 
-**Purpose:** Close the critical cross-profile INSERT hole and grant admins only the reactive listing power frozen for V1.
+**Purpose:** Add the narrowly scoped reactive moderation actions frozen for V1. Active admins and the single super-admin can unpublish or republish any listing and delete any notice-wall post. Chunk 0 already closed the listing INSERT vulnerability, so Chunk 4 does not replace listing RLS policies.
 
-**Risk:** High because this changes write authorization.
+**Risk:** Medium. Listing moderation changes visibility by moving a listing between `draft` and `active`. Notice-post deletion is destructive and cascades to all reactions on that post.
 
-**What could break:** Listing creation fails if `public.users` is missing for a legitimate account or the account is banned. Admin tooling must authenticate as an admin/super-admin. Existing owner updates continue to work.
+**Dependencies:** Chunk 1 must be active because every RPC authorizes through `public.current_user_is_admin()`, which permits only `admin`/`super_admin` roles and excludes accounts with `banned_at` set.
 
-```sql
-begin;
+**Apply SQL:** [`chunks/chunk-4-admin-moderation-apply.sql`](./chunks/chunk-4-admin-moderation-apply.sql)
 
--- Permissive INSERT policies are OR-combined; both old policies must be replaced.
-drop policy if exists "Suspended profiles cannot insert listings" on public.listings;
-drop policy if exists "Users can create listings for their own profiles" on public.listings;
-drop policy if exists "Owners create listings for own active profile" on public.listings;
+**Rollback SQL:** [`chunks/chunk-4-admin-moderation-rollback.sql`](./chunks/chunk-4-admin-moderation-rollback.sql)
 
-create policy "Unbanned users create listings for own profile"
-on public.listings for insert
-to authenticated
-with check (
-  not public.current_user_is_banned()
-  and profile_id in (
-    select p.id from public.profiles p
-    where p.user_id = auth.uid() and not p.is_suspended
-  )
-  and status = 'active'::public.listing_status
-);
+**What could break:** Existing application queries and RLS policies are unchanged. Admin callers receive an exception for a missing listing/post ID or when the caller is anonymous, non-admin, or banned. Deleting a notice post also deletes its reactions through the validated `notice_reactions_post_id_fkey ... ON DELETE CASCADE` relationship. Rollback removes the RPCs but cannot restore posts/reactions deleted while Chunk 4 was active or reverse listing status changes already made.
 
--- Preserve the existing owner edit/unpublish/sold path, but block banned accounts.
-drop policy if exists "Users can update their own listings" on public.listings;
-create policy "Unbanned users update own listings"
-on public.listings for update
-to authenticated
-using (
-  not public.current_user_is_banned()
-  and profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-)
-with check (
-  not public.current_user_is_banned()
-  and profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-);
+**Security and permission checks:**
 
-create or replace function public.admin_unpublish_listing(target_listing_id uuid)
-returns void
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-begin
-  if not public.current_user_is_admin() then
-    raise exception 'Admin access required';
-  end if;
+- All three functions are `SECURITY DEFINER` with `search_path = pg_catalog, public, auth` and schema-qualified table/function references.
+- `public.current_user_is_admin()` is checked inside every RPC; its Chunk 1 definition returns false for banned admins.
+- Default `PUBLIC` execution is revoked, `anon` execution is explicitly revoked to cover Supabase default grants, and execution is granted only to `authenticated` and `service_role`. The internal admin check still applies to every invocation.
+- No direct admin UPDATE/DELETE RLS policy is added; moderation authority exists only through these RPCs.
 
-  update public.listings
-  set status = 'draft'::public.listing_status
-  where id = target_listing_id;
-end;
-$$;
+**Application queries checked:**
 
-revoke all on function public.admin_unpublish_listing(uuid) from public;
-grant execute on function public.admin_unpublish_listing(uuid) to authenticated, service_role;
+- `components/NewListingModal.tsx` and `app/listings/new/page.tsx`: listing INSERT behavior is unchanged and remains protected by the combined Chunk 0 policy.
+- `components/EditListingModal.tsx` and `app/listing/[id]/edit/page.tsx`: owner listing edits remain direct UPDATEs and are unchanged.
+- `app/[handle]/page.tsx`: the owner's existing direct status change to `draft` remains unchanged.
+- Homepage, browse, category, profile, and listing-detail SELECTs already filter/read active or sold listings. Admin unpublish changes a target to `draft`, hiding it from public reads; republish restores it to `active`.
+- `app/festivals/[slug]/page.tsx`: owners continue deleting their own notice posts through the existing direct DELETE policy. Future admin tooling must call `admin_delete_notice_post`; the current joined `notice_reactions` read remains valid after cascade deletion.
+- No current application code calls the new RPCs, so adding them is backward-compatible. Admin UI/server integration remains a later application task.
 
-commit;
-```
-
-**App queries checked under the new policies:**
-
-- `components/NewListingModal.tsx` and `app/listings/new/page.tsx`: INSERT with the signed-in user's profile and `status='active'` still passes.
-- `components/EditListingModal.tsx` and `app/listing/[id]/edit/page.tsx`: owner UPDATE still passes.
-- `app/[handle]/page.tsx`: owner sets status to `draft`; still passes.
-- Homepage, browse, category, profile, and listing-detail SELECT queries are unchanged because the existing public active/sold SELECT policy remains.
+**Known limitation for review:** The existing owner UPDATE policy does not restrict status transitions. Although the current owner UI only changes a listing to `draft`, an owner can technically issue a direct API UPDATE back to `active` after an admin unpublishes it. If admin unpublishing must be durable against a malicious owner, a separate moderation-state field or status-transition guard is required; that is not added in this narrowly scoped RPC chunk.
 
 ---
 
@@ -511,9 +471,9 @@ commit;
 
 ---
 
-## CHUNK 6 — Enforce bans and reactive moderation across community writes
+## CHUNK 6 — Enforce bans across community writes
 
-**Purpose:** Apply account bans consistently and allow admins to delete notice-wall posts without broad admin analytics or approval powers.
+**Purpose:** Apply account bans consistently across profile, messaging, RSVP, notice-post, and reaction writes. Admin notice-post deletion is already provided by the narrowly scoped Chunk 4 RPC.
 
 **Risk:** High because several RLS policies are replaced.
 
@@ -582,10 +542,6 @@ with check (
   and profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
 );
 
-create policy "Admins delete notice posts"
-on public.notice_posts for delete to authenticated
-using (public.current_user_is_admin());
-
 -- Reactions
  drop policy if exists "Logged-in users can add reactions" on public.notice_reactions;
 create policy "Unbanned users add own reactions"
@@ -603,7 +559,7 @@ commit;
 - `components/EditProfileModal.tsx` and `app/profile/edit/page.tsx`: authenticated owner UPDATE continues for unbanned users.
 - Festival detail page: public event/RSVP/notice/reaction SELECT remains unchanged; own RSVP INSERT/DELETE, notice INSERT, owner notice DELETE, and reaction INSERT/DELETE continue for unbanned users.
 - Listing/profile Contact buttons and `MessagesInbox`: conversation/message writes continue for unbanned participants.
-- Admin notice deletion is additive and does not expose private reads.
+- Admin notice deletion remains available only through the Chunk 4 `admin_delete_notice_post` RPC; this chunk adds no direct admin DELETE policy.
 
 **Additional application requirement:** trusted server-side moderation must update `public.users.banned_at`, `ban_reason`, and `banned_by`, and should synchronize Supabase Auth's `banned_until` so banned users cannot continue authenticating.
 
@@ -713,9 +669,9 @@ Keep `pending` and `rejected` enum labels until a later maintenance window; Post
 | 1 | Account bans and role helper functions | Medium | None |
 | 2 | Reserved handles, case-insensitive handles, one-profile invariant | High → Low after cleanup | Manual resolution of three duplicate-profile groups |
 | 3 | Tickets and validation constraints | Low/Medium | App types/forms before ticket creation |
-| 4 | Close listing INSERT RLS bypass; admin unpublish | High | Chunk 1 |
+| 4 | Admin listing unpublish/republish and notice-post deletion RPCs | Medium | Chunk 1 |
 | 5 | Conversation soft-delete and secure unread RPCs | High | Chunk 1 |
-| 6 | Ban enforcement and reactive community moderation | High | Chunk 1; preferably Chunks 4–5 |
+| 6 | Ban enforcement across community writes | High | Chunk 1; preferably Chunks 4–5 |
 | 7 | Realtime alignment | Medium | Chunk 5 table; RLS reviewed |
 | 8 | Retire Supabase Storage policies/buckets | High | R2 code migration, URL migration, backup, Storage API cleanup |
 | 9 | Remove dead/out-of-V1 schema | High | Code cleanup, data export, explicit destructive approval |
