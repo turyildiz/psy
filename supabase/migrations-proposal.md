@@ -314,160 +314,38 @@ commit;
 
 ---
 
-## CHUNK 5 — Per-user conversation hiding and hardened messaging RPCs
+## CHUNK 5 — Per-user conversation hiding
 
-**Purpose:** Preserve shared conversation/message rows, make current DELETE calls soft-delete per participant, and close unread RPC authorization bypasses.
+**Purpose:** Replace participant hard deletion of shared conversations with per-user hiding. A hidden conversation disappears only for the participant who hid it; the shared conversation and messages remain available to the other participant and to trusted service-role/admin dispute tooling. Chunk 0 already hardened the unread RPCs, so Chunk 5 does not replace them.
 
-**Risk:** High because messaging authorization and deletion semantics change.
+**Risk:** High. This removes the current participant DELETE capability, changes participant conversation/message visibility, and requires the inbox delete control to call a new RPC instead of issuing a table DELETE.
 
-**What could break:** Hidden conversations stop appearing for that participant. The compatibility trigger relies on `auth.uid()` being present. Service-role maintenance must bypass or explicitly handle the trigger.
+**Dependencies:** Chunks 0–3 must remain active. In particular, the current message INSERT policy and Chunk 3 conversation/message constraints ensure that the new-message restoration trigger receives a valid participant sender.
 
-```sql
-begin;
+**Apply SQL:** [`chunks/chunk-5-conversation-hiding-apply.sql`](./chunks/chunk-5-conversation-hiding-apply.sql)
 
-create table if not exists public.conversation_participant_state (
-  conversation_id uuid not null references public.conversations(id) on delete cascade,
-  profile_id uuid not null references public.profiles(id) on delete cascade,
-  hidden_at timestamptz,
-  last_read_at timestamptz,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now(),
-  primary key (conversation_id, profile_id)
-);
+**Rollback SQL:** [`chunks/chunk-5-conversation-hiding-rollback.sql`](./chunks/chunk-5-conversation-hiding-rollback.sql)
 
-alter table public.conversation_participant_state enable row level security;
+**State and behavior:**
 
-create policy "Participants manage own conversation state"
-on public.conversation_participant_state for all
-to authenticated
-using (
-  profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-)
-with check (
-  profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-  and conversation_id in (
-    select c.id from public.conversations c
-    where c.buyer_profile_id = profile_id or c.seller_profile_id = profile_id
-  )
-);
+- `conversation_participant_state` stores one row per conversation/profile, with nullable `hidden_at` plus creation/update timestamps. Both foreign keys cascade only when trusted maintenance physically removes a conversation or profile.
+- Authenticated clients can SELECT only their own state. They receive no direct INSERT/UPDATE/DELETE grant; `hide_conversation(uuid)` and `unhide_conversation(uuid)` perform participant authorization and state mutation. `find_and_unhide_conversation(uuid, uuid)` safely finds a caller-participating listing/direct conversation despite hidden-row RLS, restores it for that caller, and returns its ID or null so existing contact flows can create only when no conversation exists.
+- The participant conversation SELECT policy excludes a row only when the current user's own state has `hidden_at` set. The other participant remains unaffected. Existing message SELECT authorization resolves through conversation visibility, so the hiding participant also stops seeing the hidden thread's messages.
+- The captured participant DELETE policy is dropped and DELETE is revoked from `PUBLIC`, `anon`, and `authenticated`. Trusted `service_role` maintenance remains capable of physical deletion, but ordinary participants cannot cascade-delete shared messages.
+- An AFTER INSERT message trigger clears `hidden_at` only for the message recipient. It does not change the sender's independent state. The restored conversation becomes visible on the recipient's next authorized query.
+- The three participant RPCs are `SECURITY DEFINER` with `search_path = pg_catalog, public, auth`; the trigger function uses `pg_catalog, public`. Default `PUBLIC` execution and explicit `anon` execution are revoked. Participant RPCs are granted to `authenticated`/`service_role`; the trigger function is not executable by `anon` or `authenticated`.
 
-create or replace function public.soft_delete_conversation()
-returns trigger
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-declare
-  caller_profile uuid;
-begin
-  select p.id into caller_profile
-  from public.profiles p
-  where p.user_id = auth.uid()
-    and p.id in (old.buyer_profile_id, old.seller_profile_id)
-  limit 1;
+**Rollback behavior:** Rollback removes the trigger/RPCs/state table, restores the captured participant SELECT policy, and restores the captured direct DELETE grant/policy. It cannot reconstruct state rows after rollback and intentionally re-enables the old destructive delete behavior, so rollback should be used only as an emergency compatibility measure.
 
-  if caller_profile is null then
-    raise exception 'Not a conversation participant';
-  end if;
+**Application compatibility checks:**
 
-  insert into public.conversation_participant_state
-    (conversation_id, profile_id, hidden_at, updated_at)
-  values (old.id, caller_profile, now(), now())
-  on conflict (conversation_id, profile_id)
-  do update set hidden_at = excluded.hidden_at, updated_at = now();
-
-  return null; -- cancel physical deletion
-end;
-$$;
-
-drop trigger if exists conversations_soft_delete on public.conversations;
-create trigger conversations_soft_delete
-before delete on public.conversations
-for each row execute function public.soft_delete_conversation();
-
--- Keep the current participant DELETE policy temporarily: the trigger converts it.
-drop policy if exists "participants view conversations" on public.conversations;
-create policy "participants view visible conversations"
-on public.conversations for select
-to authenticated
-using (
-  (
-    buyer_profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-    or seller_profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-  )
-  and not exists (
-    select 1 from public.conversation_participant_state s
-    join public.profiles p on p.id = s.profile_id
-    where s.conversation_id = conversations.id
-      and p.user_id = auth.uid()
-      and s.hidden_at is not null
-  )
-);
-
-create or replace function public.append_unread_for(conv_id uuid, profile_id text)
-returns void
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-declare target uuid := profile_id::uuid;
-begin
-  if public.current_user_is_banned() then raise exception 'Account is banned'; end if;
-  if not exists (
-    select 1 from public.conversations c
-    join public.profiles me on me.user_id = auth.uid()
-    where c.id = conv_id
-      and me.id in (c.buyer_profile_id, c.seller_profile_id)
-      and target in (c.buyer_profile_id, c.seller_profile_id)
-      and target <> me.id
-  ) then raise exception 'Not authorized'; end if;
-
-  update public.conversations
-  set unread_for = array_append(coalesce(unread_for, '{}'), target::text)
-  where id = conv_id and not (coalesce(unread_for, '{}') @> array[target::text]);
-end;
-$$;
-
-create or replace function public.remove_unread_for(conv_id uuid, profile_id text)
-returns void
-language plpgsql
-security definer
-set search_path = public, auth
-as $$
-declare target uuid := profile_id::uuid;
-begin
-  if not exists (
-    select 1 from public.profiles p
-    where p.id = target and p.user_id = auth.uid()
-  ) then raise exception 'Not authorized'; end if;
-
-  update public.conversations
-  set unread_for = array_remove(coalesce(unread_for, '{}'), target::text)
-  where id = conv_id
-    and target in (buyer_profile_id, seller_profile_id);
-
-  insert into public.conversation_participant_state
-    (conversation_id, profile_id, last_read_at, hidden_at, updated_at)
-  values (conv_id, target, now(), null, now())
-  on conflict (conversation_id, profile_id)
-  do update set last_read_at = now(), hidden_at = null, updated_at = now();
-end;
-$$;
-
-revoke all on function public.append_unread_for(uuid,text) from public;
-revoke all on function public.remove_unread_for(uuid,text) from public;
-grant execute on function public.append_unread_for(uuid,text) to authenticated, service_role;
-grant execute on function public.remove_unread_for(uuid,text) to authenticated, service_role;
-
-commit;
-```
-
-**App queries checked under the new policies:**
-
-- `app/listing/[id]/page.tsx` and `app/[handle]/page.tsx`: participant conversation SELECT/INSERT remains allowed; direct-profile conversations with `listing_id=null` remain valid.
-- `components/MessagesInbox.tsx`: participant conversation SELECT, message SELECT/INSERT, unread RPC calls, and DELETE remain accepted. DELETE becomes per-user hiding instead of a shared hard delete.
-- `components/layout/Header.tsx`: participant conversation unread query remains allowed.
-- Existing message SELECT policy resolves conversations through the new visible-conversation policy, so hidden conversations and their messages disappear only for the hiding user.
+- `components/MessagesInbox.tsx` conversation SELECT requires no query change: the replacement RLS policy automatically omits conversations hidden by the current user. The other participant's same query continues returning the shared row.
+- `components/MessagesInbox.tsx` message SELECT/INSERT and the Chunk 0 `append_unread_for`/`remove_unread_for` calls are unchanged. Hidden messages become inaccessible only to the hiding participant because the message SELECT policy resolves through visible conversations.
+- The current `deleteConv()` implementation is **not compatible as written**: it calls `supabase.from("conversations").delete()`, ignores the returned error, and removes the row optimistically. It must be changed to `supabase.rpc("hide_conversation", { target_conversation_id: id })`, handle errors, and label the action as Hide rather than Delete before or alongside applying Chunk 5.
+- `components/layout/Header.tsx` and the profile inbox badge query use `conversations`; hidden rows therefore stop contributing to unread counts automatically. After a new incoming message clears the recipient's hidden state and Chunk 0 appends unread state, the conversation contributes again.
+- The current inbox subscribes only to INSERTs for the active thread and fetches its conversation list once. A newly restored hidden conversation is visible after reload/navigation, but immediate live reappearance while the inbox is already open requires a later refetch/global Realtime subscription. Chunk 7's publication work should account for this state change.
+- `app/listing/[id]/page.tsx` and `app/[handle]/page.tsx` must replace their base-table existing-conversation lookup with `find_and_unhide_conversation`. The RPC derives the caller profile from `auth.uid()`, validates the target profile/listing relationship, selects only a conversation containing the caller, clears only the caller's hidden state, and returns null when the normal INSERT path should run. This avoids listing uniqueness collisions and duplicate direct-profile conversations after re-contact.
+- Trusted service-role/admin dispute tooling continues to see the retained conversation and messages because no shared row is deleted. This chunk does not add a direct authenticated-admin read policy.
 
 ---
 
@@ -670,7 +548,7 @@ Keep `pending` and `rejected` enum labels until a later maintenance window; Post
 | 2 | Reserved handles, case-insensitive handles, one-profile invariant | High → Low after cleanup | Manual resolution of three duplicate-profile groups |
 | 3 | Tickets and validation constraints | Low/Medium | App types/forms before ticket creation |
 | 4 | Admin listing unpublish/republish and notice-post deletion RPCs | Medium | Chunk 1 |
-| 5 | Conversation soft-delete and secure unread RPCs | High | Chunk 1 |
+| 5 | Per-user conversation hiding and new-message restoration | High | Chunks 0–3; coordinated inbox delete UI update |
 | 6 | Ban enforcement across community writes | High | Chunk 1; preferably Chunks 4–5 |
 | 7 | Realtime alignment | Medium | Chunk 5 table; RLS reviewed |
 | 8 | Retire Supabase Storage policies/buckets | High | R2 code migration, URL migration, backup, Storage API cleanup |
