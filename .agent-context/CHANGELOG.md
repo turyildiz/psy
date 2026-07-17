@@ -2,6 +2,14 @@
 
 ---
 
+## 2026-06-27 — Removed Contact us from main nav by OpenClaw
+
+- Removed the `Contact us` link from the desktop main navigation.
+- Relocated the `Contact us` link to the Company column in the footer.
+- Refreshed staging so the header change is visible at `psy.heyturgay.com`.
+
+---
+
 ## 2026-06-27 — Documented VPS staging auto-deploy proposal by Hermes
 
 - Created `docs/STAGING_AUTO_DEPLOY_PRD.md` for GitHub Actions → SSH → VPS staging auto-deploy on every push to `main`.

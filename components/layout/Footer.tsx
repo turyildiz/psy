@@ -1,11 +1,12 @@
 "use client";
 
 import Image from "next/image";
+import Link from "next/link";
 
 const COLS = [
-  { title: "Shop", links: ["Apparel", "Art & Decor", "Jewellery", "Music", "Tickets", "Vintage"] },
-  { title: "Support", links: ["Help Center", "Selling Guide", "Community Guidelines", "Return Policy"] },
-  { title: "Company", links: ["About Us", "Blog"] },
+  { title: "Shop", links: [{ label: "Apparel" }, { label: "Art & Decor" }, { label: "Jewellery" }, { label: "Music" }, { label: "Tickets" }, { label: "Vintage" }] },
+  { title: "Support", links: [{ label: "Help Center" }, { label: "Selling Guide" }, { label: "Community Guidelines" }, { label: "Return Policy" }] },
+  { title: "Company", links: [{ label: "About Us" }, { label: "Blog" }, { label: "Contact us", href: "/contact" }] },
 ];
 
 export default function Footer() {
@@ -40,9 +41,15 @@ export default function Footer() {
                 </p>
                 <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
                   {col.links.map((lnk) => (
-                    <span key={lnk} className="footer-link" style={{ cursor: "pointer" }}>
-                      {lnk}
-                    </span>
+                    lnk.href ? (
+                      <Link key={lnk.label} href={lnk.href} className="footer-link" style={{ cursor: "pointer", textDecoration: "none" }}>
+                        {lnk.label}
+                      </Link>
+                    ) : (
+                      <span key={lnk.label} className="footer-link" style={{ cursor: "pointer" }}>
+                        {lnk.label}
+                      </span>
+                    )
                   ))}
                 </div>
               </div>
