@@ -349,97 +349,86 @@ commit;
 
 ---
 
-## CHUNK 6 — Enforce bans across community writes
+## CHUNK 6 — Ban enforcement and durable listing moderation
 
-**Purpose:** Apply account bans consistently across profile, messaging, RSVP, notice-post, and reaction writes. Admin notice-post deletion is already provided by the narrowly scoped Chunk 4 RPC.
+**Purpose:** Make the Chunk 1 account ban authoritative across every in-scope community write path, and close the Chunk 4 durability gap that allowed an owner to reactivate an admin-unpublished listing. Reads remain unchanged.
 
-**Risk:** High because several RLS policies are replaced.
+**Risk:** High. This replaces eighteen write policies, replaces five messaging/unread RPC bodies, upgrades the two Chunk 4 listing moderation RPCs, adds listing moderation metadata, and installs a listing UPDATE guard.
 
-**What could break:** Banned accounts will no longer update profiles, RSVP, post, react, create conversations, or send messages. Public reads remain unchanged.
+**Dependencies:** Chunks 1, 4, and 5 must remain active. `public.current_user_is_banned()` and `public.current_user_is_admin()` are the authorization sources; Chunk 4 supplies the moderation RPCs being upgraded; Chunk 5 supplies the participant-state RPCs being upgraded.
 
-```sql
-begin;
+**Read-only preflight:** [`chunks/chunk-6-preflight.sql`](./chunks/chunk-6-preflight.sql)
 
--- Profiles
- drop policy if exists "Users can update their own profiles" on public.profiles;
-create policy "Unbanned users update own profiles"
-on public.profiles for update to authenticated
-using (auth.uid() = user_id and not public.current_user_is_banned())
-with check (auth.uid() = user_id and not public.current_user_is_banned());
+**Apply SQL:** [`chunks/chunk-6-ban-enforcement-durable-moderation-apply.sql`](./chunks/chunk-6-ban-enforcement-durable-moderation-apply.sql)
 
--- Conversations
- drop policy if exists "buyers create conversations" on public.conversations;
-create policy "Unbanned buyers create conversations"
-on public.conversations for insert to authenticated
-with check (
-  not public.current_user_is_banned()
-  and buyer_profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-  and buyer_profile_id <> seller_profile_id
-  and (
-    listing_id is null
-    or seller_profile_id = (select l.profile_id from public.listings l where l.id = listing_id)
-  )
-);
+**Rollback SQL:** [`chunks/chunk-6-ban-enforcement-durable-moderation-rollback.sql`](./chunks/chunk-6-ban-enforcement-durable-moderation-rollback.sql)
 
--- Messages
- drop policy if exists "participants send messages" on public.messages;
-create policy "Unbanned participants send messages"
-on public.messages for insert to authenticated
-with check (
-  not public.current_user_is_banned()
-  and sender_profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-  and conversation_id in (
-    select c.id from public.conversations c
-    where sender_profile_id in (c.buyer_profile_id, c.seller_profile_id)
-  )
-);
+### Preflight result and data handling
 
--- RSVPs
- drop policy if exists "Users can add themselves to events" on public.vendor_events;
-create policy "Unbanned users add own RSVP"
-on public.vendor_events for insert to authenticated
-with check (
-  not public.current_user_is_banned()
-  and profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-);
+The read-only service-level check found six app users, zero currently banned accounts, zero `admin` accounts, one `super_admin`, and 26 listings: 25 active and one draft. No existing row violates a new SQL constraint because the moderation columns are introduced nullable.
 
-drop policy if exists "Users can remove themselves from events" on public.vendor_events;
-create policy "Unbanned users remove own RSVP"
-on public.vendor_events for delete to authenticated
-using (
-  not public.current_user_is_banned()
-  and profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-);
+The one existing draft (`Testing`, ID `f4ebbcb1-d18c-43f2-8a5f-83c4a7b315bd`) was reviewed by the owner and confirmed to be an ordinary owner draft. It requires no moderation backfill or post-apply action. The preflight continues listing all drafts because Chunk 4 stored only `status = draft`; any future pre-Chunk-6 admin-unpublished row would still require explicit classification rather than an unsafe bulk backfill.
 
--- Notice posts
- drop policy if exists "Logged-in users can create notice posts" on public.notice_posts;
-create policy "Unbanned users create own notice posts"
-on public.notice_posts for insert to authenticated
-with check (
-  not public.current_user_is_banned()
-  and profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-);
+### Durable moderation mechanism
 
--- Reactions
- drop policy if exists "Logged-in users can add reactions" on public.notice_reactions;
-create policy "Unbanned users add own reactions"
-on public.notice_reactions for insert to authenticated
-with check (
-  not public.current_user_is_banned()
-  and profile_id in (select p.id from public.profiles p where p.user_id = auth.uid())
-);
+Chunk 6 uses explicit moderation state rather than a status-only transition rule:
 
-commit;
-```
+- `listings.admin_unpublished_at` is the authoritative durable marker.
+- `listings.admin_unpublished_by` records the acting admin and uses `ON DELETE SET NULL`; the timestamp remains authoritative if that admin account is later removed.
+- `admin_unpublish_listing` atomically sets `status = draft` and both moderation fields.
+- `admin_republish_listing` is the only normal operation that clears the marker and returns the listing to `active`. It refuses rows that are not admin-unpublished, so it cannot accidentally publish an owner's ordinary draft.
+- A BEFORE UPDATE trigger rejects any non-active-admin attempt to alter the moderation fields or move a marked listing away from `draft`. This also blocks `sold`, which is publicly readable under the current SELECT policy and would otherwise be a visibility bypass.
+- The owner UPDATE policy independently requires a marked row to remain `draft`, providing RLS defense in depth; the owner DELETE policy also excludes marked rows so the moderated record/audit state cannot be removed and reinserted under the same ID.
+- Owner edits to title, description, price, images, and similar fields remain possible while the listing stays admin-unpublished/draft; only status changes, owner deletion, and moderation-state tampering are blocked.
 
-**App queries checked under the new policies:**
+This is preferable to checking only `OLD.status = draft`: status alone cannot distinguish an owner's draft from an admin moderation action, carries no actor/timestamp audit data, and would make legitimate owner draft-to-active transitions impossible to distinguish from bypass attempts.
 
-- `components/EditProfileModal.tsx` and `app/profile/edit/page.tsx`: authenticated owner UPDATE continues for unbanned users.
-- Festival detail page: public event/RSVP/notice/reaction SELECT remains unchanged; own RSVP INSERT/DELETE, notice INSERT, owner notice DELETE, and reaction INSERT/DELETE continue for unbanned users.
-- Listing/profile Contact buttons and `MessagesInbox`: conversation/message writes continue for unbanned participants.
-- Admin notice deletion remains available only through the Chunk 4 `admin_delete_notice_post` RPC; this chunk adds no direct admin DELETE policy.
+### Ban enforcement coverage
 
-**Additional application requirement:** trusted server-side moderation must update `public.users.banned_at`, `ban_reason`, and `banned_by`, and should synchronize Supabase Auth's `banned_until` so banned users cannot continue authenticating.
+Banned authenticated accounts retain reads but are blocked from:
+
+- profile INSERT and UPDATE;
+- listing INSERT, UPDATE, and owner draft DELETE;
+- conversation INSERT;
+- message INSERT;
+- unread-state mutation through `append_unread_for` and `remove_unread_for`;
+- conversation hide, unhide, and find-and-restore through all three Chunk 5 RPCs;
+- RSVP INSERT and DELETE;
+- notice-post INSERT and owner DELETE;
+- reaction INSERT and DELETE.
+- dormant favorites, follows, and event-notification writes that remain in the schema until Chunk 9.
+
+Each replacement policy is scoped to `authenticated` and checks `not public.current_user_is_banned()` together with the existing ownership/participant condition. Every replaced `SECURITY DEFINER` function keeps the established fixed search path, internal authorization, explicit `PUBLIC` revocation, explicit `anon` revocation, and intended `authenticated`/`service_role` grants. The moderation trigger function is not executable by `anon` or `authenticated`.
+
+The legacy favorites policy is split into an unchanged own-row read policy plus a ban-gated write policy, so reads remain available. Existing follows/event-notification read policies are unchanged. The Chunk 4 `admin_delete_notice_post` RPC is unchanged because `current_user_is_admin()` already returns false for banned admins. The system new-message trigger may still unhide a banned recipient's conversation because that write is caused by the unbanned sender/system, not by the banned recipient; the banned recipient may continue reading.
+
+### Current UI behavior for a banned account
+
+The database will reject all listed writes, but current UI feedback is inconsistent:
+
+| Flow | Current banned-user experience after Chunk 6 |
+|---|---|
+| New listing modal/page | Shows the returned insert error, but image uploads happen first and may leave orphaned R2/Supabase Storage objects. |
+| Edit listing modal/page | Shows a generic “Failed to save” message. |
+| Profile edit modal/page | Shows a generic “Failed to save changes” message. Password changes use Supabase Auth and are outside this public-schema migration. |
+| Owner “Remove listing” control | Silently removes the card locally even though the rejected status UPDATE did not persist; it returns on reload. |
+| Send message | Silent failure: the code ignores both Promise results, clears the composer, and optimistically changes unread state. No message row is created. |
+| Mark message read | Silent failure: the code ignores the RPC error and optimistically clears local unread state; server state remains unchanged. |
+| Hide conversation | Shows the existing generic “Could not hide this conversation” error and keeps the thread visible. |
+| Listing/direct-profile Contact | The find-and-restore RPC error stops loading but is not shown. New conversation INSERT errors are also not surfaced. |
+| RSVP add/change/remove | Silent and potentially misleading: errors are ignored and local RSVP state may change until the next refetch/reload. |
+| Create notice post | Silent failure; the form is cleared and closed before refetch shows that no post was created. |
+| Add/remove reaction or delete own notice post | Silent failure followed by refetch; no explicit error is shown. |
+
+These are compatibility findings, not reasons to weaken database enforcement. A coordinated UI follow-up should query ban state to disable controls and should handle every mutation error explicitly. Chunk 6 itself changes no application code.
+
+### Boundary outside this SQL chunk
+
+This migration blocks the specified public-schema writes. It does not by itself block Supabase Auth password changes, revoke an already-issued JWT, or prevent object uploads performed before a rejected metadata write. Trusted ban tooling should continue synchronizing Auth `banned_until`, and R2/Supabase Storage upload endpoints/policies need their own ban checks to prevent orphan uploads.
+
+### Rollback behavior
+
+Rollback restores the exact captured pre-Chunk-6 policies and RPC bodies, restores the original Chunk 4 status-only moderation functions, removes the guard, and drops the two moderation columns. It does not reverse user-visible status changes made while Chunk 6 was active. Any listing still draft after rollback becomes owner-reactivatable again, and all ban-enforcement gaps intentionally return.
 
 ---
 
@@ -549,7 +538,7 @@ Keep `pending` and `rejected` enum labels until a later maintenance window; Post
 | 3 | Tickets and validation constraints | Low/Medium | App types/forms before ticket creation |
 | 4 | Admin listing unpublish/republish and notice-post deletion RPCs | Medium | Chunk 1 |
 | 5 | Per-user conversation hiding and new-message restoration | High | Chunks 0–3; coordinated inbox delete UI update |
-| 6 | Ban enforcement across community writes | High | Chunk 1; preferably Chunks 4–5 |
+| 6 | Ban enforcement and durable listing moderation | High | Chunks 1, 4, and 5; run read-only preflight |
 | 7 | Realtime alignment | Medium | Chunk 5 table; RLS reviewed |
 | 8 | Retire Supabase Storage policies/buckets | High | R2 code migration, URL migration, backup, Storage API cleanup |
 | 9 | Remove dead/out-of-V1 schema | High | Code cleanup, data export, explicit destructive approval |

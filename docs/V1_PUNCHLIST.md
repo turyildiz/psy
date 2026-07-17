@@ -40,8 +40,8 @@
 12. **Add legal and safety pages — M**  
     Implement Impressum, Datenschutzerklärung, AGB, and safety-tips routes; include marketplace and ticket-specific safety guidance; centralize operator name/address/contact as a config placeholder and block launch until real details are supplied.
 
-13. **Complete launch SEO and navigation — M**  
-    Repair dead links, add production `metadataBase`, canonical URLs, dynamic listing/profile/festival metadata, Open Graph data, robots policy, and sitemap; ensure `psy.market` is used consistently.
+13. **Complete launch SEO, navigation, and dead-UI repair — M**
+    Repair dead links, add production `metadataBase`, canonical URLs, dynamic listing/profile/festival metadata, Open Graph data, robots policy, and sitemap; ensure `psy.market` is used consistently. Remove or wire up dead UI controls before launch; specifically, the **Save Draft** buttons in `components/NewListingModal.tsx` and `app/listings/new/page.tsx` are currently `type="button"` with no `onClick` handler and do nothing.
 
 14. **Prepare Vercel Pro production operations — M**  
     Configure environment variables and secret separation, Vercel build/deploy settings, error monitoring, health checks, runtime pinning, lint/tests, R2 CORS/public domain, Supabase production URLs, and operational logging. The VPS remains staging only until retired.
