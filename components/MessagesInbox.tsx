@@ -59,8 +59,9 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
   const [loadingThread, setLoadingThread] = useState(false);
   const [body, setBody] = useState("");
   const [sending, setSending] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-  const [deleting, setDeleting] = useState<string | null>(null);
+  const [confirmHide, setConfirmHide] = useState<string | null>(null);
+  const [hiding, setHiding] = useState<string | null>(null);
+  const [hideError, setHideError] = useState<string | null>(null);
   const [isMobile, setIsMobile] = useState(false);
 
   const activeConv = conversations.find((c) => c.id === activeId) ?? null;
@@ -144,13 +145,24 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
     inputRef.current?.focus();
   };
 
-  const deleteConv = async (id: string) => {
-    setDeleting(id);
+  const hideConversation = async (id: string) => {
+    setHiding(id);
+    setHideError(null);
     const supabase = createClient();
-    await supabase.from("conversations").delete().eq("id", id);
+    const { error } = await supabase.rpc("hide_conversation", {
+      target_conversation_id: id,
+    });
+
+    if (error) {
+      setHideError("Could not hide this conversation. Please try again.");
+      setHiding(null);
+      return;
+    }
+
     setConversations((cs) => cs.filter((c) => c.id !== id));
     if (activeId === id) setActiveId(null);
-    setConfirmDelete(null); setDeleting(null);
+    setConfirmHide(null);
+    setHiding(null);
   };
 
   if (!myProfileId) return null;
@@ -238,7 +250,7 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
         {conversations.map((conv) => (
           <div key={conv.id}>
             <button
-              onClick={() => { setConfirmDelete(null); setActiveId(conv.id); }}
+              onClick={() => { setConfirmHide(null); setActiveId(conv.id); }}
               style={{ width: "100%", display: "flex", alignItems: "center", gap: "10px", padding: "12px 14px", background: activeId === conv.id ? "oklch(94% 0.03 76)" : "transparent", border: "none", borderBottom: "1px solid var(--sand)", cursor: "pointer", textAlign: "left", borderLeft: activeId === conv.id ? "3px solid var(--rust)" : "3px solid transparent", transition: "background 0.12s" }}
               onMouseEnter={(e) => { if (activeId !== conv.id) e.currentTarget.style.background = "oklch(97% 0.01 76)"; }}
               onMouseLeave={(e) => { if (activeId !== conv.id) e.currentTarget.style.background = "transparent"; }}
@@ -255,15 +267,15 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
                 {conv.listing && <span style={{ fontSize: "11px", color: "var(--rust)", fontWeight: 500, display: "block", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>Re: {conv.listing.title}</span>}
                 <p style={{ fontSize: "12px", color: myProfileId && conv.unread_for.includes(myProfileId) ? "var(--text)" : "var(--text-light)", margin: 0, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis", fontWeight: myProfileId && conv.unread_for.includes(myProfileId) ? 500 : 400 }}>{conv.last_message_body ?? "Start the conversation"}</p>
               </div>
-              <button onClick={(e) => { e.stopPropagation(); setConfirmDelete(conv.id); }} style={{ width: "22px", height: "22px", borderRadius: "4px", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0, flexShrink: 0, transition: "opacity 0.15s" }} className="inbox-delete-btn" title="Delete">
+              <button onClick={(e) => { e.stopPropagation(); setHideError(null); setConfirmHide(conv.id); }} style={{ width: "22px", height: "22px", borderRadius: "4px", background: "none", border: "none", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", opacity: 0, flexShrink: 0, transition: "opacity 0.15s" }} className="inbox-delete-btn" title="Hide conversation">
                 <svg width="11" height="12" viewBox="0 0 12 13" fill="none"><path d="M1 3h10M4 3V2h4v1M2 3l1 9h6l1-9" stroke="#c0392b" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round" /></svg>
               </button>
             </button>
-            {confirmDelete === conv.id && (
+            {confirmHide === conv.id && (
               <div style={{ display: "flex", gap: "6px", padding: "8px 14px", borderBottom: "1px solid var(--sand)", background: "oklch(98% 0.01 20)", alignItems: "center" }}>
-                <span style={{ fontSize: "12px", color: "var(--text-mid)", flex: 1 }}>Delete?</span>
-                <button onClick={() => deleteConv(conv.id)} style={{ fontSize: "11px", fontWeight: 700, color: "white", background: "#c0392b", border: "none", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>{deleting === conv.id ? "…" : "Delete"}</button>
-                <button onClick={() => setConfirmDelete(null)} style={{ fontSize: "11px", color: "var(--text-mid)", background: "var(--white)", border: "1px solid var(--sand)", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>Cancel</button>
+                <span style={{ fontSize: "12px", color: hideError ? "#c0392b" : "var(--text-mid)", flex: 1 }}>{hideError ?? "Hide conversation?"}</span>
+                <button disabled={hiding === conv.id} onClick={() => hideConversation(conv.id)} style={{ fontSize: "11px", fontWeight: 700, color: "white", background: "#c0392b", border: "none", borderRadius: "4px", padding: "4px 8px", cursor: hiding === conv.id ? "default" : "pointer", fontFamily: "Manrope, var(--font-manrope)", opacity: hiding === conv.id ? 0.7 : 1 }}>{hiding === conv.id ? "…" : "Hide"}</button>
+                <button onClick={() => { setHideError(null); setConfirmHide(null); }} style={{ fontSize: "11px", color: "var(--text-mid)", background: "var(--white)", border: "1px solid var(--sand)", borderRadius: "4px", padding: "4px 8px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>Cancel</button>
               </div>
             )}
           </div>

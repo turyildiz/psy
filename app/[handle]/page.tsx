@@ -150,14 +150,16 @@ function SellerProfilePageInner() {
     if (!myProfileId || !profile) return;
     setMessagingLoading(true);
     const supabase = createClient();
-    // Find existing direct conversation between these two profiles
-    const { data: existing } = await supabase
-      .from("conversations")
-      .select("id")
-      .or(`and(buyer_profile_id.eq.${myProfileId},seller_profile_id.eq.${profile.id}),and(buyer_profile_id.eq.${profile.id},seller_profile_id.eq.${myProfileId})`)
-      .is("listing_id", null)
-      .maybeSingle();
-    if (existing) { router.push(`/messages/${existing.id}`); return; }
+    // Find and restore an existing direct conversation even if this user hid it.
+    const { data: existingId, error: restoreError } = await supabase.rpc(
+      "find_and_unhide_conversation",
+      {
+        target_other_profile_id: profile.id,
+        target_listing_id: null,
+      }
+    );
+    if (restoreError) { setMessagingLoading(false); return; }
+    if (existingId) { router.push(`/messages/${existingId}`); return; }
     const { data: created } = await supabase
       .from("conversations")
       .insert({ buyer_profile_id: myProfileId, seller_profile_id: profile.id, listing_id: null })

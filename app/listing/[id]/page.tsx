@@ -147,16 +147,17 @@ export default function ListingDetailPage() {
       .from("profiles").select("id").eq("handle", seller.handle).single();
     if (!sellerProfile) { setContactLoading(false); return; }
 
-    // Find or create conversation
-    const { data: existing } = await supabase
-      .from("conversations")
-      .select("id")
-      .eq("listing_id", listing.id)
-      .eq("buyer_profile_id", myProfileId)
-      .eq("seller_profile_id", sellerProfile.id)
-      .maybeSingle();
+    // Find and restore an existing listing conversation even if this buyer hid it.
+    const { data: existingId, error: restoreError } = await supabase.rpc(
+      "find_and_unhide_conversation",
+      {
+        target_other_profile_id: sellerProfile.id,
+        target_listing_id: listing.id,
+      }
+    );
 
-    if (existing) { router.push(`/messages/${existing.id}`); return; }
+    if (restoreError) { setContactLoading(false); return; }
+    if (existingId) { router.push(`/messages/${existingId}`); return; }
 
     const { data: created } = await supabase
       .from("conversations")
