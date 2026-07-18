@@ -11,8 +11,11 @@
    Restrict redirects to same-origin relative paths, remove token/hash logging, add password reset, verify production callback allowlists, and enforce one shared reserved-handles list covering every existing and planned top-level route at signup and profile-handle changes.
    - Recovery flow deployed but inactive until Supabase dashboard is updated (redirect URLs + token_hash email template) + real-mail end-to-end test.
 
-3. **Standardize and secure Cloudflare R2 uploads — M**  
+3. **Standardize and secure Cloudflare R2 uploads — M**
    Migrate every legacy Supabase Storage avatar/listing path to R2, enforce server-side MIME/type/size/count limits, verify ownership, and define orphan cleanup and object deletion behavior.
+   - Profile-media migration Steps 8–10 are complete: three approved objects were copied and verified in R2, and exactly three URL fields across two profile rows were switched and accepted. See `R2_MIGRATION_STEP_10_EXECUTION_RECORD.md`.
+   - Original Supabase objects remain verified rollback sources. Source deletion, Supabase Storage retirement, destructive Chunk 9 work, and the deferred Yacxilan object remain separately approval-gated.
+   - Current demo profiles and listings must remain available during development. Any pre-launch demo-data purge requires a separate exact reviewed scope and must retain the `@turgay` profile.
 
 4. **Harden the direct-publish listing flow — M**  
    Keep immediate `active` publication, add shared server-side validation and ownership checks, remove dead draft/review controls, add owner unpublish/mark-sold management, and ensure failed uploads cannot create invalid listings.
