@@ -1,17 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-
-function validateHandleFormat(h: string) {
-  if (h.length < 3) return "At least 3 characters";
-  if (h.length > 30) return "Max 30 characters";
-  if (!/^[a-z0-9_]+$/.test(h)) return "Only lowercase letters, numbers, underscores";
-  return null;
-}
+import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
 
 /* ── Eye icon ── */
 function EyeIcon({ visible }: { visible: boolean }) {
@@ -129,7 +122,6 @@ function HandleStatus({ handle, error, checking }: { handle: string; error: stri
 }
 
 export default function SignupPage() {
-  const router = useRouter();
   const [step, setStep] = useState(1);
 
   /* Step 1 */
@@ -142,29 +134,37 @@ export default function SignupPage() {
   /* Step 2 */
   const [handle, setHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [checkingHandle, setCheckingHandle] = useState(false);
 
   /* Live handle validation — format check instantly, DB check debounced */
   useEffect(() => {
-    if (!handle) { setHandleError(null); return; }
-    const formatErr = validateHandleFormat(handle);
-    if (formatErr) { setHandleError(formatErr); return; }
+    if (!handle) { setHandleError(null); setCheckingHandle(false); return; }
+    const normalizedHandle = normalizeHandle(handle);
+    const formatErr = validateHandle(handle);
+    if (formatErr) { setHandleError(formatErr); setCheckingHandle(false); return; }
 
     setCheckingHandle(true);
     setHandleError(null);
+    let cancelled = false;
     const timer = setTimeout(async () => {
       const supabase = createClient();
-      const [{ data: profile }, { data: blocked }] = await Promise.all([
-        supabase.from("profiles").select("id").eq("handle", handle).maybeSingle(),
-        supabase.from("blocked_handles").select("handle").eq("handle", handle).maybeSingle(),
+      const [profileResult, blockedResult] = await Promise.all([
+        supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
+        supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
       ]);
+      if (cancelled) return;
       setCheckingHandle(false);
-      if (blocked) { setHandleError("Handle not available"); return; }
-      if (profile) { setHandleError("Handle already taken"); return; }
+      if (profileResult.error || blockedResult.error) {
+        setHandleError("We couldn’t check this handle. Please try again.");
+        return;
+      }
+      if (blockedResult.data) { setHandleError("This handle is reserved. Please choose another."); return; }
+      if (profileResult.data) { setHandleError("This handle is already taken."); return; }
     }, 400);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [handle]);
 
   const validateStep1 = () => {
@@ -184,30 +184,36 @@ export default function SignupPage() {
 
   const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const formatErr = validateHandleFormat(handle);
+    const formatErr = validateHandle(handle);
     if (formatErr) { setHandleError(formatErr); return; }
     if (handleError || checkingHandle) return;
 
     setLoading(true);
+    setSignupError(null);
 
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, handle, displayName: name, redirectTo: `${window.location.origin}/auth/callback` }),
-    });
-    const json = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      const msg = json.error ?? "Signup failed";
-      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already been registered")) {
-        setHandleError("That email is already registered. Try logging in instead.");
-      } else {
-        setHandleError(msg);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, handle: normalizeHandle(handle), displayName: name }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const msg = json.error ?? "We couldn’t create your account. Please try again.";
+        if (json.field === "handle") {
+          setHandleError(msg);
+        } else {
+          setSignupError(msg);
+        }
+        return;
       }
-      return;
-    }
 
-    setSubmitted(true);
+      setSubmitted(true);
+    } catch {
+      setSignupError("We couldn’t reach the signup service. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   /* ── Shared shell ── */
@@ -320,13 +326,15 @@ export default function SignupPage() {
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => setHandle(v.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+          onChange={(v) => setHandle(v.toLowerCase())}
           placeholder="yourhandle"
           error={handleError}
           hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
           autoFocus
           suffix={<HandleStatus handle={handle} error={handleError} checking={checkingHandle} />}
         />
+
+        {signupError && <p style={{ fontSize: "13px", color: "#e05252", margin: 0 }}>{signupError}</p>}
 
         {/* Handle preview */}
         {handle && (

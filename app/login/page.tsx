@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import { getSafeRedirect } from "@/lib/auth/safety";
 
 function EyeIcon({ visible }: { visible: boolean }) {
   return visible ? (
@@ -80,6 +81,13 @@ export default function LoginPage() {
   const [status, setStatus] = useState<Status>("idle");
   const [fading, setFading] = useState(false);
 
+  useEffect(() => {
+    const callbackError = new URLSearchParams(window.location.search).get("error");
+    if (callbackError === "confirmation_failed") {
+      setErrorMsg("This confirmation or password-reset link is invalid or has expired.");
+    }
+  }, []);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
@@ -93,7 +101,10 @@ export default function LoginPage() {
 
     if (authError) {
       setStatus("idle");
-      if (authError.message.toLowerCase().includes("email not confirmed")) {
+      const authMessage = authError.message.toLowerCase();
+      if (authMessage.includes("banned")) {
+        setErrorMsg("This account has been banned. Contact support if you think this is a mistake.");
+      } else if (authMessage.includes("email not confirmed")) {
         setErrorMsg("Please confirm your email first — check your inbox for the confirmation link.");
       } else {
         setErrorMsg("Invalid email or password");
@@ -102,8 +113,8 @@ export default function LoginPage() {
     }
 
     setStatus("success");
-    const next = new URLSearchParams(window.location.search).get("next") ?? "/";
-    window.location.href = next;
+    const requestedNext = new URLSearchParams(window.location.search).get("next");
+    window.location.assign(getSafeRedirect(requestedNext, window.location.origin, "/"));
   };
 
   const isChecking = status === "checking";

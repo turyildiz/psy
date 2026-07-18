@@ -2,17 +2,9 @@
 
 import { useState, useEffect, useCallback } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-
-const RESERVED_HANDLES = ["admin", "psymarket", "moderator", "support", "help", "about", "blog", "terms", "privacy", "login", "logout", "signup", "messages", "browse", "listings"];
-
-function validateHandleFormat(h: string) {
-  if (h.length < 3) return "At least 3 characters";
-  if (h.length > 30) return "Max 30 characters";
-  if (!/^[a-z0-9_]+$/.test(h)) return "Only lowercase letters, numbers, underscores";
-  if (RESERVED_HANDLES.includes(h)) return "Handle not available";
-  return null;
-}
+import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
 
 function EyeIcon({ visible }: { visible: boolean }) {
   return visible ? (
@@ -114,7 +106,15 @@ function LoginForm({ onSwitch, onClose }: { onSwitch: () => void; onClose: () =>
       new Promise<void>(r => setTimeout(r, 700)),
     ]);
 
-    if (error) { setStatus("idle"); setErrorMsg("Invalid email or password"); return; }
+    if (error) {
+      setStatus("idle");
+      setErrorMsg(
+        error.message.toLowerCase().includes("banned")
+          ? "This account has been banned. Contact support if you think this is a mistake."
+          : "Invalid email or password"
+      );
+      return;
+    }
 
     setStatus("success");
     await new Promise<void>(r => setTimeout(r, 800));
@@ -136,7 +136,14 @@ function LoginForm({ onSwitch, onClose }: { onSwitch: () => void; onClose: () =>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoFocus />
-        <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" />
+        <div>
+          <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" />
+          <div style={{ textAlign: "right", marginTop: "8px" }}>
+            <Link href="/forgot-password" onClick={onClose} style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", textDecoration: "none" }}>
+              Forgot password?
+            </Link>
+          </div>
+        </div>
 
         {errorMsg && (
           <div style={{ background: "oklch(35% 0.12 20 / 0.2)", border: "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "11px 14px", fontSize: "13px", color: "#e07070" }}>
@@ -172,23 +179,35 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
   const [errors1, setErrors1] = useState<Record<string, string>>({});
   const [handle, setHandle] = useState("");
   const [handleError, setHandleError] = useState<string | null>(null);
+  const [signupError, setSignupError] = useState<string | null>(null);
   const [checkingHandle, setCheckingHandle] = useState(false);
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
   useEffect(() => {
-    if (!handle) { setHandleError(null); return; }
-    const formatErr = validateHandleFormat(handle);
-    if (formatErr) { setHandleError(formatErr); return; }
+    if (!handle) { setHandleError(null); setCheckingHandle(false); return; }
+    const normalizedHandle = normalizeHandle(handle);
+    const formatErr = validateHandle(handle);
+    if (formatErr) { setHandleError(formatErr); setCheckingHandle(false); return; }
     setCheckingHandle(true);
     setHandleError(null);
+    let cancelled = false;
     const timer = setTimeout(async () => {
       const supabase = createClient();
-      const { data } = await supabase.from("profiles").select("id").eq("handle", handle).maybeSingle();
+      const [profileResult, blockedResult] = await Promise.all([
+        supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
+        supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
+      ]);
+      if (cancelled) return;
       setCheckingHandle(false);
-      if (data) setHandleError("Handle already taken");
+      if (profileResult.error || blockedResult.error) {
+        setHandleError("We couldn’t check this handle. Please try again.");
+        return;
+      }
+      if (blockedResult.data) { setHandleError("This handle is reserved. Please choose another."); return; }
+      if (profileResult.data) setHandleError("This handle is already taken.");
     }, 400);
-    return () => clearTimeout(timer);
+    return () => { cancelled = true; clearTimeout(timer); };
   }, [handle]);
 
   const validateStep1 = () => {
@@ -203,26 +222,30 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
 
   const handleStep2Submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (validateHandleFormat(handle) || handleError || checkingHandle) return;
+    const formatErr = validateHandle(handle);
+    if (formatErr) { setHandleError(formatErr); return; }
+    if (handleError || checkingHandle) return;
     setLoading(true);
-    const supabase = createClient();
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, handle, displayName: name, redirectTo: `${window.location.origin}/auth/callback` }),
-    });
-    const json = await res.json();
-    setLoading(false);
-    if (!res.ok) {
-      const msg = json.error ?? "Signup failed";
-      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already been registered")) {
-        setHandleError("That email is already registered. Try logging in.");
-      } else {
-        setHandleError(msg);
+    setSignupError(null);
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, handle: normalizeHandle(handle), displayName: name }),
+      });
+      const json = await res.json();
+      if (!res.ok) {
+        const msg = json.error ?? "We couldn’t create your account. Please try again.";
+        if (json.field === "handle") setHandleError(msg);
+        else setSignupError(msg);
+        return;
       }
-      return;
+      setSubmitted(true);
+    } catch {
+      setSignupError("We couldn’t reach the signup service. Please try again.");
+    } finally {
+      setLoading(false);
     }
-    setSubmitted(true);
   };
 
   if (submitted) return (
@@ -276,7 +299,7 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => setHandle(v.toLowerCase().replace(/[^a-z0-9_]/g, ""))}
+          onChange={(v) => setHandle(v.toLowerCase())}
           placeholder="yourhandle"
           error={handleError}
           hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
@@ -289,6 +312,7 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
                 : <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="7" stroke="#5a9a6a" strokeWidth="1.5" /><path d="M5 8l2.5 2.5L11 5.5" stroke="#5a9a6a" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
           )}
         />
+        {signupError && <p style={{ fontSize: "13px", color: "#e05252", margin: 0 }}>{signupError}</p>}
         {handle && (
           <div style={{ background: "oklch(100% 0 0 / 0.05)", border: "1px solid oklch(100% 0 0 / 0.1)", borderRadius: "8px", padding: "12px 16px", display: "flex", alignItems: "center", gap: "12px" }}>
             <div style={{ width: "34px", height: "34px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700, color: "white", flexShrink: 0 }}>

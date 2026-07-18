@@ -3,52 +3,71 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
+import { getSafeRedirect } from "@/lib/auth/safety";
 
 export default function AuthCallback() {
   const router = useRouter();
 
   useEffect(() => {
+    let cancelled = false;
     const supabase = createClient();
     const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.substring(1));
+    const next = getSafeRedirect(params.get("next"), window.location.origin, "/");
     const code = params.get("code");
-    const next = params.get("next") ?? "/";
+    const accessToken = hashParams.get("access_token");
+    const refreshToken = hashParams.get("refresh_token");
+    const tokenHash = hashParams.get("token_hash") ?? params.get("token_hash");
+    const flowType = hashParams.get("type") ?? params.get("type");
+    const recoveryDestination = flowType === "recovery" ? "/update-password" : next;
+
+    const finish = (error: unknown, destination = next) => {
+      if (!cancelled) {
+        router.replace(error ? "/login?error=confirmation_failed" : destination);
+      }
+    };
+
+    // Remove one-time codes and legacy fragment tokens from browser history as
+    // soon as they have been captured. They are never logged.
+    if (code || tokenHash || accessToken || refreshToken || window.location.hash) {
+      const cleanParams = new URLSearchParams(params);
+      cleanParams.delete("code");
+      cleanParams.delete("token_hash");
+      cleanParams.delete("access_token");
+      cleanParams.delete("refresh_token");
+      const cleanSearch = cleanParams.toString();
+      window.history.replaceState(
+        null,
+        "",
+        `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ""}`
+      );
+    }
 
     if (code) {
-      supabase.auth.exchangeCodeForSession(code).then(({ error }) => {
-        router.replace(error ? "/login?error=confirmation_failed" : next);
-      });
-      return;
+      supabase.auth
+        .exchangeCodeForSession(code)
+        .then(({ error }) => finish(error, recoveryDestination));
+      return () => { cancelled = true; };
     }
 
-    // Implicit flow — parse #access_token from hash and set session directly
-    const hash = window.location.hash.substring(1);
-    const hashParams = new URLSearchParams(hash);
-    const access_token = hashParams.get("access_token");
-    const refresh_token = hashParams.get("refresh_token");
-
-    console.log("Hash params:", { access_token: access_token?.slice(0,20), refresh_token: refresh_token?.slice(0,10), type: hashParams.get("type") });
-
-    if (access_token && refresh_token) {
-      supabase.auth.setSession({ access_token, refresh_token }).then(({ data, error }) => {
-        console.log("setSession result:", error?.message, "session:", !!data.session);
-        router.replace(error ? "/login?error=confirmation_failed" : "/");
-      });
-      return;
+    // Legacy implicit links place session material in the URL fragment. Read it
+    // only long enough to establish the session.
+    if (accessToken && refreshToken) {
+      supabase.auth
+        .setSession({ access_token: accessToken, refresh_token: refreshToken })
+        .then(({ error }) => finish(error, recoveryDestination));
+      return () => { cancelled = true; };
     }
 
-    if (access_token && !refresh_token) {
-      // Some flows only send access_token — try verifyOtp
-      const tokenHash = hashParams.get("token_hash");
-      if (tokenHash) {
-        supabase.auth.verifyOtp({ token_hash: tokenHash, type: "signup" }).then(({ error }) => {
-          router.replace(error ? "/login?error=confirmation_failed" : "/");
-        });
-        return;
-      }
+    if (tokenHash && (flowType === "signup" || flowType === "recovery")) {
+      supabase.auth
+        .verifyOtp({ token_hash: tokenHash, type: flowType })
+        .then(({ error }) => finish(error, recoveryDestination));
+      return () => { cancelled = true; };
     }
 
-    console.log("No tokens in hash:", hash);
-    router.replace("/");
+    router.replace("/login?error=confirmation_failed");
+    return () => { cancelled = true; };
   }, [router]);
 
   return (
