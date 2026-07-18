@@ -9,6 +9,7 @@
 
 2. **Fix authentication and route safety — M**  
    Restrict redirects to same-origin relative paths, remove token/hash logging, add password reset, verify production callback allowlists, and enforce one shared reserved-handles list covering every existing and planned top-level route at signup and profile-handle changes.
+   - Recovery flow deployed but inactive until Supabase dashboard is updated (redirect URLs + token_hash email template) + real-mail end-to-end test.
 
 3. **Standardize and secure Cloudflare R2 uploads — M**  
    Migrate every legacy Supabase Storage avatar/listing path to R2, enforce server-side MIME/type/size/count limits, verify ownership, and define orphan cleanup and object deletion behavior.
