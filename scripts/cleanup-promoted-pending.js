@@ -48,12 +48,20 @@ async function listAll(bucket) {
 async function fetchAllRows(table, columns) {
   const rows = [];
   const pageSize = 1000;
-  for (let offset = 0; ; offset += pageSize) {
-    const result = await supabase.from(table).select(columns).range(offset, offset + pageSize - 1);
+  let lastId;
+  for (;;) {
+    let query = supabase
+      .from(table)
+      .select(`id, ${columns}`)
+      .order("id", { ascending: true })
+      .limit(pageSize);
+    if (lastId) query = query.gt("id", lastId);
+    const result = await query;
     if (result.error) throw new Error(`Could not complete the ${table} media-reference check.`);
     const page = result.data || [];
     rows.push(...page);
     if (page.length < pageSize) return rows;
+    lastId = page[page.length - 1].id;
   }
 }
 

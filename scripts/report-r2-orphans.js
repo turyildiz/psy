@@ -42,15 +42,20 @@ function keyFromPublicUrl(value) {
 async function fetchAllRows(table, columns) {
   const pageSize = 1000;
   const rows = [];
-  for (let offset = 0; ; offset += pageSize) {
-    const result = await supabase
+  let lastId;
+  for (;;) {
+    let query = supabase
       .from(table)
-      .select(columns)
-      .range(offset, offset + pageSize - 1);
+      .select(`id, ${columns}`)
+      .order("id", { ascending: true })
+      .limit(pageSize);
+    if (lastId) query = query.gt("id", lastId);
+    const result = await query;
     if (result.error) throw new Error(`Could not read all ${table} media references.`);
     const page = result.data || [];
     rows.push(...page);
     if (page.length < pageSize) return rows;
+    lastId = page[page.length - 1].id;
   }
 }
 
