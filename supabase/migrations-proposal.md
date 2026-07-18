@@ -434,26 +434,49 @@ Rollback restores the exact captured pre-Chunk-6 policies and RPC bodies, restor
 
 ## CHUNK 7 — Realtime publication alignment
 
-**Purpose:** Publish the V1 tables that current clients subscribe to or need for live unread state.
+**Purpose:** Add the four reviewed V1 change sources to `supabase_realtime`: `notice_posts`, `notice_reactions`, `conversations`, and `conversation_participant_state`. `messages` is already the publication's only table and remains unchanged.
 
-**Risk:** Medium due to increased Realtime traffic and data exposure through change payloads; RLS must remain enabled.
+**Risk:** Medium. Publication increases Realtime traffic and exposes authorized change payloads to subscribers. The SQL includes guards for table existence, RLS, reviewed SELECT policies, and default replica identity before changing membership.
 
-**What could break:** Realtime quotas/traffic may increase. Clients must subscribe only to required events and filters.
+**Dependencies:** Chunks 5 and 6 must remain active so conversation visibility and per-participant state policies have their reviewed definitions.
 
-```sql
-begin;
+**Apply SQL:** [`chunks/chunk-7-realtime-publication-apply.sql`](./chunks/chunk-7-realtime-publication-apply.sql)
 
-alter publication supabase_realtime add table public.notice_posts;
-alter publication supabase_realtime add table public.notice_reactions;
-alter publication supabase_realtime add table public.conversations;
-alter publication supabase_realtime add table public.conversation_participant_state;
+**Rollback SQL:** [`chunks/chunk-7-realtime-publication-rollback.sql`](./chunks/chunk-7-realtime-publication-rollback.sql)
 
-commit;
-```
+### Read-only preflight result
 
-Before applying, use conditional catalog checks or migration guards if tables may already be members. `public.messages` is already published.
+- `supabase_realtime` currently publishes only `public.messages`.
+- All four target tables exist, have RLS enabled, and use `REPLICA IDENTITY DEFAULT`.
+- Reviewed SELECT policies are active:
+  - `notice_posts`: public read
+  - `notice_reactions`: public read
+  - `conversations`: authenticated participant read with the Chunk 5 per-user hidden-state exclusion
+  - `conversation_participant_state`: authenticated users read only their own profile state
+- The publication currently emits INSERT, UPDATE, DELETE, and TRUNCATE operations. Chunk 7 does not modify those publication-wide settings.
 
-**Queries/subscriptions checked:** `components/MessagesInbox.tsx` subscribes to message INSERTs; festival detail subscribes to notice-post INSERTs. Conversation publication supports unread/last-message changes without changing ordinary PostgREST queries.
+### RLS and Realtime payload authorization
+
+Supabase Postgres Changes evaluates each subscriber using the role/JWT supplied to Realtime and the table's SELECT grants/RLS policy. Adding a table to the publication does not bypass RLS for ordinary `anon` or `authenticated` subscribers:
+
+- Notice posts and reactions are intentionally public, matching their existing public SELECT policies.
+- A conversation INSERT/UPDATE payload is available only to an authenticated buyer/seller for whom the conversation is currently visible. A participant's `hidden_at` state therefore suppresses that conversation under the existing RLS policy.
+- A participant-state INSERT/UPDATE payload is available only to the authenticated user who owns that state row. The other participant cannot subscribe to it.
+- Trusted `service_role` connections bypass RLS by design and must never be exposed in clients.
+
+**Documented PostgreSQL/Supabase DELETE limitation:** [official Supabase Postgres Changes documentation](https://supabase.com/docs/guides/realtime/postgres-changes#receiving-old-records) states that RLS policies are not applied to DELETE events because the deleted row can no longer be authorized. All four target tables currently use default replica identity, and the apply guard aborts if that changes, limiting deleted-row payloads to row-key data rather than a full old-row image. Notice rows are already public. Ordinary participants cannot physically delete conversations or directly mutate/delete participant-state rows, and current clients do not subscribe to private-table DELETE events; those deletes can arise only from trusted maintenance/cascades. Nevertheless, Postgres Changes cannot provide an absolute guarantee against disclosure of a deleted private row's primary-key UUID. If zero identifier disclosure for DELETE is required, private-table DELETE delivery must move to an explicitly authorized Broadcast/server pattern rather than Postgres Changes. INSERT/UPDATE row payloads remain RLS-authorized.
+
+### Application compatibility
+
+- `app/festivals/[slug]/page.tsx` currently subscribes to `notice_posts` with `event: "*"` and an `event_id` filter. That subscription currently receives nothing because the table is unpublished; after apply it will refetch the wall on authorized insert/update/delete events without an app query change.
+- `notice_reactions` has no current Realtime subscription. Publishing it prepares a direct reaction subscription but does not change current behavior; current reaction mutations still refetch posts.
+- `components/MessagesInbox.tsx` continues using the existing published `messages` INSERT subscription for the active thread.
+- The inbox does not yet subscribe to `conversations` or `conversation_participant_state`, so publication alone does not implement immediate live inbox reordering or hidden-thread restoration. Those future subscriptions must use authenticated clients and handle only payloads delivered under the existing RLS policies.
+- Ordinary PostgREST SELECT/INSERT/UPDATE behavior and all RLS policies are unchanged.
+
+### Apply and rollback behavior
+
+The apply file conditionally adds only missing memberships, so re-running it is safe after its guards pass. Rollback conditionally removes only the four Chunk 7 tables and leaves `messages` published. Neither file changes RLS, grants, replica identity, publication-wide operation settings, or application code.
 
 ---
 
@@ -539,6 +562,6 @@ Keep `pending` and `rejected` enum labels until a later maintenance window; Post
 | 4 | Admin listing unpublish/republish and notice-post deletion RPCs | Medium | Chunk 1 |
 | 5 | Per-user conversation hiding and new-message restoration | High | Chunks 0–3; coordinated inbox delete UI update |
 | 6 | Ban enforcement and durable listing moderation | High | Chunks 1, 4, and 5; run read-only preflight |
-| 7 | Realtime alignment | Medium | Chunk 5 table; RLS reviewed |
+| 7 | Realtime publication alignment | Medium | Chunks 5–6; RLS and DELETE caveat reviewed |
 | 8 | Retire Supabase Storage policies/buckets | High | R2 code migration, URL migration, backup, Storage API cleanup |
 | 9 | Remove dead/out-of-V1 schema | High | Code cleanup, data export, explicit destructive approval |
