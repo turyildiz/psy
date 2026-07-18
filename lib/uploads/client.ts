@@ -131,7 +131,14 @@ export async function uploadToR2(file: File, options: UploadOptions): Promise<st
     headers: intent.headers,
     body: prepared,
   });
-  if (!upload.ok) throw new Error("The image upload failed.");
+  if (!upload.ok) {
+    await fetch("/api/r2/finalize", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ uploadToken: intent.uploadToken }),
+    }).catch(() => undefined);
+    throw new Error("The image upload failed.");
+  }
 
   const finalize = await fetch("/api/r2/finalize", {
     method: "POST",

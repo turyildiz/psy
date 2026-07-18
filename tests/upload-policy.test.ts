@@ -65,12 +65,14 @@ test("client resizing targets a 2000px longest edge without upscaling", () => {
   assert.throws(() => getClientResizeDimensions(0, 100));
 });
 
-test("cleanup policy remains approval-gated", () => {
+test("immediate cleanup requires verified ownership and a fresh unreferenced result", () => {
   assert.equal(ORPHAN_RETENTION_DAYS, 14);
-  assert.deepEqual(IMMEDIATE_DELETE_REASONS, ["failed-upload", "replaced-object", "promoted-pending"]);
-  assert.equal(canImmediatelyDelete({ reason: "failed-upload", ownership: "verified" }), true);
-  assert.equal(canImmediatelyDelete({ reason: "replaced-object", ownership: "verified" }), true);
-  assert.equal(canImmediatelyDelete({ reason: "promoted-pending", ownership: "verified" }), true);
-  assert.equal(canImmediatelyDelete({ reason: "orphan", ownership: "verified" }), false);
-  assert.equal(canImmediatelyDelete({ reason: "failed-upload", ownership: "unknown" }), false);
+  assert.deepEqual(IMMEDIATE_DELETE_REASONS, ["failed-upload", "promoted-pending"]);
+  assert.equal(canImmediatelyDelete({ reason: "failed-upload", ownership: "verified", referenceCheck: "unreferenced" }), true);
+  assert.equal(canImmediatelyDelete({ reason: "replaced-object", ownership: "verified", referenceCheck: "unreferenced" }), false);
+  assert.equal(canImmediatelyDelete({ reason: "promoted-pending", ownership: "verified", referenceCheck: "unreferenced" }), true);
+  assert.equal(canImmediatelyDelete({ reason: "orphan", ownership: "verified", referenceCheck: "unreferenced" }), false);
+  assert.equal(canImmediatelyDelete({ reason: "failed-upload", ownership: "unknown", referenceCheck: "unreferenced" }), false);
+  assert.equal(canImmediatelyDelete({ reason: "failed-upload", ownership: "verified", referenceCheck: "referenced" }), false);
+  assert.equal(canImmediatelyDelete({ reason: "failed-upload", ownership: "verified", referenceCheck: "unknown" }), false);
 });

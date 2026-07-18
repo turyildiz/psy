@@ -1,4 +1,4 @@
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 
 let client: S3Client | null = null;
@@ -78,6 +78,10 @@ export async function readR2PublicObjectSignature(key: string, etag: string) {
   }));
   if (!result.Body) return new Uint8Array();
   return result.Body.transformToByteArray();
+}
+
+export async function deleteR2UploadObject(key: string) {
+  await getR2Client().send(new DeleteObjectCommand({ Bucket: getR2UploadBucket(), Key: key }));
 }
 
 export async function copyR2Object(

@@ -1,21 +1,22 @@
 import config from "./policy.json" with { type: "json" };
 
 export const ORPHAN_RETENTION_DAYS = config.orphanRetentionDays;
-export const IMMEDIATE_DELETE_REASONS = ["failed-upload", "replaced-object", "promoted-pending"] as const;
+export const IMMEDIATE_DELETE_REASONS = ["failed-upload", "promoted-pending"] as const;
 
 export type CleanupCandidate = {
-  reason: (typeof IMMEDIATE_DELETE_REASONS)[number] | "orphan";
+  reason: (typeof IMMEDIATE_DELETE_REASONS)[number] | "replaced-object" | "orphan";
   ownership: "verified" | "unknown";
+  referenceCheck: "unreferenced" | "referenced" | "unknown";
 };
 
 export function canImmediatelyDelete(candidate: CleanupCandidate) {
-  return candidate.ownership === "verified" && IMMEDIATE_DELETE_REASONS.includes(
-    candidate.reason as (typeof IMMEDIATE_DELETE_REASONS)[number]
-  );
+  return candidate.ownership === "verified"
+    && candidate.referenceCheck === "unreferenced"
+    && IMMEDIATE_DELETE_REASONS.includes(
+      candidate.reason as (typeof IMMEDIATE_DELETE_REASONS)[number]
+    );
 }
 
-// Deletion execution is intentionally not implemented or exposed yet. This
-// module records the proposed policy for review without making a destructive
-// path live. Failed uploads, replaced owned objects, and promoted pending
-// objects are immediate candidates only after approval; all other orphans
-// remain report-only for at least ORPHAN_RETENTION_DAYS.
+// Immediate execution is limited to owned private quarantine objects after both
+// ownership and fresh complete reference checks succeed. Replaced public media
+// and every other orphan remain report-only for at least ORPHAN_RETENTION_DAYS.
