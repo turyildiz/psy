@@ -20,7 +20,7 @@
    Extend schema/types/forms/search to support tickets, display the face-value guideline and ticket-specific safety messaging, and remove the hard-coded homepage ticket section. Do not add verification or affiliate links.
 
 6. **Build minimal reactive moderation — L**  
-   Implement exactly one `super_admin` plus appointed admins; both can unpublish listings, ban/unban users, and delete notice-wall posts, while only the super_admin can appoint/remove admins. Enforce bans in auth and write paths. No approval queue or analytics dashboard.
+   Implement exactly one `super_admin` plus appointed admins; both can unpublish listings, ban/unban users, and delete notice-wall posts, while only the super_admin can appoint/remove admins. Enforce bans in auth and write paths. The moderation UI must synchronize account bans with Supabase Auth: Ban sets Auth `banned_until`, Unban clears it, and rejected login attempts display a clear banned-account message. No approval queue or analytics dashboard.
 
 7. **Finish database-backed browse and discovery — M**  
    Implement title search, category and price filters, stable pagination, URL-backed state, and clear empty/error states across normal listings including tickets. Remove or defer controls not supported by the frozen lean scope.
