@@ -57,7 +57,7 @@ function ListingCard({ item, isOwner, onDeleted, onEdit }: { item: Listing; isOw
         >
           <div style={{ position: "relative", overflow: "hidden" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={item.images[0]} alt={item.title} style={{ width: "100%", height: "240px", objectFit: "cover", display: "block" }} />
+            <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ width: "100%", height: "240px", objectFit: "cover", display: "block" }} />
             {item.isFeatured && (
               <span style={{ position: "absolute", top: "10px", left: "10px", background: "var(--rust)", color: "white", fontSize: "9px", padding: "3px 8px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
                 Featured

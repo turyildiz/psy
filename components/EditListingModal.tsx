@@ -2,7 +2,8 @@
 
 import { useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadToR2 } from "@/lib/r2";
+import { uploadToR2 } from "@/lib/uploads/client";
+import { IMAGE_ACCEPT, isAllowedImageType } from "@/lib/uploads/policy";
 import type { Listing } from "@/types/marketplace";
 
 const CONDITIONS = [
@@ -89,9 +90,9 @@ function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onC
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
-    const remaining = 8 - total;
+    const remaining = 5 - total;
     const newImgs: string[] = []; const newFs: File[] = []; let loaded = 0;
-    const toLoad = Array.from(files).filter((f) => f.type.startsWith("image/")).slice(0, remaining);
+    const toLoad = Array.from(files).filter((f) => isAllowedImageType(f.type)).slice(0, remaining);
     if (!toLoad.length) return;
     toLoad.forEach((file) => {
       const reader = new FileReader();
@@ -123,16 +124,16 @@ function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onC
               <button type="button" onClick={() => onChangeNew(newImages.filter((_, j) => j !== i), newFiles.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
           ))}
-          {total < 8 && <div onClick={() => inputRef.current?.click()} style={{ aspectRatio: "4/5", borderRadius: "8px", border: "2px dashed var(--sand)", background: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><span style={{ fontSize: "22px", color: "var(--text-light)" }}>+</span></div>}
+          {total < 5 && <div onClick={() => inputRef.current?.click()} style={{ aspectRatio: "4/5", borderRadius: "8px", border: "2px dashed var(--sand)", background: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><span style={{ fontSize: "22px", color: "var(--text-light)" }}>+</span></div>}
         </div>
       )}
       {total === 0 && (
         <div onClick={() => inputRef.current?.click()} onDragOver={(e) => { e.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={(e) => { e.preventDefault(); setDragging(false); handleFiles(e.dataTransfer.files); }} style={{ border: `2px dashed ${dragging ? "var(--rust)" : "var(--sand)"}`, borderRadius: "12px", padding: "32px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", cursor: "pointer", background: dragging ? "oklch(92% 0.04 55)" : "var(--white)" }}>
           <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: 0 }}>Add photos</p>
-          <p style={{ fontSize: "13px", color: "var(--text-light)", margin: 0 }}>up to 8</p>
+          <p style={{ fontSize: "13px", color: "var(--text-light)", margin: 0 }}>up to 5</p>
         </div>
       )}
-      <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
+      <input ref={inputRef} type="file" accept={IMAGE_ACCEPT} multiple style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
     </div>
   );
 }
@@ -178,11 +179,20 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
     const supabase = createClient();
 
     const uploadedUrls: string[] = [];
-    for (const file of newFiles) {
-      try {
-        const url = await uploadToR2(file, "listings");
+    try {
+      for (let index = 0; index < newFiles.length; index += 1) {
+        const url = await uploadToR2(newFiles[index], {
+          purpose: "listing-image",
+          ownerId: profileId,
+          resourceId: listing.id,
+          index: existingUrls.length + index,
+        });
         uploadedUrls.push(url);
-      } catch { /* skip failed uploads */ }
+      }
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Image upload failed.");
+      setSaving(false);
+      return;
     }
 
     const finalImages = [...existingUrls, ...uploadedUrls];

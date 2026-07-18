@@ -1,0 +1,12 @@
+{
+  "allowedImageTypes": ["image/jpeg", "image/png", "image/webp"],
+  "clientLongestEdge": 2000,
+  "clientImageQuality": 0.8,
+  "orphanRetentionDays": 14,
+  "purposes": {
+    "avatar": { "folder": "avatars", "maxBytes": 5242880, "maxCount": 1, "label": "Avatar images", "clientLabel": "avatar" },
+    "header": { "folder": "headers", "maxBytes": 10485760, "maxCount": 1, "label": "Header images", "clientLabel": "header" },
+    "listing-image": { "folder": "listings", "maxBytes": 10485760, "maxCount": 5, "label": "Listing images", "clientLabel": "listing image" },
+    "event-flyer": { "folder": "festivals", "maxBytes": 10485760, "maxCount": 1, "label": "Event flyers", "clientLabel": "event flyer" }
+  }
+}

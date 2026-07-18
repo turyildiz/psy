@@ -6,6 +6,7 @@ import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import { createClient } from "@/lib/supabase/client";
+import { uploadToR2 } from "@/lib/uploads/client";
 import type { ProfileType, SocialLinks } from "@/types/marketplace";
 
 const PROFILE_TYPES: { value: ProfileType; label: string }[] = [
@@ -142,13 +143,12 @@ export default function EditProfilePage() {
     const file = e.target.files?.[0];
     if (!file) return;
     setUploadingAvatar(true);
-    const supabase = createClient();
-    const ext = file.name.split(".").pop();
-    const path = `${profileId}/${Date.now()}.${ext}`;
-    const { error: uploadError } = await supabase.storage.from("avatars").upload(path, file, { upsert: true });
-    if (uploadError) { setError("Avatar upload failed"); setUploadingAvatar(false); return; }
-    const { data: urlData } = supabase.storage.from("avatars").getPublicUrl(path);
-    setAvatarUrl(urlData.publicUrl);
+    setError(null);
+    try {
+      setAvatarUrl(await uploadToR2(file, { purpose: "avatar", ownerId: profileId }));
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Avatar upload failed.");
+    }
     setUploadingAvatar(false);
   };
 

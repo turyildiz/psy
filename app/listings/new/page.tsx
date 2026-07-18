@@ -6,6 +6,8 @@ import Link from "next/link";
 import Header from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/client";
 import { conditionLabels, categoryLabels } from "@/lib/constants";
+import { uploadToR2 } from "@/lib/uploads/client";
+import { IMAGE_ACCEPT, isAllowedImageType } from "@/lib/uploads/policy";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -96,11 +98,11 @@ function ImageUploader({ images, imageFiles, onChange }: { images: string[]; ima
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
-    const remaining = 8 - images.length;
+    const remaining = 5 - images.length;
     const newImgs: string[] = [];
     const newFiles: File[] = [];
     let loaded = 0;
-    const toLoad = Array.from(files).filter((f) => f.type.startsWith("image/")).slice(0, remaining);
+    const toLoad = Array.from(files).filter((f) => isAllowedImageType(f.type)).slice(0, remaining);
     if (!toLoad.length) return;
     toLoad.forEach((file) => {
       const reader = new FileReader();
@@ -130,7 +132,7 @@ function ImageUploader({ images, imageFiles, onChange }: { images: string[]; ima
           {dragging ? "Drop to add" : "Drag photos here"}
         </p>
         <p style={{ fontSize: "13px", color: "var(--text-light)", margin: 0 }}>
-          or <span style={{ color: "var(--rust)", fontWeight: 600 }}>browse files</span> · up to 8 photos
+          or <span style={{ color: "var(--rust)", fontWeight: 600 }}>browse files</span> · up to 5 photos
         </p>
       </div>
 
@@ -145,7 +147,7 @@ function ImageUploader({ images, imageFiles, onChange }: { images: string[]; ima
               <button type="button" onClick={() => onChange(images.filter((_, j) => j !== i), imageFiles.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
           ))}
-          {images.length < 8 && (
+          {images.length < 5 && (
             <div onClick={() => inputRef.current?.click()} style={{ aspectRatio: "4/5", borderRadius: "8px", border: "2px dashed var(--sand)", background: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
               <span style={{ fontSize: "22px", color: "var(--text-light)" }}>+</span>
             </div>
@@ -153,7 +155,7 @@ function ImageUploader({ images, imageFiles, onChange }: { images: string[]; ima
         </div>
       )}
 
-      <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
+      <input ref={inputRef} type="file" accept={IMAGE_ACCEPT} multiple style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
     </div>
   );
 }
@@ -238,14 +240,18 @@ export default function NewListingPage() {
     if (!profile) { setPublishError("Profile not found."); setPublishing(false); return; }
 
     const uploadedUrls: string[] = [];
-    for (const file of imageFiles) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${profile.id}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error } = await supabase.storage.from("listings").upload(path, file);
-      if (!error) {
-        const { data: { publicUrl } } = supabase.storage.from("listings").getPublicUrl(path);
-        uploadedUrls.push(publicUrl);
+    try {
+      for (let index = 0; index < imageFiles.length; index += 1) {
+        uploadedUrls.push(await uploadToR2(imageFiles[index], {
+          purpose: "listing-image",
+          ownerId: profile.id,
+          index,
+        }));
       }
+    } catch (uploadError) {
+      setPublishError(uploadError instanceof Error ? uploadError.message : "Image upload failed.");
+      setPublishing(false);
+      return;
     }
 
     const { data: listing, error } = await supabase.from("listings").insert({

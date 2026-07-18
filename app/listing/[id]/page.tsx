@@ -301,7 +301,8 @@ export default function ListingDetailPage() {
             >
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={listing.images[selectedImage]}
+                src={listing.images[selectedImage] || "/listing-placeholder.webp"}
+                onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }}
                 className="detail-image-img"
                 alt={listing.title}
               />
@@ -516,7 +517,8 @@ export default function ListingDetailPage() {
           <div onClick={(e) => e.stopPropagation()} style={{ maxWidth: "90vw", maxHeight: "80vh", display: "flex", alignItems: "center", justifyContent: "center" }}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
-              src={listing.images[selectedImage]}
+              src={listing.images[selectedImage] || "/listing-placeholder.webp"}
+              onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }}
               alt={listing.title}
               style={{ maxWidth: "90vw", maxHeight: "80vh", objectFit: "contain", borderRadius: "8px", display: "block" }}
             />

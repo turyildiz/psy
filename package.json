@@ -6,7 +6,8 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test:auth": "node --no-warnings --test --experimental-strip-types tests/auth-safety.test.ts"
+    "test:auth": "node --no-warnings --test --experimental-strip-types tests/auth-safety.test.ts",
+    "test:uploads": "node --no-warnings --test --experimental-strip-types tests/upload-policy.test.ts tests/upload-intent.test.ts tests/upload-server-config.test.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1060.0",

@@ -1,56 +1,44 @@
-const { S3Client, PutObjectCommand } = require('@aws-sdk/client-s3');
-const fs = require('fs');
-const path = require('path');
-const { createClient } = require('@supabase/supabase-js');
+const { createClient } = require("@supabase/supabase-js");
+const { loadLocalEnv, uploadValidatedImage } = require("./lib/validated-r2-upload");
 
-require('fs').readFileSync('.env.local', 'utf8').split('\n').forEach(l => {
-  const [k, v] = l.split('=');
-  if (k && v) process.env[k.trim()] = v.trim();
-});
-
-const r2 = new S3Client({
-  region: 'auto',
-  endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-  credentials: {
-    accessKeyId: process.env.R2_ACCESS_KEY_ID,
-    secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-  },
-});
+loadLocalEnv();
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
 
 async function run() {
   const [,, localFile, title, category, profileHandle, priceEuros, condition, tagsStr, description] = process.argv;
+  if (!localFile || !title || !profileHandle || !priceEuros) {
+    throw new Error("Usage: node scripts/upload-and-create.js <file> <title> <category> <profile-handle> <price-euros> [condition] [tags] [description]");
+  }
 
-  const ext = path.extname(localFile).slice(1) || 'jpg';
-  const key = `${category || 'listings'}/ai-generated/${Date.now()}.${ext}`;
-  await r2.send(new PutObjectCommand({
-    Bucket: process.env.R2_BUCKET_NAME,
-    Key: key,
-    Body: fs.readFileSync(localFile),
-    ContentType: `image/${ext === 'jpg' ? 'jpeg' : ext}`,
-  }));
-  const publicUrl = `${process.env.NEXT_PUBLIC_R2_PUBLIC_URL}/${key}`;
+  const { data: profile, error: profileError } = await supabase.from("profiles").select("id, user_id").eq("handle", profileHandle).single();
+  if (profileError || !profile) throw new Error("Owner profile not found.");
+  const { data: user, error: userError } = await supabase.from("users").select("banned_at").eq("id", profile.user_id).single();
+  if (userError || !user) throw new Error("Owner account status could not be verified.");
+  if (user.banned_at) throw new Error("Banned accounts cannot receive uploads.");
+
+  const publicUrl = await uploadValidatedImage({ localFile, purpose: "listing-image", ownerUserId: profile.user_id });
   console.log(`Uploaded: ${publicUrl}`);
 
-  const { data: profile } = await supabase.from('profiles').select('id').eq('handle', profileHandle).single();
-  if (!profile) { console.error('Profile not found:', profileHandle); return; }
-
-  const tags = tagsStr ? tagsStr.split(',') : [];
-  const { data: listing, error } = await supabase.from('listings').insert({
+  const tags = tagsStr ? tagsStr.split(",").map((tag) => tag.trim()).filter(Boolean) : [];
+  const { data: listing, error } = await supabase.from("listings").insert({
     title,
     description: description || `Handmade ${title.toLowerCase()}, unique piece.`,
-    category: category || 'accessories',
-    condition: condition || 'new',
+    category: category || "accessories",
+    condition: condition || "new",
     price: Math.round(Number(priceEuros) * 100),
     profile_id: profile.id,
     images: [publicUrl],
     tags,
-    ships_to: ['WORLDWIDE'],
-    size: 'One Size',
-    status: 'active',
-  }).select('id').single();
+    ships_to: ["WORLDWIDE"],
+    size: "One Size",
+    status: "active",
+  }).select("id").single();
 
-  if (error) console.error('Error:', error.message);
-  else console.log(`Created listing: ${title} (${listing.id})`);
+  if (error) throw new Error("Upload succeeded but listing creation failed.");
+  console.log(`Created listing: ${title} (${listing.id})`);
 }
-run().catch(console.error);
+
+run().catch((error) => {
+  console.error(error instanceof Error ? error.message : "Upload failed.");
+  process.exitCode = 1;
+});

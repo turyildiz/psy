@@ -5,6 +5,8 @@ import { useRouter, useParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/client";
+import { uploadToR2 } from "@/lib/uploads/client";
+import { IMAGE_ACCEPT, isAllowedImageType } from "@/lib/uploads/policy";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -102,8 +104,8 @@ function ImageManager({
 
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
-    const remaining = 8 - totalCount;
-    const added = Array.from(files).filter((f) => f.type.startsWith("image/")).slice(0, remaining);
+    const remaining = 5 - totalCount;
+    const added = Array.from(files).filter((f) => isAllowedImageType(f.type)).slice(0, remaining);
     if (added.length) onNewFiles([...newFiles, ...added]);
   }, [totalCount, newFiles, onNewFiles]);
 
@@ -128,7 +130,7 @@ function ImageManager({
             <button type="button" onClick={() => onNewFiles(newFiles.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
           </div>
         ))}
-        {totalCount < 8 && (
+        {totalCount < 5 && (
           <div onClick={() => inputRef.current?.click()} style={{ aspectRatio: "4/5", borderRadius: "8px", border: "2px dashed var(--sand)", background: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}>
             <span style={{ fontSize: "22px", color: "var(--text-light)" }}>+</span>
           </div>
@@ -137,10 +139,10 @@ function ImageManager({
       {totalCount === 0 && (
         <div onClick={() => inputRef.current?.click()} style={{ border: "2px dashed var(--sand)", borderRadius: "12px", padding: "40px", display: "flex", flexDirection: "column", alignItems: "center", gap: "8px", cursor: "pointer", background: "var(--white)" }}>
           <p style={{ fontSize: "15px", fontWeight: 600, color: "var(--text)", margin: 0 }}>Add photos</p>
-          <p style={{ fontSize: "13px", color: "var(--text-light)", margin: 0 }}>Up to 8 photos</p>
+          <p style={{ fontSize: "13px", color: "var(--text-light)", margin: 0 }}>Up to 5 photos</p>
         </div>
       )}
-      <input ref={inputRef} type="file" accept="image/*" multiple style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
+      <input ref={inputRef} type="file" accept={IMAGE_ACCEPT} multiple style={{ display: "none" }} onChange={(e) => handleFiles(e.target.files)} />
     </div>
   );
 }
@@ -213,14 +215,19 @@ export default function EditListingPage() {
 
     const supabase = createClient();
     const uploadedUrls: string[] = [];
-    for (const file of newImageFiles) {
-      const ext = file.name.split(".").pop() || "jpg";
-      const path = `${profileId}/${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`;
-      const { error: uploadErr } = await supabase.storage.from("listings").upload(path, file);
-      if (!uploadErr) {
-        const { data: { publicUrl } } = supabase.storage.from("listings").getPublicUrl(path);
-        uploadedUrls.push(publicUrl);
+    try {
+      for (let index = 0; index < newImageFiles.length; index += 1) {
+        uploadedUrls.push(await uploadToR2(newImageFiles[index], {
+          purpose: "listing-image",
+          ownerId: profileId,
+          resourceId: id,
+          index: existingImages.length + index,
+        }));
       }
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Image upload failed.");
+      setSaving(false);
+      return;
     }
 
     const { error: updateError } = await supabase.from("listings").update({

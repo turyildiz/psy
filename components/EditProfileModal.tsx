@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
-import { uploadToR2 } from "@/lib/r2";
+import { uploadToR2 } from "@/lib/uploads/client";
 import type { Profile, ProfileType, SocialLinks } from "@/types/marketplace";
 
 const PROFILE_TYPES: { value: ProfileType; label: string }[] = [
@@ -98,10 +98,10 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
     if (!file) return;
     setUploadingAvatar(true);
     try {
-      const url = await uploadToR2(file, "avatars");
+      const url = await uploadToR2(file, { purpose: "avatar", ownerId: profile.id });
       setAvatarUrl(url);
-    } catch {
-      setError("Avatar upload failed");
+    } catch (uploadError) {
+      setError(uploadError instanceof Error ? uploadError.message : "Avatar upload failed.");
     }
     setUploadingAvatar(false);
   };

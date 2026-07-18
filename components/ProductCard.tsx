@@ -44,7 +44,8 @@ export default function ProductCard({ item, fill, small }: Props) {
       <div style={{ position: "relative", overflow: "hidden", flex: fill ? 1 : undefined }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
-          src={item.images[0]}
+          src={item.images[0] || "/listing-placeholder.webp"}
+          onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }}
           style={{
             width: "100%",
             height: fill ? "100%" : small ? "200px" : "230px",

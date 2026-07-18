@@ -29,7 +29,7 @@ function FeaturedCard({ item }: { item: Listing }) {
       >
         <div style={{ position: "relative", overflow: "hidden" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0]} alt={item.title} style={{ width: "100%", height: "260px", objectFit: "cover", display: "block", transition: "transform 0.55s ease", transform: hov ? "scale(1.04)" : "scale(1)" }} />
+          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ width: "100%", height: "260px", objectFit: "cover", display: "block", transition: "transform 0.55s ease", transform: hov ? "scale(1.04)" : "scale(1)" }} />
           <span style={{ position: "absolute", top: "12px", left: "12px", background: "var(--rust)", color: "white", fontSize: "9px", padding: "4px 10px", borderRadius: "4px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Featured
           </span>
@@ -75,7 +75,7 @@ function GearCard({ item }: { item: Listing }) {
       >
         <div style={{ overflow: "hidden" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0]} alt={item.title} className="gear-card-img" style={{ width: "100%", height: "180px", objectFit: "cover", display: "block", transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
+          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} className="gear-card-img" style={{ width: "100%", height: "180px", objectFit: "cover", display: "block", transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
         </div>
         <div style={{ padding: "11px 13px 14px" }}>
           <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</p>

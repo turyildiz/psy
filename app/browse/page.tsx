@@ -60,7 +60,8 @@ function ProductCard({ item }: { item: Listing }) {
         <div style={{ position: "relative", overflow: "hidden" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={item.images[0]}
+            src={item.images[0] || "/listing-placeholder.webp"}
+            onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }}
             style={{
               width: "100%",
               height: "260px",
