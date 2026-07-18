@@ -4,6 +4,7 @@ import assert from "node:assert/strict";
 import {
   getSafeRedirect,
   getAllowedAuthOrigin,
+  getRecoveryToken,
   normalizeHandle,
   validateHandle,
   getFriendlySignupError,
@@ -41,6 +42,14 @@ test("getAllowedAuthOrigin uses only reviewed deployment origins", () => {
   );
   assert.equal(getAllowedAuthOrigin("http://localhost:3030/api/auth/signup", undefined, true), "http://localhost:3030");
   assert.equal(getAllowedAuthOrigin("http://localhost:3030/api/auth/signup"), "https://psy.market");
+});
+
+test("getRecoveryToken accepts only a recovery token_hash query or fragment", () => {
+  assert.equal(getRecoveryToken("?token_hash=abc123&type=recovery"), "abc123");
+  assert.equal(getRecoveryToken("#token_hash=fragment123&type=recovery"), "fragment123");
+  assert.equal(getRecoveryToken("?token_hash=abc123&type=signup"), null);
+  assert.equal(getRecoveryToken("?type=recovery"), null);
+  assert.equal(getRecoveryToken("?token_hash=%20%20&type=recovery"), null);
 });
 
 test("handle normalization is case-insensitive and trims whitespace", () => {

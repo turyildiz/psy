@@ -22,10 +22,9 @@ export default function ForgotPasswordPage() {
     setLoading(true);
     try {
       const supabase = createClient();
-      const callback = new URL("/auth/callback", window.location.origin);
-      callback.searchParams.set("next", "/update-password");
+      const recoveryUrl = new URL("/auth/recovery", window.location.origin);
       const { error: resetError } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-        redirectTo: callback.toString(),
+        redirectTo: recoveryUrl.toString(),
       });
 
       if (resetError) {

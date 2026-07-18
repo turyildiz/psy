@@ -37,6 +37,16 @@ export function getAllowedAuthOrigin(
   return configuredOrigin ?? "https://psy.market";
 }
 
+export function getRecoveryToken(queryOrFragment: string) {
+  const value = queryOrFragment.startsWith("?") || queryOrFragment.startsWith("#")
+    ? queryOrFragment.slice(1)
+    : queryOrFragment;
+  const params = new URLSearchParams(value);
+  if (params.get("type") !== "recovery") return null;
+  const tokenHash = params.get("token_hash")?.trim();
+  return tokenHash || null;
+}
+
 export function getSafeRedirect(
   value: string | null | undefined,
   allowedOrigin: string,
