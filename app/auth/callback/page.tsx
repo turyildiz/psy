@@ -3,7 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
-import { getSafeRedirect } from "@/lib/auth/safety";
+import { getAuthCallbackCredentials, getSafeRedirect } from "@/lib/auth/safety";
 
 export default function AuthCallback() {
   const router = useRouter();
@@ -12,61 +12,72 @@ export default function AuthCallback() {
     let cancelled = false;
     const supabase = createClient();
     const params = new URLSearchParams(window.location.search);
-    const hashParams = new URLSearchParams(window.location.hash.substring(1));
     const next = getSafeRedirect(params.get("next"), window.location.origin, "/");
-    const code = params.get("code");
-    const accessToken = hashParams.get("access_token");
-    const refreshToken = hashParams.get("refresh_token");
-    const tokenHash = hashParams.get("token_hash") ?? params.get("token_hash");
-    const flowType = hashParams.get("type") ?? params.get("type");
-    const recoveryDestination = flowType === "recovery" ? "/update-password" : next;
+    const { isRecovery, code, accessToken, refreshToken, signupTokenHash } = getAuthCallbackCredentials(
+      window.location.search,
+      window.location.hash
+    );
 
-    const finish = (error: unknown, destination = next) => {
+    // Capture only the supported signup/OAuth credentials, then immediately
+    // remove every known auth credential from browser history before awaiting
+    // the provider. Recovery token hashes are deliberately not accepted here;
+    // the scanner-safe /auth/recovery interstitial is their only valid route.
+    const cleanParams = new URLSearchParams(params);
+    cleanParams.delete("code");
+    cleanParams.delete("token_hash");
+    cleanParams.delete("access_token");
+    cleanParams.delete("refresh_token");
+    const cleanSearch = cleanParams.toString();
+    window.history.replaceState(
+      null,
+      "",
+      `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ""}`
+    );
+
+    const finish = (failed: boolean) => {
       if (!cancelled) {
-        router.replace(error ? "/login?error=confirmation_failed" : destination);
+        router.replace(failed ? "/login?error=confirmation_failed" : next);
       }
     };
 
-    // Remove one-time codes and legacy fragment tokens from browser history as
-    // soon as they have been captured. They are never logged.
-    if (code || tokenHash || accessToken || refreshToken || window.location.hash) {
-      const cleanParams = new URLSearchParams(params);
-      cleanParams.delete("code");
-      cleanParams.delete("token_hash");
-      cleanParams.delete("access_token");
-      cleanParams.delete("refresh_token");
-      const cleanSearch = cleanParams.toString();
-      window.history.replaceState(
-        null,
-        "",
-        `${window.location.pathname}${cleanSearch ? `?${cleanSearch}` : ""}`
-      );
-    }
+    const completeCallback = async () => {
+      try {
+        if (isRecovery) {
+          finish(true);
+          return;
+        }
 
-    if (code) {
-      supabase.auth
-        .exchangeCodeForSession(code)
-        .then(({ error }) => finish(error, recoveryDestination));
-      return () => { cancelled = true; };
-    }
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          finish(Boolean(error));
+          return;
+        }
 
-    // Legacy implicit links place session material in the URL fragment. Read it
-    // only long enough to establish the session.
-    if (accessToken && refreshToken) {
-      supabase.auth
-        .setSession({ access_token: accessToken, refresh_token: refreshToken })
-        .then(({ error }) => finish(error, recoveryDestination));
-      return () => { cancelled = true; };
-    }
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          finish(Boolean(error));
+          return;
+        }
 
-    if (tokenHash && (flowType === "signup" || flowType === "recovery")) {
-      supabase.auth
-        .verifyOtp({ token_hash: tokenHash, type: flowType })
-        .then(({ error }) => finish(error, recoveryDestination));
-      return () => { cancelled = true; };
-    }
+        if (signupTokenHash) {
+          const { error } = await supabase.auth.verifyOtp({
+            token_hash: signupTokenHash,
+            type: "signup",
+          });
+          finish(Boolean(error));
+          return;
+        }
 
-    router.replace("/login?error=confirmation_failed");
+        finish(true);
+      } catch {
+        finish(true);
+      }
+    };
+
+    void completeCallback();
     return () => { cancelled = true; };
   }, [router]);
 

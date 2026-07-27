@@ -37,14 +37,74 @@ export function getAllowedAuthOrigin(
   return configuredOrigin ?? "https://psy.market";
 }
 
-export function getRecoveryToken(queryOrFragment: string) {
-  const value = queryOrFragment.startsWith("?") || queryOrFragment.startsWith("#")
-    ? queryOrFragment.slice(1)
-    : queryOrFragment;
+export function isAllowedAuthRequestOrigin(
+  origin: string | null,
+  configuredSiteUrl?: string,
+  allowLocalDevelopment = false
+) {
+  if (!origin) return false;
+  try {
+    const parsedOrigin = new URL(origin).origin;
+    return parsedOrigin === origin
+      && getAllowedAuthOrigin(origin, configuredSiteUrl, allowLocalDevelopment) === origin;
+  } catch {
+    return false;
+  }
+}
+
+export function getRecoveryToken(fragment: string) {
+  if (!fragment.startsWith("#")) return null;
+  const value = fragment.slice(1);
   const params = new URLSearchParams(value);
   if (params.get("type") !== "recovery") return null;
   const tokenHash = params.get("token_hash")?.trim();
   return tokenHash || null;
+}
+
+export function getAuthCallbackCredentials(search: string, hash: string) {
+  const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
+  const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
+  const isRecovery = [
+    ...params.getAll("type"),
+    ...hashParams.getAll("type"),
+  ].includes("recovery");
+  return {
+    isRecovery,
+    code: isRecovery ? null : params.get("code"),
+    accessToken: isRecovery ? null : hashParams.get("access_token"),
+    refreshToken: isRecovery ? null : hashParams.get("refresh_token"),
+    signupTokenHash:
+      isRecovery
+        ? null
+        : hashParams.get("type") === "signup"
+          ? hashParams.get("token_hash")
+          : params.get("type") === "signup"
+            ? params.get("token_hash")
+            : null,
+  };
+}
+
+export function getRecoveryVerificationErrorStatus(error: {
+  name?: string;
+  status?: number;
+} | null | undefined): 400 | 429 | 503 {
+  if (error?.status === 429) return 429;
+  if (
+    error?.name === "AuthRetryableFetchError"
+    || error?.status === 0
+    || (typeof error?.status === "number" && error.status >= 500)
+  ) {
+    return 503;
+  }
+  return 400;
+}
+
+type RecoveryAuthClient = {
+  signOut(options: { scope: "global" }): Promise<{ error: unknown }>;
+};
+
+export function revokeRecoverySessions(auth: RecoveryAuthClient) {
+  return auth.signOut({ scope: "global" });
 }
 
 export function getSafeRedirect(
@@ -67,6 +127,26 @@ export function getSafeRedirect(
   } catch {
     return fallback;
   }
+}
+
+type HandleAvailabilityResult = {
+  profileExists?: boolean;
+  blockedExists?: boolean;
+  profileError?: boolean;
+  blockedError?: boolean;
+};
+
+export function getHandleAvailabilityError(result: HandleAvailabilityResult) {
+  if (result.profileError || result.blockedError) {
+    return "We couldn’t check this handle. Please try again.";
+  }
+  if (result.blockedExists) {
+    return "This handle is reserved. Please choose another.";
+  }
+  if (result.profileExists) {
+    return "This handle is already taken.";
+  }
+  return null;
 }
 
 export function normalizeHandle(handle: string) {

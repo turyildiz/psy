@@ -2,6 +2,7 @@
 
 import { useState, useRef, useEffect } from "react";
 import { createClient } from "@/lib/supabase/client";
+import { getFriendlySignupError, getHandleAvailabilityError } from "@/lib/auth/safety";
 import { uploadToR2 } from "@/lib/uploads/client";
 import type { Profile, ProfileType, SocialLinks } from "@/types/marketplace";
 
@@ -75,17 +76,35 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
   const [passwordSaved, setPasswordSaved] = useState(false);
 
   useEffect(() => {
-    if (!handle || handle === profile.handle) { setHandleError(null); return; }
-    if (handle.length < 3) { setHandleError("At least 3 characters"); return; }
-    if (!/^[a-z0-9_]+$/.test(handle)) { setHandleError("Lowercase letters, numbers, underscores only"); return; }
+    if (!handle || handle === profile.handle) { setCheckingHandle(false); setHandleError(null); return; }
+    if (handle.length < 3) { setCheckingHandle(false); setHandleError("At least 3 characters"); return; }
+    if (!/^[a-z0-9_]+$/.test(handle)) { setCheckingHandle(false); setHandleError("Lowercase letters, numbers, underscores only"); return; }
     setCheckingHandle(true);
+    let cancelled = false;
     const timer = setTimeout(async () => {
-      const supabase = createClient();
-      const { data } = await supabase.from("profiles").select("id").eq("handle", handle).maybeSingle();
-      setCheckingHandle(false);
-      setHandleError(data ? "Handle already taken" : null);
+      try {
+        const supabase = createClient();
+        const [profileResult, blockedResult] = await Promise.all([
+          supabase.from("profiles").select("id").eq("handle", handle).maybeSingle(),
+          supabase.from("blocked_handles").select("handle").eq("handle", handle).maybeSingle(),
+        ]);
+        const availabilityError = getHandleAvailabilityError({
+          profileExists: Boolean(profileResult.data),
+          blockedExists: Boolean(blockedResult.data),
+          profileError: Boolean(profileResult.error),
+          blockedError: Boolean(blockedResult.error),
+        });
+        if (!cancelled) setHandleError(availabilityError);
+      } catch {
+        if (!cancelled) setHandleError("We couldn’t check this handle. Please try again.");
+      } finally {
+        if (!cancelled) setCheckingHandle(false);
+      }
     }, 400);
-    return () => clearTimeout(timer);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
   }, [handle, profile.handle]);
   const [bio, setBio] = useState(profile.bio ?? "");
   const [location, setLocation] = useState(profile.location ?? "");
@@ -113,20 +132,37 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
     setNameError(null);
     setSaving(true);
     setError(null);
-    const supabase = createClient();
-    const { error: updateError } = await supabase.from("profiles").update({
-      display_name: displayName.trim(),
-      handle: handle.trim(),
-      bio: bio.trim() || null,
-      location: location.trim() || null,
-      type,
-      avatar_url: avatarUrl || null,
-      social_links: social,
-    }).eq("id", profile.id);
-    setSaving(false);
-    if (updateError) { setError("Failed to save changes. Please try again."); return; }
-    onSaved({ handle: handle.trim(), displayName: displayName.trim(), bio: bio.trim() || undefined, location: location.trim() || undefined, type, avatarUrl: avatarUrl || undefined, socialLinks: social });
-    onClose();
+    try {
+      const supabase = createClient();
+      const { data: updatedProfile, error: updateError } = await supabase.from("profiles").update({
+        display_name: displayName.trim(),
+        handle: handle.trim(),
+        bio: bio.trim() || null,
+        location: location.trim() || null,
+        type,
+        avatar_url: avatarUrl || null,
+        social_links: social,
+      }).eq("id", profile.id).select("id").single();
+      setSaving(false);
+      if (updateError || !updatedProfile) {
+        const normalizedError = (updateError?.message ?? "").toLowerCase();
+        if (
+          normalizedError.includes("handle")
+          || normalizedError.includes("profiles_handle_lower_key")
+          || normalizedError.includes("duplicate key")
+        ) {
+          setHandleError(getFriendlySignupError(updateError?.message));
+        } else {
+          setError("Failed to save changes. Please try again.");
+        }
+        return;
+      }
+      onSaved({ handle: handle.trim(), displayName: displayName.trim(), bio: bio.trim() || undefined, location: location.trim() || undefined, type, avatarUrl: avatarUrl || undefined, socialLinks: social });
+      onClose();
+    } catch {
+      setSaving(false);
+      setError("We couldn’t reach the profile service. Please try again.");
+    }
   };
 
   const handlePasswordSave = async () => {
@@ -192,7 +228,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
               </div>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-light)", fontSize: "14px", pointerEvents: "none" }}>@</span>
-                <input type="text" value={handle} onChange={(e) => setHandle(e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""))} maxLength={30} style={{ width: "100%", padding: "11px 14px 11px 28px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--white)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: `1.5px solid ${handleError ? "#c0392b" : "var(--sand)"}` }} />
+                <input type="text" value={handle} onChange={(e) => { const nextHandle = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""); setHandle(nextHandle); setCheckingHandle(nextHandle !== profile.handle); }} maxLength={30} style={{ width: "100%", padding: "11px 14px 11px 28px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--white)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: `1.5px solid ${handleError ? "#c0392b" : "var(--sand)"}` }} />
               </div>
               {handleError && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{handleError}</p>}
             </div>

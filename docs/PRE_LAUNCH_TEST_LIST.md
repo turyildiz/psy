@@ -10,20 +10,24 @@
 
 ## 1. Real password-reset email flow end to end
 
-**Dependencies:** Supabase recovery redirect allowlist and recovery email template activated for the launch environment.
+**Dependencies:** Supabase recovery redirect allowlist, recovery email template, and All-Inkl Custom SMTP activated for the launch environment. Follow [`ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md`](./ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md).
 
 - [ ] Confirm the Supabase recovery email template sends the reviewed `token_hash` callback URL and does not expose or log tokens in application output.
 - [ ] Confirm the exact staging and production callback origins are present in the Supabase redirect allowlist; confirm an unapproved external redirect is rejected or normalized safely.
+- [ ] Confirm Supabase Custom SMTP is enabled with the dedicated All-Inkl sender mailbox; never record its password in this file.
+- [ ] Confirm an external recipient's delivered-message headers report aligned SPF and DMARC, and record the real DKIM status/selector.
 - [ ] Request a password reset through the real login UI using a real test inbox.
 - [ ] Confirm the recovery email arrives with correct sender identity, subject, branding, and one working recovery link.
 - [ ] Open the link in a clean browser session and confirm it reaches the intended reset-password screen without redirect loops or token leakage.
 - [ ] Set a new password and confirm the UI reports success.
 - [ ] Confirm the old password no longer signs in and the new password does.
+- [ ] Confirm a successful recovery globally revokes every pre-existing refresh token; record the JWT lifetime and confirm already-issued access tokens stop working by their encoded expiry.
 - [ ] Reuse the consumed recovery link and confirm it fails safely with a useful user-facing message.
 - [ ] Test an expired recovery link and confirm it fails safely with a useful user-facing message.
 - [ ] Confirm callback, reset, and login behavior on mobile and desktop widths.
+- [ ] Confirm the accepted V1 response-loss behavior: if Supabase consumes the one-time OTP but the encrypted-cookie response is lost, no password mutation is exposed, the consumed link fails safely, and requesting a new reset link restores the flow.
 
-**Evidence required:** date, environment, test account/inbox identifier without credentials, screenshots of user-visible states, callback/network status, and final old-password/new-password sign-in results.
+**Evidence required:** date, environment, test account/inbox identifier without credentials, screenshots of user-visible states, callback/network status, final old-password/new-password sign-in results, delivered-header SPF/DMARC results plus actual DKIM status/selector, multi-session refresh-revocation results, and the tested JWT lifetime/expiry.
 
 ## 2. Hands-on R2 listing upload: quarantine to promotion
 

@@ -95,26 +95,30 @@ export default function LoginPage() {
     if (!password) { setErrorMsg("Password is required"); return; }
 
     setStatus("checking");
-    const supabase = createClient();
+    try {
+      const supabase = createClient();
+      const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
 
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-
-    if (authError) {
-      setStatus("idle");
-      const authMessage = authError.message.toLowerCase();
-      if (authMessage.includes("banned")) {
-        setErrorMsg("This account has been banned. Contact support if you think this is a mistake.");
-      } else if (authMessage.includes("email not confirmed")) {
-        setErrorMsg("Please confirm your email first — check your inbox for the confirmation link.");
-      } else {
-        setErrorMsg("Invalid email or password");
+      if (authError) {
+        const authMessage = authError.message.toLowerCase();
+        if (authMessage.includes("banned")) {
+          setErrorMsg("This account has been banned. Contact support if you think this is a mistake.");
+        } else if (authMessage.includes("email not confirmed")) {
+          setErrorMsg("Please confirm your email first — check your inbox for the confirmation link.");
+        } else {
+          setErrorMsg("Invalid email or password");
+        }
+        setStatus("idle");
+        return;
       }
-      return;
-    }
 
-    setStatus("success");
-    const requestedNext = new URLSearchParams(window.location.search).get("next");
-    window.location.assign(getSafeRedirect(requestedNext, window.location.origin, "/"));
+      setStatus("success");
+      const requestedNext = new URLSearchParams(window.location.search).get("next");
+      window.location.assign(getSafeRedirect(requestedNext, window.location.origin, "/"));
+    } catch {
+      setErrorMsg("We couldn’t reach the login service. Check your connection and try again.");
+      setStatus("idle");
+    }
   };
 
   const isChecking = status === "checking";

@@ -10,8 +10,8 @@
    - Chunk 10 hardened `increment_view_count` and `update_conversation_last_message` with empty fixed search paths, schema-qualified references, explicit `PUBLIC`/`anon`/`authenticated` revocation, and reviewed `service_role` grants. See `CHUNK_10_SECURITY_DEFINER_HARDENING_VERIFICATION.md` and `CHUNK_10_SECURITY_DEFINER_HARDENING_SMOKE.md`.
 
 2. **Fix authentication and route safety — M**  
-   Restrict redirects to same-origin relative paths, remove token/hash logging, add password reset, verify production callback allowlists, and enforce one shared reserved-handles list covering every existing and planned top-level route at signup and profile-handle changes.
-   - Recovery flow deployed but inactive until Supabase dashboard is updated (redirect URLs + token_hash email template) + real-mail end-to-end test.
+   Restrict redirects to same-origin relative paths, remove token/hash logging, add password reset, verify production callback allowlists, and enforce one shared `blocked_handles` list covering every existing and planned handle-compatible top-level route at signup and profile-handle changes.
+   - Recovery flow is deployed but remains inactive until Supabase dashboard activation: exact recovery redirects, fragment-based `token_hash` template, and All-Inkl Custom SMTP credentials. Real-mail, SPF/DKIM/DMARC, expired/reused-link, and global-session-revocation tests remain launch gates. See `ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md` and `PRE_LAUNCH_TEST_LIST.md`.
 
 3. **Standardize and secure Cloudflare R2 uploads — M**
    Migrate every legacy Supabase Storage avatar/listing path to R2, enforce server-side MIME/type/size/count limits, verify ownership, and define orphan cleanup and object deletion behavior.
@@ -39,8 +39,8 @@
 8. **Repair V1 messaging and soft-delete semantics — M**  
    Fix contact-to-thread navigation, unread state, text-message validation, and Realtime behavior. Replace shared-row deletion with per-user hidden state. Defer message images, automatic link rendering, and full read receipts to V1.1.
 
-9. **Implement the single V1 email flow — M**  
-   Send only new-message notifications through Resend, default enabled, with an opt-out toggle in settings. Verify sender domain, delivery failure handling, and links to the correct conversation. Do not add approval, marketing, or other notification emails.
+9. **Implement the single V1 application-email flow — M**
+   Send only new-message notifications through server-side All-Inkl SMTP, default enabled, with an opt-out toggle in settings. Use `no-reply@psy.market` as the binding sender identity unless Turgay separately changes it; keep credentials in environment-scoped Vercel server secrets. Verify sender-domain authentication, delivery failure handling, and links to the correct conversation. Do not add approval, marketing, or other notification emails.
 
 10. **Complete and seed the festival layer — M**  
     Verify calendar, detail pages, RSVPs, notice posting/reactions, permissions, and moderation end-to-end; seed the current festival season before launch.
