@@ -1,11 +1,13 @@
 # psy.market V1 Punch List
 
-> Updated 2026-07-12 from the frozen scope in [`V1_DECISIONS.md`](./V1_DECISIONS.md). Do not implement items from superseded PRD or SPEC sections where they conflict with the frozen decisions.
+> Updated 2026-07-26 from the frozen scope in [`V1_DECISIONS.md`](./V1_DECISIONS.md) and the accepted read-only reconciliation. Do not implement items from superseded PRD or SPEC sections where they conflict with the frozen decisions.
 
 ## Ordered launch punch list
 
 1. **Version and secure the Supabase data layer — L**  
    Capture the live schema as migrations; define constraints, triggers, RPCs, Realtime publication, and RLS for profiles, listings, conversations/messages, events, RSVPs, notice posts/reactions, user roles, bans, and per-user conversation hiding.
+   - Database Chunks 0–7 are live and were read-only reconfirmed on 2026-07-26. Chunks 8–9 remain separately review- and approval-gated.
+   - Next database-chunk security hardening: `increment_view_count` and `update_conversation_last_message` are `SECURITY DEFINER`, broadly executable, and lack a fixed `search_path`. Prepare exact apply/rollback SQL only after a new owner authorization; the owner applies live DDL and the agent verifies read-only.
 
 2. **Fix authentication and route safety — M**  
    Restrict redirects to same-origin relative paths, remove token/hash logging, add password reset, verify production callback allowlists, and enforce one shared reserved-handles list covering every existing and planned top-level route at signup and profile-handle changes.
@@ -14,6 +16,8 @@
 3. **Standardize and secure Cloudflare R2 uploads — M**
    Migrate every legacy Supabase Storage avatar/listing path to R2, enforce server-side MIME/type/size/count limits, verify ownership, and define orphan cleanup and object deletion behavior.
    - Profile-media migration Steps 8–10 are complete: three approved objects were copied and verified in R2, and exactly three URL fields across two profile rows were switched and accepted. See `R2_MIGRATION_STEP_10_EXECUTION_RECORD.md`.
+   - Step 11 Gate A completed the approved state-free baseline, automated upload checks, and static proof that no public-bucket deletion path is reachable. Its original execution artifact is pending recovery from the pre-migration home archive.
+   - The narrow Gate B server-side image-count prototype was rejected and is not present in the application or live database. The accepted direction is a durable direct-publish upload-operation/reservation architecture; no implementation or SQL preparation is authorized before owner review of the recovered package.
    - Original Supabase objects remain verified rollback sources. Source deletion, Supabase Storage retirement, destructive Chunk 9 work, and the deferred Yacxilan object remain separately approval-gated.
    - Current demo profiles and listings must remain available during development. Any pre-launch demo-data purge requires a separate exact reviewed scope and must retain the `@turgay` profile.
 
@@ -51,7 +55,7 @@
     Configure environment variables and secret separation, Vercel build/deploy settings, error monitoring, health checks, runtime pinning, lint/tests, R2 CORS/public domain, Supabase production URLs, and operational logging. The VPS remains staging only until retired.
 
 15. **Production-domain cutover and launch verification — M**  
-    Deploy on Vercel Pro, point `psy.market`, verify TLS and Supabase redirects, complete browser/auth/upload/listing/search/messaging/email/moderation/festival/legal/SEO/mobile smoke tests, then retire the VPS dev-server production path.
+    Deploy on Vercel Pro, point `psy.market`, verify TLS and Supabase redirects, complete browser/auth/upload/listing/search/messaging/email/moderation/festival/legal/SEO/mobile smoke tests, then retire the VPS staging-service path.
 
 ## Obsolete items from the previous punch list
 
@@ -61,7 +65,7 @@
 - **Build an admin analytics dashboard** — explicitly out of V1; moderation is reactive and narrowly scoped.
 - **Add message images, automatic link rendering, and full read receipts before launch** — deferred to V1.1.
 - **Add payment or checkout integration** — explicitly out of V1; transactions remain off-platform.
-- **Harden the VPS as the production deployment** — obsolete; production is Vercel Pro and the VPS dev-server will be retired.
+- **Harden the VPS as the production deployment** — obsolete; production is Vercel Pro and the VPS staging service will be retired.
 - **Treat the festival layer as optional or outside the marketplace V1** — obsolete; it is now binding V1 scope.
 - **Treat hard conversation deletion as acceptable** — obsolete; V1 requires per-user soft-delete/hiding with shared rows retained.
 - **Treat tickets as a hard-coded homepage feature** — obsolete; tickets are a standard listing category.
