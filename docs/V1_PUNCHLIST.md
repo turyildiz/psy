@@ -11,7 +11,7 @@
 
 2. **Fix authentication and route safety — M**  
    Restrict redirects to same-origin relative paths, remove token/hash logging, add password reset, verify production callback allowlists, and enforce one shared `blocked_handles` list covering every existing and planned handle-compatible top-level route at signup and profile-handle changes.
-   - Recovery flow is deployed but remains inactive until Supabase dashboard activation: exact recovery redirects, fragment-based `token_hash` template, and All-Inkl Custom SMTP credentials. Real-mail, SPF/DKIM/DMARC, expired/reused-link, and global-session-revocation tests remain launch gates. See `ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md` and `PRE_LAUNCH_TEST_LIST.md`.
+   - Recovery flow is deployed but remains inactive until Supabase dashboard activation: exact recovery redirects, fragment-based `token_hash` template, and All-Inkl Custom SMTP credentials. Real-mail, SPF/DKIM/DMARC, expired/reused-link, and other-session-revocation tests remain launch gates. See `ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md` and `PRE_LAUNCH_TEST_LIST.md`.
 
 3. **Standardize and secure Cloudflare R2 uploads — M**
    Migrate every legacy Supabase Storage avatar/listing path to R2, enforce server-side MIME/type/size/count limits, verify ownership, and define orphan cleanup and object deletion behavior.

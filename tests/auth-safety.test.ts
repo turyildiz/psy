@@ -2,11 +2,12 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import * as authSafety from "../lib/auth/safety.ts";
-
 import {
-  createRecoveryProof,
-  verifyRecoveryProof,
-} from "../lib/auth/recovery-proof.ts";
+  handleRecoveryUpdate,
+  type RecoveryAuthClient,
+  type RecoveryProviderError,
+} from "../lib/auth/recovery-update.ts";
+
 import {
   getSafeRedirect,
   getAllowedAuthOrigin,
@@ -75,6 +76,8 @@ test("getRecoveryToken accepts recovery token hashes only from URL fragments", (
   assert.equal(getRecoveryToken("?token_hash=abc123&type=signup"), null);
   assert.equal(getRecoveryToken("?type=recovery"), null);
   assert.equal(getRecoveryToken("?token_hash=%20%20&type=recovery"), null);
+  assert.equal(getRecoveryToken("#type=recovery&type=signup&token_hash=abc123"), null);
+  assert.equal(getRecoveryToken("#type=recovery&token_hash=first&token_hash=second"), null);
 });
 
 test("recovery verification preserves retryable provider failures", () => {
@@ -153,19 +156,6 @@ test("generic auth callback accepts signup credentials but rejects every explici
   });
 });
 
-test("recovery session revocation always requests global sign-out", async () => {
-  const revokeSessions = (authSafety as Record<string, unknown>).revokeRecoverySessions;
-  assert.equal(typeof revokeSessions, "function");
-  let receivedScope: string | null = null;
-  const result = await (revokeSessions as (auth: unknown) => Promise<{ error: null }>)({
-    signOut: async ({ scope }: { scope: string }) => {
-      receivedScope = scope;
-      return { error: null };
-    },
-  });
-  assert.equal(receivedScope, "global");
-  assert.equal(result.error, null);
-});
 
 test("profile handle availability reports blocked, taken, and lookup failures consistently", () => {
   const getError = (authSafety as Record<string, unknown>).getHandleAvailabilityError;
@@ -184,49 +174,183 @@ test("profile handle availability reports blocked, taken, and lookup failures co
   assert.equal(check({}), null);
 });
 
-test("recovery envelopes are encrypted, authenticated, phase-bound, and expiring", () => {
-  const now = Date.parse("2026-07-27T10:00:00Z");
-  const proof = createRecoveryProof({
-    phase: "password",
-    userId: "user-a",
-    accessToken: "recovery-access-token",
-    refreshToken: "recovery-refresh-token",
-    expiresAt: now + 15 * 60_000,
-  }, "server-only-secret");
+type RecoveryHarnessOptions = {
+  origin?: string | null;
+  body?: { tokenHash?: unknown; password?: unknown };
+  verifyError?: RecoveryProviderError;
+  revokeError?: RecoveryProviderError;
+  updateError?: RecoveryProviderError;
+  throwAt?: "verify" | "revoke" | "update" | "create";
+  missingSession?: boolean;
+};
 
-  assert.doesNotMatch(proof, /recovery-access-token|recovery-refresh-token|user-a/);
-  assert.deepEqual(verifyRecoveryProof(proof, "password", "server-only-secret", now), {
-    phase: "password",
-    userId: "user-a",
-    accessToken: "recovery-access-token",
-    refreshToken: "recovery-refresh-token",
-    expiresAt: now + 15 * 60_000,
-  });
-  assert.equal(verifyRecoveryProof(proof, "revoke", "server-only-secret", now), null);
-  assert.equal(verifyRecoveryProof(proof, "password", "different-secret", now), null);
-  assert.equal(verifyRecoveryProof(proof, "password", "server-only-secret", now + 16 * 60_000), null);
-  assert.equal(verifyRecoveryProof(`${proof}tampered`, "password", "server-only-secret", now), null);
+function createRecoveryHarness(options: RecoveryHarnessOptions = {}) {
+  const calls: string[] = [];
+  let jsonRead = false;
+  let clientCreated = 0;
+  let revokeArguments: [string, string] | null = null;
+  let updatedPassword: string | null = null;
+  const body = options.body ?? { tokenHash: "recovery-token", password: "new-password" };
+
+  const client: RecoveryAuthClient = {
+    auth: {
+      verifyOtp: async () => {
+        calls.push("verify");
+        if (options.throwAt === "verify") throw new Error("provider verify details");
+        return {
+          data: {
+            user: options.verifyError ? null : { id: "user-a" },
+            session: options.verifyError || options.missingSession ? null : { access_token: "recovery-access" },
+          },
+          error: options.verifyError ?? null,
+        };
+      },
+      admin: {
+        signOut: async (accessToken, scope) => {
+          calls.push("revoke");
+          revokeArguments = [accessToken, scope];
+          if (options.throwAt === "revoke") throw new Error("provider revoke details");
+          return { error: options.revokeError ?? null };
+        },
+      },
+      updateUser: async ({ password }) => {
+        calls.push("update");
+        updatedPassword = password;
+        if (options.throwAt === "update") throw new Error("provider update details");
+        return { error: options.updateError ?? null };
+      },
+    },
+  };
+
+  return {
+    calls,
+    get jsonRead() { return jsonRead; },
+    get clientCreated() { return clientCreated; },
+    get revokeArguments() { return revokeArguments; },
+    get updatedPassword() { return updatedPassword; },
+    request: {
+      headers: { get: () => options.origin === undefined ? "https://psy.market" : options.origin },
+      json: async () => {
+        jsonRead = true;
+        return body;
+      },
+    },
+    dependencies: {
+      isAllowedOrigin: (origin: string | null) => origin === "https://psy.market",
+      getVerificationErrorStatus: getRecoveryVerificationErrorStatus,
+      createClient: () => {
+        clientCreated += 1;
+        if (options.throwAt === "create") throw new Error("provider configuration details");
+        return client;
+      },
+    },
+  };
+}
+
+test("recovery rejects an unapproved origin before reading the body or creating a provider client", async () => {
+  const harness = createRecoveryHarness({ origin: "https://evil.example" });
+  const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
+  assert.equal(response.status, 403);
+  assert.equal(harness.jsonRead, false);
+  assert.equal(harness.clientCreated, 0);
+  assert.deepEqual(harness.calls, []);
 });
 
-test("recovery orchestration uses server-issued HttpOnly proof endpoints", () => {
+test("recovery distinguishes retryable verification failures from consumed or invalid links", async () => {
+  for (const [error, expectedStatus, retryable] of [
+    [{ name: "AuthRetryableFetchError", status: 0 }, 503, true],
+    [{ name: "AuthApiError", status: 429 }, 429, true],
+    [{ name: "AuthApiError", status: 503 }, 503, true],
+    [{ name: "AuthApiError", status: 400 }, 400, false],
+  ] as const) {
+    const harness = createRecoveryHarness({ verifyError: error });
+    const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
+    const result = await response.json() as { retryable?: boolean };
+    assert.equal(response.status, expectedStatus);
+    assert.equal(result.retryable === true, retryable);
+    assert.deepEqual(harness.calls, ["verify"]);
+  }
+
+  const thrown = createRecoveryHarness({ throwAt: "verify" });
+  const response = await handleRecoveryUpdate(thrown.request, thrown.dependencies);
+  assert.equal(response.status, 503);
+  assert.equal((await response.json() as { retryable?: boolean }).retryable, true);
+  assert.deepEqual(thrown.calls, ["verify"]);
+});
+
+test("recovery revokes other sessions before changing the password", async () => {
+  const harness = createRecoveryHarness();
+  const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), { success: true });
+  assert.deepEqual(harness.calls, ["verify", "revoke", "update"]);
+  assert.deepEqual(harness.revokeArguments, ["recovery-access", "others"]);
+  assert.equal(harness.updatedPassword, "new-password");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+});
+
+test("recovery never changes the password when other-session revocation fails", async () => {
+  for (const status of [401, 403, 429, 500]) {
+    const harness = createRecoveryHarness({ revokeError: { name: "AuthApiError", status } });
+    const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
+    const result = await response.json() as { requiresNewLink?: boolean };
+    assert.equal(response.status, 503);
+    assert.equal(result.requiresNewLink, true);
+    assert.deepEqual(harness.calls, ["verify", "revoke"]);
+    assert.equal(harness.updatedPassword, null);
+  }
+
+  const thrown = createRecoveryHarness({ throwAt: "revoke" });
+  const response = await handleRecoveryUpdate(thrown.request, thrown.dependencies);
+  assert.equal((await response.json() as { requiresNewLink?: boolean }).requiresNewLink, true);
+  assert.deepEqual(thrown.calls, ["verify", "revoke"]);
+  assert.equal(thrown.updatedPassword, null);
+});
+
+test("recovery requires a new link when password mutation fails after revocation", async () => {
+  for (const options of [
+    { updateError: { name: "AuthApiError", status: 500 } },
+    { throwAt: "update" as const },
+  ]) {
+    const harness = createRecoveryHarness(options);
+    const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
+    assert.equal(response.status, 503);
+    assert.equal((await response.json() as { requiresNewLink?: boolean }).requiresNewLink, true);
+    assert.deepEqual(harness.calls, ["verify", "revoke", "update"]);
+  }
+});
+
+test("recovery error responses do not expose credentials or provider details", async () => {
+  const token = "secret-recovery-token";
+  const password = "secret-new-password";
+  const harness = createRecoveryHarness({
+    body: { tokenHash: token, password },
+    revokeError: { name: "AuthApiError", status: 500, message: "provider-private-detail" } as RecoveryProviderError,
+  });
+  const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
+  const serialized = JSON.stringify(await response.json());
+  assert.doesNotMatch(serialized, new RegExp(`${token}|${password}|provider-private-detail`));
+});
+
+test("recovery uses one server-only endpoint and preserves explicit response-loss UX", () => {
   const recoverySource = readFileSync("app/auth/recovery/page.tsx", "utf8");
-  const verifyRouteSource = readFileSync("app/api/auth/recovery/verify/route.ts", "utf8");
   const updateRouteSource = readFileSync("app/api/auth/recovery/update/route.ts", "utf8");
-  const revokeRouteSource = readFileSync("app/api/auth/recovery/revoke/route.ts", "utf8");
+  const updateHandlerSource = readFileSync("lib/auth/recovery-update.ts", "utf8");
   const recoveryAuthClientSource = readFileSync("lib/supabase/recovery-server.ts", "utf8");
   const legacyUpdateSource = readFileSync("app/update-password/page.tsx", "utf8");
 
-  assert.match(recoverySource, /fetch\("\/api\/auth\/recovery\/verify"/);
-  assert.match(recoverySource, /Retry session revocation/);
+  assert.match(recoverySource, /fetch\("\/api\/auth\/recovery\/update"/);
+  assert.match(recoverySource, /JSON\.stringify\(\{ tokenHash, password \}\)/);
+  assert.match(recoverySource, /result\.retryable/);
+  assert.match(recoverySource, /setState\("restart"\)/);
+  assert.match(recoverySource, /setState\("uncertain"\)/);
+  assert.doesNotMatch(recoverySource, /\/api\/auth\/recovery\/(verify|revoke)/);
   assert.doesNotMatch(recoverySource, /sessionStorage|verifiedRecovery\.current|verifyOtp/);
-  assert.match(verifyRouteSource, /verifyOtp\(\{[\s\S]*type: "recovery"/);
-  assert.match(verifyRouteSource, /httpOnly: true/);
-  assert.doesNotMatch(verifyRouteSource, /@\/lib\/supabase\/server/);
-  assert.ok(verifyRouteSource.indexOf("assertRecoveryProofConfiguration") < verifyRouteSource.indexOf("verifyOtp"));
+  assert.match(updateRouteSource, /handleRecoveryUpdate/);
+  assert.match(updateHandlerSource, /admin\.signOut\(accessToken, "others"\)/);
+  assert.doesNotMatch(updateHandlerSource, /SUPABASE_SERVICE_ROLE_KEY|recovery-proof|cookies\(|setSession/);
   assert.match(recoveryAuthClientSource, /persistSession: false/);
   assert.match(recoveryAuthClientSource, /autoRefreshToken: false/);
-  assert.match(updateRouteSource, /"password",[\s\S]*setSession/);
-  assert.match(revokeRouteSource, /"revoke",[\s\S]*setSession/);
   assert.doesNotMatch(legacyUpdateSource, /updateUser\(\{ password/);
 });
 

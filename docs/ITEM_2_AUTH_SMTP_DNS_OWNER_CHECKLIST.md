@@ -212,18 +212,18 @@ Changing the apex A/CNAME for Vercel does not replace MX records. Changing autho
 - [ ] DMARC passes in delivered headers.
 - [ ] Same-browser and cross-browser recovery work.
 - [ ] Expired and reused recovery links fail safely.
-- [ ] The accepted V1 response-loss case fails safely and a newly requested reset link restores the flow; V1 does not add durable database-backed recovery handoff state.
-- [ ] Successful recovery calls Supabase global sign-out and prevents every pre-existing browser/device from refreshing its session.
+- [ ] The accepted V1 response-loss case does not claim success; the user can check the new password, and a newly requested reset link restores the flow if needed.
+- [ ] Successful recovery revokes every other Supabase session before changing the password and prevents every pre-existing browser/device from refreshing its session.
 - [ ] Record the configured JWT lifetime and confirm pre-existing access tokens stop working no later than their `exp` time.
 
-Supabase documents an important platform limit: global sign-out destroys all affected refresh tokens and terminates the sessions, but already-issued access JWTs remain valid until their encoded expiry. If “immediate” means zero remaining JWT-validity window, that requires a separate server-side revocation/session-version design or a deliberately shorter JWT lifetime; Custom SMTP and the application’s global sign-out cannot provide that by themselves.
+Supabase documents an important platform limit: revoking sessions destroys the affected refresh tokens, but already-issued access JWTs remain valid until their encoded expiry. If “immediate” means zero remaining JWT-validity window, that requires a separate server-side revocation/session-version design or a deliberately shorter JWT lifetime; Custom SMTP and refresh-token revocation cannot provide that by themselves.
 
 - [ ] Evidence is added to `docs/PRE_LAUNCH_TEST_LIST.md`.
 
 ## References
 
 - Supabase Custom SMTP: <https://supabase.com/docs/guides/auth/auth-smtp>
-- Supabase global sign-out and access-token expiry behavior: <https://supabase.com/docs/guides/auth/signout>
+- Supabase session sign-out scopes and access-token expiry behavior: <https://supabase.com/docs/guides/auth/signout>
 - All-Inkl secure mail-server naming: <https://all-inkl.com/en/support/tutorials/software/email/updating-an-ssl-certificate-email-settings/email-settings-for-a-secure-connection-via-ssltlsstarttls_384.html>
 - All-Inkl mailbox setup and port 465 with SSL/TLS: <https://all-inkl.com/en/support/tutorials/kas/email/email-address-autoresponder-forwarding/how-to-create-an-email-account_98.html>
 - All-Inkl DKIM DNS format: <https://all-inkl.com/en/support/tutorials/kas/tools/dns-tools/how-to-add-a-dkim-record-in-case-of-using-an-external-email-server_444.html>

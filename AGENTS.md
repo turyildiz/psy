@@ -108,7 +108,7 @@ Only ask for a full build/restart when Turgay explicitly requests build/final ve
 
 - The old workflow `npm run build` + `fuser -k 3030/tcp` is obsolete. Do not use it.
 - The old rule “confirm before any action” is obsolete for simple group UI/content/nav/blog edits. It only applies to risky/destructive actions listed above.
-- V1 accepts the rare password-recovery response-loss case where Supabase consumes the one-time OTP but the encrypted-cookie response never reaches the browser; the user requests a new reset link. Do not add durable database-backed recovery handoff state without a separate reviewed design and Turgay's owner-applied migration approval.
+- V1 recovery uses one isolated server-only request: verify the OTP, revoke every other refreshable session, then change the password. If the response is lost, the user checks the new password and requests a new link if needed. Do not add durable recovery state without a separately reviewed owner-applied migration, and do not derive application encryption keys from the Supabase service-role credential.
 - If full build is requested and `.next/` ownership causes failure, report the shortest useful error to Turgay instead of silently trying unsafe ownership changes.
 
 ## Optional project context

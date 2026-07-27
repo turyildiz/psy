@@ -54,10 +54,11 @@ export function isAllowedAuthRequestOrigin(
 
 export function getRecoveryToken(fragment: string) {
   if (!fragment.startsWith("#")) return null;
-  const value = fragment.slice(1);
-  const params = new URLSearchParams(value);
-  if (params.get("type") !== "recovery") return null;
-  const tokenHash = params.get("token_hash")?.trim();
+  const params = new URLSearchParams(fragment.slice(1));
+  const types = params.getAll("type");
+  const tokenHashes = params.getAll("token_hash");
+  if (types.length !== 1 || types[0] !== "recovery" || tokenHashes.length !== 1) return null;
+  const tokenHash = tokenHashes[0].trim();
   return tokenHash || null;
 }
 
@@ -97,14 +98,6 @@ export function getRecoveryVerificationErrorStatus(error: {
     return 503;
   }
   return 400;
-}
-
-type RecoveryAuthClient = {
-  signOut(options: { scope: "global" }): Promise<{ error: unknown }>;
-};
-
-export function revokeRecoverySessions(auth: RecoveryAuthClient) {
-  return auth.signOut({ scope: "global" });
 }
 
 export function getSafeRedirect(

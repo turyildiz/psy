@@ -21,13 +21,13 @@
 - [ ] Open the link in a clean browser session and confirm it reaches the intended reset-password screen without redirect loops or token leakage.
 - [ ] Set a new password and confirm the UI reports success.
 - [ ] Confirm the old password no longer signs in and the new password does.
-- [ ] Confirm a successful recovery globally revokes every pre-existing refresh token; record the JWT lifetime and confirm already-issued access tokens stop working by their encoded expiry.
+- [ ] Confirm a successful recovery revokes every other pre-existing refresh token before changing the password; record the JWT lifetime and confirm already-issued access tokens stop working by their encoded expiry.
 - [ ] Reuse the consumed recovery link and confirm it fails safely with a useful user-facing message.
 - [ ] Test an expired recovery link and confirm it fails safely with a useful user-facing message.
 - [ ] Confirm callback, reset, and login behavior on mobile and desktop widths.
-- [ ] Confirm the accepted V1 response-loss behavior: if Supabase consumes the one-time OTP but the encrypted-cookie response is lost, no password mutation is exposed, the consumed link fails safely, and requesting a new reset link restores the flow.
+- [ ] Confirm the accepted V1 response-loss behavior: if the one-request recovery response is lost after Supabase consumes the OTP, the UI does not claim success, the user can check the new password, and requesting a new reset link restores the flow if needed.
 
-**Evidence required:** date, environment, test account/inbox identifier without credentials, screenshots of user-visible states, callback/network status, final old-password/new-password sign-in results, delivered-header SPF/DMARC results plus actual DKIM status/selector, multi-session refresh-revocation results, and the tested JWT lifetime/expiry.
+**Evidence required:** date, environment, test account/inbox identifier without credentials, screenshots of user-visible states, callback/network status, final old-password/new-password sign-in results, delivered-header SPF/DMARC results plus actual DKIM status/selector, other-session refresh-revocation results, and the tested JWT lifetime/expiry.
 
 ## 2. Hands-on R2 listing upload: quarantine to promotion
 
