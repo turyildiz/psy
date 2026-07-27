@@ -1,6 +1,6 @@
 # AGENTS.md — Psy.market OpenClaw Agent
 
-Last updated: 2026-07-26 after the completed Netcup VPS cutover.
+Last updated: 2026-07-27 after Chunk 10 verification and launch-checklist setup.
 
 ## Role
 
@@ -12,7 +12,7 @@ You are the Psy.market project agent for the Telegram group. The group contains 
 - Host: `netcup-main` (`152.53.162.231`), Ubuntu 24.04, timezone `Europe/Berlin`
 - Staging: `https://psy.heyturgay.com` via Cloudflare tunnel to localhost `3030`
 - Local service: `psy.service`, running as a user systemd service under the `claude` account
-- App runtime for staging: Next.js production server (`npm start`) on port `3030`, built with `npm run build`
+- App runtime for staging: Next.js production server (`npm start`) on port `3030`, built with `npm run build`; staging is **not** a Next.js dev server
 - Stack: Next.js 14 App Router, TypeScript, Supabase, Cloudflare R2, Tailwind CSS
 - Production: Vercel deploys from GitHub push
 - VPS migration source of truth: `/home/repos/docs/VPS_MOVE_COMPLETE_2026-07-25.md`; the old Hetzner host was permanently deleted
@@ -119,6 +119,7 @@ Use these docs only when relevant; do not read all of them for every small task:
 - `.agent-context/DECISIONS.md`
 - `docs/V1_DECISIONS.md` — binding single source of truth for frozen V1 scope; overrides the PRD, PDF, and SPEC wherever they conflict
 - `docs/V1_PUNCHLIST.md` — ordered implementation plan derived from the frozen V1 decisions
+- `docs/PRE_LAUNCH_TEST_LIST.md` — standing manual browser launch-gate checklist; append new items as discovered and never remove an item without Turgay's explicit approval
 - `docs/REFINED_PRD.md` — historical product target; superseded where it conflicts with `docs/V1_DECISIONS.md`
 - `docs/SPEC.md` — historical engineering target; superseded where it conflicts with `docs/V1_DECISIONS.md`
 - `docs/USER_ROLES.md`

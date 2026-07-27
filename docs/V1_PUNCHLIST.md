@@ -6,8 +6,8 @@
 
 1. **Version and secure the Supabase data layer — L**  
    Capture the live schema as migrations; define constraints, triggers, RPCs, Realtime publication, and RLS for profiles, listings, conversations/messages, events, RSVPs, notice posts/reactions, user roles, bans, and per-user conversation hiding.
-   - Database Chunks 0–7 are live and were read-only reconfirmed on 2026-07-26. Chunks 8–9 remain separately review- and approval-gated.
-   - Next database-chunk security hardening: `increment_view_count` and `update_conversation_last_message` are `SECURITY DEFINER`, broadly executable, and lack a fixed `search_path`. Prepare exact apply/rollback SQL only after a new owner authorization; the owner applies live DDL and the agent verifies read-only.
+   - Database Chunks 0–7 are live and were read-only reconfirmed on 2026-07-26. Chunk 10 was owner-applied, independently verified read-only, and functionally smoke-tested through authenticated RLS on 2026-07-27. Chunks 8–9 remain separately review- and approval-gated.
+   - Chunk 10 hardened `increment_view_count` and `update_conversation_last_message` with empty fixed search paths, schema-qualified references, explicit `PUBLIC`/`anon`/`authenticated` revocation, and reviewed `service_role` grants. See `CHUNK_10_SECURITY_DEFINER_HARDENING_VERIFICATION.md` and `CHUNK_10_SECURITY_DEFINER_HARDENING_SMOKE.md`.
 
 2. **Fix authentication and route safety — M**  
    Restrict redirects to same-origin relative paths, remove token/hash logging, add password reset, verify production callback allowlists, and enforce one shared reserved-handles list covering every existing and planned top-level route at signup and profile-handle changes.

@@ -1,10 +1,10 @@
-# Supabase migration plan — CHUNKS 0–7 LIVE; CHUNKS 8–9 NOT APPLIED
+# Supabase migration plan — CHUNKS 0–7 AND 10 LIVE; CHUNKS 8–9 DEFERRED
 
 **Prepared:** 2026-07-12  
 **Binding scope:** `docs/V1_DECISIONS.md`  
-**Status:** Chunks 0–7 were owner-applied and read-only reconfirmed live on 2026-07-26. Chunks 8–9 remain proposal-only and require separate review and explicit approval before execution.
+**Status:** Chunks 0–7 were owner-applied and read-only reconfirmed live on 2026-07-26. Chunk 10 was owner-applied and independently verified live on 2026-07-27. Chunks 8–9 remain deferred proposal-only work and require separate review and explicit approval before execution.
 
-The chunks remain ordered to preserve compatibility. Chunks 0–7 below are the versioned execution record for the live database foundation. Chunks 8–9 are independently reviewable proposals and must not be applied until their dependencies and preflight checks pass. SQL uses explicit schema qualification and transactions where PostgreSQL permits it.
+The chunks remain dependency-ordered except that the independent security-hardening Chunk 10 was intentionally applied before deferred/destructive Chunks 8–9. Chunks 0–7 and 10 below are the versioned execution record for the live database foundation. Chunks 8–9 are independently reviewable proposals and must not be applied until their dependencies and preflight checks pass. SQL uses explicit schema qualification and transactions where PostgreSQL permits it.
 
 ## CHUNK 0 — Immediate critical vulnerability closure
 
@@ -480,6 +480,41 @@ The apply file conditionally adds only missing memberships, so re-running it is 
 
 ---
 
+## CHUNK 10 — SECURITY DEFINER function hardening — LIVE
+
+**Purpose:** Harden `public.increment_view_count(uuid)` and the trigger-only `public.update_conversation_last_message()` without changing their signatures or intended data behavior.
+
+**Risk:** Low/medium. The scope is narrow, but the conversation trigger runs on the launch-critical message INSERT path.
+
+**Dependencies:** Live Chunks 0–7. Chunk 10 is independent of deferred Chunks 8–9.
+
+**Preflight SQL:** [`chunks/chunk-10-security-definer-hardening-preflight.sql`](./chunks/chunk-10-security-definer-hardening-preflight.sql)
+
+**Apply SQL:** [`chunks/chunk-10-security-definer-hardening-apply.sql`](./chunks/chunk-10-security-definer-hardening-apply.sql)
+
+**Rollback SQL:** [`chunks/chunk-10-security-definer-hardening-rollback.sql`](./chunks/chunk-10-security-definer-hardening-rollback.sql)
+
+**Verification SQL:** [`chunks/chunk-10-security-definer-hardening-verify.sql`](./chunks/chunk-10-security-definer-hardening-verify.sql)
+
+**Review:** [`../docs/CHUNK_10_SECURITY_DEFINER_HARDENING_REVIEW.md`](../docs/CHUNK_10_SECURITY_DEFINER_HARDENING_REVIEW.md)
+
+**Verification record:** [`../docs/CHUNK_10_SECURITY_DEFINER_HARDENING_VERIFICATION.md`](../docs/CHUNK_10_SECURITY_DEFINER_HARDENING_VERIFICATION.md)
+
+**Authenticated smoke record:** [`../docs/CHUNK_10_SECURITY_DEFINER_HARDENING_SMOKE.md`](../docs/CHUNK_10_SECURITY_DEFINER_HARDENING_SMOKE.md)
+
+### Live result — 2026-07-27
+
+- Turgay applied the reviewed SQL in Supabase SQL Editor; all eight final apply-result booleans were true.
+- Both functions now use an empty fixed `search_path`, schema-qualified references, and retain their reviewed signatures and owners.
+- PostgreSQL `PUBLIC`, `anon`, and `authenticated` execution are revoked; only owner `postgres` and `service_role` may execute.
+- The existing enabled `AFTER INSERT FOR EACH ROW` message trigger remains attached.
+- Independent read-only catalog/ACL/RLS/data verification returned `all_checks_pass = true`.
+- A live authenticated `@otis` message INSERT passed through ordinary RLS and proved exact `last_message_at` plus `left(body, 120)` trigger behavior.
+- The test message was deleted, conversation preview restored, and the table returned to the actual 20-row pre-smoke baseline. The extra row versus the earlier 19-row verification baseline was a known `@turgay` message, not test residue.
+- Rollback remains unapplied and is security-regressive by design.
+
+---
+
 ## CHUNK 8 — Retire legacy Supabase Storage after R2 migration
 
 **Purpose:** Enforce the frozen R2-only decision after all legacy application paths and stored URLs have been migrated.
@@ -563,5 +598,6 @@ Keep `pending` and `rejected` enum labels until a later maintenance window; Post
 | 5 | Per-user conversation hiding and new-message restoration | High | Chunks 0–3; coordinated inbox delete UI update |
 | 6 | Ban enforcement and durable listing moderation | High | Chunks 1, 4, and 5; run read-only preflight |
 | 7 | Realtime publication alignment | Medium | Chunks 5–6; RLS and DELETE caveat reviewed |
+| 10 | Harden view-count and conversation-trigger `SECURITY DEFINER` functions — LIVE | Low/Medium | Live Chunks 0–7; owner apply + read-only verification |
 | 8 | Retire Supabase Storage policies/buckets | High | R2 code migration, URL migration, backup, Storage API cleanup |
 | 9 | Remove dead/out-of-V1 schema | High | Code cleanup, data export, explicit destructive approval |
