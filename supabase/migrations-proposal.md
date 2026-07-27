@@ -1,10 +1,10 @@
-# Proposed Supabase migration plan — NOT APPLIED
+# Supabase migration plan — CHUNKS 0–7 LIVE; CHUNKS 8–9 NOT APPLIED
 
 **Prepared:** 2026-07-12  
 **Binding scope:** `docs/V1_DECISIONS.md`  
-**Status:** proposal only. Every statement below requires review before execution.
+**Status:** Chunks 0–7 were owner-applied and read-only reconfirmed live on 2026-07-26. Chunks 8–9 remain proposal-only and require separate review and explicit approval before execution.
 
-The chunks are ordered to preserve compatibility. Each chunk is independently reviewable and should be applied in its own migration only after its dependencies and preflight checks pass. SQL uses explicit schema qualification and transactions where PostgreSQL permits it.
+The chunks remain ordered to preserve compatibility. Chunks 0–7 below are the versioned execution record for the live database foundation. Chunks 8–9 are independently reviewable proposals and must not be applied until their dependencies and preflight checks pass. SQL uses explicit schema qualification and transactions where PostgreSQL permits it.
 
 ## CHUNK 0 — Immediate critical vulnerability closure
 
