@@ -1,5 +1,15 @@
 # Durable Direct-Publish Listing Upload Reservations
 
+## psy.market decision status — 2026-07-27
+
+- **Approved target architecture:** Turgay approved this durable ledger/reservation/idempotent-commit/reconciliation design as the intended long-term solution.
+- **Deliberately deferred:** implementation and SQL preparation are deferred until after launch and require a new, separate owner authorization.
+- **Accepted V1 limitation:** the current listing-image flow can promote a public object before the listing INSERT/UPDATE commits. For V1 this race is accepted and is not a launch blocker.
+- **Current V1 mitigations remain unchanged:** the database five-image constraint protects final metadata, presign rate limiting limits abuse, and public orphans remain tracked report-only. No public-object deletion is authorized.
+- **Pre-launch evidence task:** the original Gate A execution record was not recovered. Re-run state-free Gate A during final launch verification using `approval-gated-database-object-storage-migrations.md` and version the new execution evidence.
+
+The exact recovered architecture text remains preserved in Git commit `58708998027ec55f03e3fa8f5c0e17f2dfe2851f`; this section records the later project decision without authorizing implementation.
+
 Use this design when product rules require a resource to appear only as a complete, active row—never as a draft/hidden/incomplete row—but images must be uploaded before that row exists.
 
 ## Architecture decision

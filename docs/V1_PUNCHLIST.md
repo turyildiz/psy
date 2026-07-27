@@ -1,6 +1,6 @@
 # psy.market V1 Punch List
 
-> Updated 2026-07-26 from the frozen scope in [`V1_DECISIONS.md`](./V1_DECISIONS.md) and the accepted read-only reconciliation. Do not implement items from superseded PRD or SPEC sections where they conflict with the frozen decisions.
+> Updated 2026-07-27 from the frozen scope in [`V1_DECISIONS.md`](./V1_DECISIONS.md), the accepted read-only reconciliation, and the owner-approved Step 11 architecture decision. Do not implement items from superseded PRD or SPEC sections where they conflict with the frozen decisions.
 
 ## Ordered launch punch list
 
@@ -16,13 +16,16 @@
 3. **Standardize and secure Cloudflare R2 uploads — M**
    Migrate every legacy Supabase Storage avatar/listing path to R2, enforce server-side MIME/type/size/count limits, verify ownership, and define orphan cleanup and object deletion behavior.
    - Profile-media migration Steps 8–10 are complete: three approved objects were copied and verified in R2, and exactly three URL fields across two profile rows were switched and accepted. See `R2_MIGRATION_STEP_10_EXECUTION_RECORD.md`.
-   - Step 11 Gate A completed the approved state-free baseline, automated upload checks, and static proof that no public-bucket deletion path is reachable. Its original execution artifact is pending recovery from the pre-migration home archive.
-   - The narrow Gate B server-side image-count prototype was rejected and is not present in the application or live database. The accepted direction is a durable direct-publish upload-operation/reservation architecture; no implementation or SQL preparation is authorized before owner review of the recovered package.
+   - The prior Step 11 Gate A completion is recorded, but its original execution record was not recovered. Re-run Gate A from the recovered methodology during final pre-launch verification and version the new evidence.
+   - The narrow Gate B server-side image-count prototype was rejected and is not present in the application or live database.
+   - **Owner decision — 2026-07-27:** the durable direct-publish upload-operation/reservation architecture is the approved target architecture, deliberately deferred until after launch. No Step 11 implementation or SQL preparation is authorized without a separate post-launch approval.
+   - **Accepted V1 limitation:** listing images can be promoted before the final listing INSERT/UPDATE commits. V1 retains the existing mitigations—database five-image constraint, process-local presign rate limiting, and report-only public-orphan tracking. This accepted race is not a launch blocker and does not authorize public-object deletion.
    - Original Supabase objects remain verified rollback sources. Source deletion, Supabase Storage retirement, destructive Chunk 9 work, and the deferred Yacxilan object remain separately approval-gated.
    - Current demo profiles and listings must remain available during development. Any pre-launch demo-data purge requires a separate exact reviewed scope and must retain the `@turgay` profile.
 
 4. **Harden the direct-publish listing flow — M**  
    Keep immediate `active` publication, add shared server-side validation and ownership checks, remove dead draft/review controls, add owner unpublish/mark-sold management, and ensure failed uploads cannot create invalid listings.
+   - Keep this V1 work within the accepted current upload lifecycle. Do not pull the deferred Step 11 ledger/reservation architecture into pre-launch scope.
 
 5. **Add tickets as a normal listing category — M**  
    Extend schema/types/forms/search to support tickets, display the face-value guideline and ticket-specific safety messaging, and remove the hard-coded homepage ticket section. Do not add verification or affiliate links.
@@ -56,6 +59,7 @@
 
 15. **Production-domain cutover and launch verification — M**  
     Deploy on Vercel Pro, point `psy.market`, verify TLS and Supabase redirects, complete browser/auth/upload/listing/search/messaging/email/moderation/festival/legal/SEO/mobile smoke tests, then retire the VPS staging-service path.
+    - Before cutover, re-run state-free Step 11 Gate A exactly from `recovered-step11/approval-gated-database-object-storage-migrations.md`; capture and version canonical before/after hashes, test totals, rejection-probe results, static public-deletion-path proof, and final private/public inventories.
 
 ## Obsolete items from the previous punch list
 
