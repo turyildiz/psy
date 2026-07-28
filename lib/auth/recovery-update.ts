@@ -16,7 +16,7 @@ export type RecoveryAuthClient = {
       error: RecoveryProviderError;
     }>;
     admin: {
-      signOut(accessToken: string, scope: "others"): Promise<{
+      signOut(accessToken: string, scope: "others" | "local"): Promise<{
         error: RecoveryProviderError;
       }>;
     };
@@ -108,6 +108,15 @@ export async function handleRecoveryUpdate(
         503,
         { requiresNewLink: true }
       );
+    }
+
+    // The isolated recovery session is not returned to the browser. Revoke its
+    // refresh token after the password change; cleanup failure must not turn a
+    // completed password change into a misleading failure response.
+    try {
+      await supabase.auth.admin.signOut(accessToken, "local");
+    } catch {
+      // Best-effort cleanup only. The inaccessible refresh token expires normally.
     }
 
     return Response.json({ success: true }, { headers: noStoreHeaders });

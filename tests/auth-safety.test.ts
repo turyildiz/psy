@@ -180,7 +180,8 @@ type RecoveryHarnessOptions = {
   verifyError?: RecoveryProviderError;
   revokeError?: RecoveryProviderError;
   updateError?: RecoveryProviderError;
-  throwAt?: "verify" | "revoke" | "update" | "create";
+  cleanupError?: RecoveryProviderError;
+  throwAt?: "verify" | "revoke" | "update" | "cleanup" | "create";
   missingSession?: boolean;
 };
 
@@ -207,10 +208,15 @@ function createRecoveryHarness(options: RecoveryHarnessOptions = {}) {
       },
       admin: {
         signOut: async (accessToken, scope) => {
-          calls.push("revoke");
-          revokeArguments = [accessToken, scope];
-          if (options.throwAt === "revoke") throw new Error("provider revoke details");
-          return { error: options.revokeError ?? null };
+          if (scope === "others") {
+            calls.push("revoke");
+            revokeArguments = [accessToken, scope];
+            if (options.throwAt === "revoke") throw new Error("provider revoke details");
+            return { error: options.revokeError ?? null };
+          }
+          calls.push("cleanup");
+          if (options.throwAt === "cleanup") throw new Error("provider cleanup details");
+          return { error: options.cleanupError ?? null };
         },
       },
       updateUser: async ({ password }) => {
@@ -283,7 +289,7 @@ test("recovery revokes other sessions before changing the password", async () =>
   const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), { success: true });
-  assert.deepEqual(harness.calls, ["verify", "revoke", "update"]);
+  assert.deepEqual(harness.calls, ["verify", "revoke", "update", "cleanup"]);
   assert.deepEqual(harness.revokeArguments, ["recovery-access", "others"]);
   assert.equal(harness.updatedPassword, "new-password");
   assert.equal(response.headers.get("cache-control"), "no-store");
@@ -317,6 +323,19 @@ test("recovery requires a new link when password mutation fails after revocation
     assert.equal(response.status, 503);
     assert.equal((await response.json() as { requiresNewLink?: boolean }).requiresNewLink, true);
     assert.deepEqual(harness.calls, ["verify", "revoke", "update"]);
+  }
+});
+
+test("recovery cleans up its isolated session without obscuring a completed password change", async () => {
+  for (const options of [
+    { cleanupError: { name: "AuthApiError", status: 500 } },
+    { throwAt: "cleanup" as const },
+  ]) {
+    const harness = createRecoveryHarness(options);
+    const response = await handleRecoveryUpdate(harness.request, harness.dependencies);
+    assert.equal(response.status, 200);
+    assert.deepEqual(await response.json(), { success: true });
+    assert.deepEqual(harness.calls, ["verify", "revoke", "update", "cleanup"]);
   }
 });
 
