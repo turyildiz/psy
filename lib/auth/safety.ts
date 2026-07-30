@@ -65,24 +65,37 @@ export function getRecoveryToken(fragment: string) {
 export function getAuthCallbackCredentials(search: string, hash: string) {
   const params = new URLSearchParams(search.startsWith("?") ? search.slice(1) : search);
   const hashParams = new URLSearchParams(hash.startsWith("#") ? hash.slice(1) : hash);
+  const searchTypes = params.getAll("type");
+  const hashTypes = hashParams.getAll("type");
   const isRecovery = [
-    ...params.getAll("type"),
-    ...hashParams.getAll("type"),
+    ...searchTypes,
+    ...hashTypes,
   ].includes("recovery");
+  const signupTokenHashes = hashParams.getAll("token_hash");
+  const signupTokenHash =
+    !isRecovery
+    && hashTypes.length === 1
+    && hashTypes[0] === "signup"
+    && signupTokenHashes.length === 1
+      ? signupTokenHashes[0].trim() || null
+      : null;
+
   return {
     isRecovery,
-    code: isRecovery ? null : params.get("code"),
     accessToken: isRecovery ? null : hashParams.get("access_token"),
     refreshToken: isRecovery ? null : hashParams.get("refresh_token"),
-    signupTokenHash:
-      isRecovery
-        ? null
-        : hashParams.get("type") === "signup"
-          ? hashParams.get("token_hash")
-          : params.get("type") === "signup"
-            ? params.get("token_hash")
-            : null,
+    signupTokenHash,
   };
+}
+
+export function getLoginCallbackError(value: string | null) {
+  if (value === "signup_confirmation_failed") {
+    return "This confirmation link may already have been used. Your account may already be active — try signing in below.";
+  }
+  if (value === "confirmation_failed") {
+    return "This confirmation link is invalid or has expired.";
+  }
+  return null;
 }
 
 export function getRecoveryVerificationErrorStatus(error: {
@@ -154,8 +167,29 @@ export function validateHandle(handle: string) {
   return null;
 }
 
-export function isExistingSignupUser(user: { identities?: unknown[] | null }) {
-  return Array.isArray(user.identities) && user.identities.length === 0;
+type SignupProviderUser = {
+  id: string;
+  identities?: unknown[] | null;
+  user_metadata?: Record<string, unknown> | null;
+};
+
+export type SignupUserKind = "confirmed-duplicate" | "unconfirmed-duplicate" | "new";
+
+export function getSignupUserKind(user: SignupProviderUser, signupAttemptId: string): SignupUserKind {
+  // Confirmed duplicates are returned as sanitized users with no identities.
+  if (Array.isArray(user.identities) && user.identities.length === 0) {
+    return "confirmed-duplicate";
+  }
+
+  // GoTrue does not update metadata when an unconfirmed email signs up again.
+  // Only a user created by this exact server request carries its random marker.
+  return user.user_metadata?.signup_attempt_id === signupAttemptId
+    ? "new"
+    : "unconfirmed-duplicate";
+}
+
+export function isExistingSignupUser(user: SignupProviderUser, signupAttemptId: string) {
+  return getSignupUserKind(user, signupAttemptId) !== "new";
 }
 
 export function getFriendlySignupError(message?: string | null) {

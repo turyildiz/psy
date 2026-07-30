@@ -4,7 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
-import { getSafeRedirect } from "@/lib/auth/safety";
+import { getLoginCallbackError, getSafeRedirect } from "@/lib/auth/safety";
 
 function EyeIcon({ visible }: { visible: boolean }) {
   return visible ? (
@@ -82,9 +82,11 @@ export default function LoginPage() {
   const [fading, setFading] = useState(false);
 
   useEffect(() => {
-    const callbackError = new URLSearchParams(window.location.search).get("error");
-    if (callbackError === "confirmation_failed") {
-      setErrorMsg("This confirmation or password-reset link is invalid or has expired.");
+    const callbackError = getLoginCallbackError(
+      new URLSearchParams(window.location.search).get("error")
+    );
+    if (callbackError) {
+      setErrorMsg(callbackError);
     }
   }, []);
 

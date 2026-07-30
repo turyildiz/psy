@@ -1,13 +1,23 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import * as authSafety from "../lib/auth/safety.ts";
 import {
   handleRecoveryUpdate,
   type RecoveryAuthClient,
   type RecoveryProviderError,
 } from "../lib/auth/recovery-update.ts";
+import {
+  handleAutomaticAuthCallback,
+  verifySignupConfirmation,
+  type CallbackAuthClient,
+} from "../lib/auth/callback-flow.ts";
 
+import {
+  getSuccessfulSignupResponse,
+  handleSignupProfileCompletion,
+  type SignupCompletionDependencies,
+} from "../lib/auth/signup-completion.ts";
 import {
   getSafeRedirect,
   getAllowedAuthOrigin,
@@ -106,54 +116,303 @@ test("signup database failures map to friendly handle errors", () => {
   assert.equal(getFriendlySignupError("internal database details"), "We couldn’t create your account. Please try again.");
 });
 
-test("signup detects Supabase's non-error response for an existing email", () => {
-  assert.equal(isExistingSignupUser({ identities: [] }), true);
-  assert.equal(isExistingSignupUser({ identities: [{ id: "new-identity" }] }), false);
-  assert.equal(isExistingSignupUser({}), false);
+test("signup distinguishes confirmed, unconfirmed, and genuinely new provider responses without writing existing profiles", async () => {
+  const attemptId = "server-attempt";
+  const confirmedExisting = {
+    id: "confirmed-user",
+    identities: [],
+    user_metadata: { signup_attempt_id: attemptId },
+  };
+  const unconfirmedExisting = {
+    id: "unconfirmed-user",
+    identities: [{ id: "email-identity" }],
+    user_metadata: { display_name: "Original name" },
+  };
+  const genuinelyNew = {
+    id: "new-user",
+    identities: [{ id: "new-email-identity" }],
+    user_metadata: { display_name: "New name", signup_attempt_id: attemptId },
+  };
+
+  assert.equal(isExistingSignupUser(confirmedExisting, attemptId), true);
+  assert.equal(isExistingSignupUser(unconfirmedExisting, attemptId), true);
+  assert.equal(isExistingSignupUser(genuinelyNew, attemptId), false);
+
+  const createDependencies = (
+    calls: string[],
+    failures: { clear?: boolean; update?: boolean; cleanup?: boolean } = {}
+  ): SignupCompletionDependencies => ({
+    clearAttemptMarker: async (userId) => {
+      calls.push(`clear:${userId}`);
+      return { error: failures.clear ? new Error("clear failed") : null };
+    },
+    updateProfile: async ({ userId, handle, displayName }) => {
+      calls.push(`update:${userId}:${handle}:${displayName}`);
+      return failures.update
+        ? { data: null, error: new Error("update failed") }
+        : { data: { id: "profile-id" }, error: null };
+    },
+    deleteUser: async (userId) => {
+      calls.push(`delete:${userId}`);
+      return { error: failures.cleanup ? new Error("cleanup failed") : null };
+    },
+  });
+
+  const confirmedCalls: string[] = [];
+  const confirmedResult = await handleSignupProfileCompletion(
+    {
+      user: confirmedExisting,
+      signupAttemptId: attemptId,
+      handle: "attacker_selected_handle",
+      displayName: "Attacker-selected name",
+    },
+    createDependencies(confirmedCalls)
+  );
+  assert.deepEqual(confirmedResult, { kind: "success", userKind: "confirmed-duplicate" });
+  assert.deepEqual(confirmedCalls, []);
+  assert.deepEqual(getSuccessfulSignupResponse("confirmed-duplicate"), {
+    status: 400,
+    body: { error: "That email is already registered. Try logging in instead." },
+  });
+
+  const unconfirmedCalls: string[] = [];
+  const unconfirmedResult = await handleSignupProfileCompletion(
+    {
+      user: unconfirmedExisting,
+      signupAttemptId: attemptId,
+      handle: "attacker_selected_handle",
+      displayName: "Attacker-selected name",
+    },
+    createDependencies(unconfirmedCalls)
+  );
+  assert.deepEqual(unconfirmedResult, { kind: "success", userKind: "unconfirmed-duplicate" });
+  assert.deepEqual(unconfirmedCalls, []);
+  assert.deepEqual(getSuccessfulSignupResponse("unconfirmed-duplicate"), {
+    status: 200,
+    body: { success: true },
+  });
+
+  const newCalls: string[] = [];
+  const newResult = await handleSignupProfileCompletion(
+    {
+      user: genuinelyNew,
+      signupAttemptId: attemptId,
+      handle: "new_handle",
+      displayName: "New name",
+    },
+    createDependencies(newCalls)
+  );
+  assert.deepEqual(newResult, { kind: "success", userKind: "new" });
+  assert.deepEqual(newCalls, ["clear:new-user", "update:new-user:new_handle:New name"]);
+  assert.deepEqual(getSuccessfulSignupResponse("new"), {
+    status: 200,
+    body: { success: true },
+  });
 });
 
-test("generic auth callback accepts signup credentials but rejects every explicit recovery transport", () => {
+test("new signup completion cleans up fail-closed on marker or profile failures", async () => {
+  const user = {
+    id: "new-user",
+    identities: [{ id: "identity" }],
+    user_metadata: { signup_attempt_id: "attempt" },
+  };
+
+  const run = async (failure: "clear" | "update" | "cleanup") => {
+    const calls: string[] = [];
+    const result = await handleSignupProfileCompletion(
+      { user, signupAttemptId: "attempt", handle: "new_handle", displayName: "New name" },
+      {
+        clearAttemptMarker: async () => {
+          calls.push("clear");
+          return { error: failure === "clear" ? new Error("clear failed") : null };
+        },
+        updateProfile: async () => {
+          calls.push("update");
+          return failure === "update" || failure === "cleanup"
+            ? { data: null, error: new Error("update failed") }
+            : { data: { id: "profile-id" }, error: null };
+        },
+        deleteUser: async () => {
+          calls.push("delete");
+          return { error: failure === "cleanup" ? new Error("cleanup failed") : null };
+        },
+      }
+    );
+    return { calls, result };
+  };
+
+  const clearFailure = await run("clear");
+  assert.deepEqual(clearFailure.calls, ["clear", "delete"]);
+  assert.equal(clearFailure.result.kind, "failure");
+  assert.equal(clearFailure.result.kind === "failure" && clearFailure.result.cleanupFailed, false);
+
+  const updateFailure = await run("update");
+  assert.deepEqual(updateFailure.calls, ["clear", "update", "delete"]);
+  assert.equal(updateFailure.result.kind, "failure");
+  assert.equal(updateFailure.result.kind === "failure" && updateFailure.result.cleanupFailed, false);
+
+  const cleanupFailure = await run("cleanup");
+  assert.deepEqual(cleanupFailure.calls, ["clear", "update", "delete"]);
+  assert.equal(cleanupFailure.result.kind, "failure");
+  assert.equal(cleanupFailure.result.kind === "failure" && cleanupFailure.result.cleanupFailed, true);
+});
+
+test("signup route wires the one-request marker and distinct duplicate responses", () => {
+  const routeSource = readFileSync("app/api/auth/signup/route.ts", "utf8");
+  assert.match(routeSource, /const signupAttemptId = randomUUID\(\)/);
+  assert.match(routeSource, /data:\s*\{ display_name: displayName, signup_attempt_id: signupAttemptId \}/);
+  assert.match(routeSource, /user_metadata:\s*\{ signup_attempt_id: null \}/);
+  assert.match(routeSource, /getSuccessfulSignupResponse\(completion\.userKind\)/);
+  assert.match(routeSource, /NextResponse\.json\(response\.body, \{ status: response\.status \}\)/);
+  const completionIndex = routeSource.indexOf("handleSignupProfileCompletion(");
+  const markerCleanupIndex = routeSource.indexOf(
+    "user_metadata: { signup_attempt_id: null }",
+    completionIndex
+  );
+  const guardedProfileUpdateIndex = routeSource.indexOf('.from("profiles")', markerCleanupIndex);
+  assert.ok(completionIndex >= 0);
+  assert.ok(markerCleanupIndex > completionIndex);
+  assert.ok(guardedProfileUpdateIndex > markerCleanupIndex);
+});
+
+test("generic auth callback accepts supported email credentials and rejects recovery or code transports", () => {
   const parseCallback = (authSafety as Record<string, unknown>).getAuthCallbackCredentials;
   assert.equal(typeof parseCallback, "function");
   const parse = parseCallback as (search: string, hash: string) => Record<string, string | boolean | null>;
 
-  assert.deepEqual(parse("?code=pkce-code&next=%2Fmessages", ""), {
+  assert.deepEqual(parse("?code=unsupported-code&next=%2Fmessages", ""), {
     isRecovery: false,
-    code: "pkce-code",
     accessToken: null,
     refreshToken: null,
     signupTokenHash: null,
   });
   assert.deepEqual(
     parse("?token_hash=query-secret&type=recovery", "#token_hash=fragment-secret&type=recovery"),
-    { isRecovery: true, code: null, accessToken: null, refreshToken: null, signupTokenHash: null }
+    { isRecovery: true, accessToken: null, refreshToken: null, signupTokenHash: null }
   );
   assert.deepEqual(parse("?code=recovery-code&type=recovery", ""), {
-    isRecovery: true, code: null, accessToken: null, refreshToken: null, signupTokenHash: null,
+    isRecovery: true, accessToken: null, refreshToken: null, signupTokenHash: null,
   });
   assert.deepEqual(parse("", "#access_token=access&refresh_token=refresh&type=recovery"), {
-    isRecovery: true, code: null, accessToken: null, refreshToken: null, signupTokenHash: null,
+    isRecovery: true, accessToken: null, refreshToken: null, signupTokenHash: null,
   });
   assert.deepEqual(parse("?type=signup&type=recovery&token_hash=recovery-secret", ""), {
-    isRecovery: true, code: null, accessToken: null, refreshToken: null, signupTokenHash: null,
+    isRecovery: true, accessToken: null, refreshToken: null, signupTokenHash: null,
   });
-  assert.deepEqual(parse("?code=recovery-code&type=signup&type=recovery", ""), {
-    isRecovery: true, code: null, accessToken: null, refreshToken: null, signupTokenHash: null,
-  });
-  assert.deepEqual(parse("?token_hash=signup-secret&type=signup", ""), {
+  assert.deepEqual(parse("?token_hash=query-signup-secret&type=signup", ""), {
     isRecovery: false,
-    code: null,
     accessToken: null,
     refreshToken: null,
-    signupTokenHash: "signup-secret",
+    signupTokenHash: null,
+  });
+  assert.deepEqual(parse("", "#token_hash=fragment-signup-secret&type=signup"), {
+    isRecovery: false,
+    accessToken: null,
+    refreshToken: null,
+    signupTokenHash: "fragment-signup-secret",
+  });
+  assert.deepEqual(parse("", "#token_hash=first&token_hash=second&type=signup"), {
+    isRecovery: false,
+    accessToken: null,
+    refreshToken: null,
+    signupTokenHash: null,
   });
   assert.deepEqual(parse("", "#access_token=access&refresh_token=refresh&type=signup"), {
     isRecovery: false,
-    code: null,
     accessToken: "access",
     refreshToken: "refresh",
     signupTokenHash: null,
   });
+});
+
+test("signup token callback waits for an explicit user click before verification", () => {
+  const callbackSource = readFileSync("app/auth/callback/page.tsx", "utf8");
+  assert.match(callbackSource, /onClick=\{confirmSignup\}/);
+  assert.match(callbackSource, /setSignupState\("ready"\)/);
+  assert.match(callbackSource, /const confirmSignup = async \(\) =>/);
+});
+
+test("auth callback suppresses updates after a real component unmount", () => {
+  const callbackSource = readFileSync("app/auth/callback/page.tsx", "utf8");
+  assert.match(callbackSource, /const active = useRef\(false\)/);
+  assert.match(callbackSource, /if \(!active\.current\) return/);
+  assert.match(callbackSource, /active\.current = false/);
+});
+
+test("automatic callback handling does not create a provider client for signup tokens", async () => {
+  let clientsCreated = 0;
+  const result = await handleAutomaticAuthCallback(
+    {
+      isRecovery: false,
+      accessToken: null,
+      refreshToken: null,
+      signupTokenHash: "signup-token",
+    },
+    () => {
+      clientsCreated += 1;
+      throw new Error("signup mount must not create a provider client");
+    }
+  );
+
+  assert.deepEqual(result, { kind: "signup-ready", tokenHash: "signup-token" });
+  assert.equal(clientsCreated, 0);
+});
+
+test("signup verification contacts the provider only when explicitly invoked", async () => {
+  const calls: string[] = [];
+  const client: CallbackAuthClient = {
+    auth: {
+      setSession: async () => ({ error: null }),
+      verifyOtp: async ({ token_hash, type }) => {
+        calls.push(`${type}:${token_hash}`);
+        return { error: null };
+      },
+    },
+  };
+
+  assert.equal(await verifySignupConfirmation("signup-token", () => client), true);
+  assert.deepEqual(calls, ["signup:signup-token"]);
+});
+
+test("automatic callback handling preserves implicit email-confirmation sessions", async () => {
+  const calls: string[] = [];
+  const client: CallbackAuthClient = {
+    auth: {
+      setSession: async ({ access_token, refresh_token }) => {
+        calls.push(`session:${access_token}:${refresh_token}`);
+        return { error: null };
+      },
+      verifyOtp: async () => {
+        calls.push("unexpected-verify");
+        return { error: null };
+      },
+    },
+  };
+
+  const result = await handleAutomaticAuthCallback(
+    { isRecovery: false, accessToken: "access", refreshToken: "refresh", signupTokenHash: null },
+    () => client
+  );
+
+  assert.deepEqual(result, { kind: "success" });
+  assert.deepEqual(calls, ["session:access:refresh"]);
+});
+
+test("signup confirmation failures use specific guidance without a public resend surface", () => {
+  const getError = (authSafety as Record<string, unknown>).getLoginCallbackError;
+  assert.equal(typeof getError, "function");
+  assert.equal(
+    (getError as (value: string | null) => unknown)("signup_confirmation_failed"),
+    "This confirmation link may already have been used. Your account may already be active — try signing in below."
+  );
+
+  const loginSource = readFileSync("app/login/page.tsx", "utf8");
+  assert.match(
+    loginSource,
+    /Please confirm your email first — check your inbox for the confirmation link\./
+  );
+  assert.doesNotMatch(loginSource, /resend-confirmation|Request a new confirmation email/);
+  assert.equal(existsSync("app/resend-confirmation/page.tsx"), false);
 });
 
 
@@ -373,15 +632,21 @@ test("recovery uses one server-only endpoint and preserves explicit response-los
   assert.doesNotMatch(legacyUpdateSource, /updateUser\(\{ password/);
 });
 
-test("auth callback scrubs credentials before any asynchronous credential exchange", () => {
+test("auth callback scrubs credentials before any asynchronous auth orchestration", () => {
   const callbackSource = readFileSync("app/auth/callback/page.tsx", "utf8");
   const scrubIndex = callbackSource.indexOf("window.history.replaceState");
-  const exchangeIndex = callbackSource.indexOf("await supabase.auth.exchangeCodeForSession");
+  const automaticIndex = callbackSource.indexOf("void handleAutomaticAuthCallback");
+  const clickHandlerIndex = callbackSource.indexOf("const confirmSignup = async");
+  const signupVerificationIndex = callbackSource.indexOf(
+    "await verifySignupConfirmation",
+    clickHandlerIndex
+  );
 
   assert.ok(scrubIndex >= 0);
-  assert.ok(exchangeIndex > scrubIndex);
+  assert.ok(automaticIndex > scrubIndex);
+  assert.ok(clickHandlerIndex >= 0);
+  assert.ok(signupVerificationIndex > clickHandlerIndex);
   assert.doesNotMatch(callbackSource, /type: "recovery"/);
-  assert.match(callbackSource, /type: "signup"/);
 });
 
 test("profile updates require exactly one returned row", () => {
