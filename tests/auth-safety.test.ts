@@ -816,3 +816,37 @@ test("validation presentation uses the deeper brand token while operational erro
   assert.match(listingSource, /publishError && <p[^>]+color: "var\(--rust\)"/);
   assert.match(profileSource, /\{error && <div[^\n]+color: "#c0392b"/);
 });
+
+test("field validation is attached to fields and autofill preserves each form theme", () => {
+  const modalLogin = readFileSync("components/AuthModal.tsx", "utf8");
+  const routeLogin = readFileSync("app/login/page.tsx", "utf8");
+  const forgot = readFileSync("app/forgot-password/page.tsx", "utf8");
+  const recovery = readFileSync("app/auth/recovery/page.tsx", "utf8");
+  const frame = readFileSync("components/AuthModalFrame.tsx", "utf8");
+  const globals = readFileSync("app/globals.css", "utf8");
+
+  for (const source of [modalLogin, routeLogin]) {
+    assert.match(source, /error=\{fieldErrors\.email\}/);
+    assert.match(source, /error=\{fieldErrors\.password\}/);
+    assert.match(source, /\{formError && \(/);
+    assert.doesNotMatch(source, /validationError/);
+  }
+
+  assert.match(forgot, /\{emailError && <p/);
+  assert.match(forgot, /\{formError && <p/);
+  assert.match(recovery, /\{fieldErrors\.password && <p/);
+  assert.match(recovery, /\{fieldErrors\.confirmPassword && <p/);
+  assert.match(recovery, /\{formError && <p/);
+
+  const profileModal = readFileSync("components/EditProfileModal.tsx", "utf8");
+  assert.match(profileModal, /\{passwordFieldErrors\.password && <p/);
+  assert.match(profileModal, /\{passwordFieldErrors\.confirmPassword && <p/);
+  assert.match(profileModal, /\{passwordFormError && <p/);
+
+  assert.match(frame, /className="auth-modal-panel"/);
+  assert.match(globals, /input:-webkit-autofill/);
+  assert.match(globals, /input:autofill/);
+  assert.match(globals, /\.auth-modal-panel input[\s\S]+\.footer-newsletter input/);
+  assert.match(globals, /-webkit-text-fill-color: var\(--autofill-text\)/);
+  assert.match(globals, /-webkit-box-shadow: 0 0 0 1000px var\(--autofill-bg\) inset/);
+});

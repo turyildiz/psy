@@ -9,16 +9,15 @@ export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState(false);
+  const [emailError, setEmailError] = useState<string | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setError(null);
-    setValidationError(false);
+    setEmailError(null);
+    setFormError(null);
     if (!email.includes("@")) {
-      setValidationError(true);
-      setError("Enter a valid email address.");
+      setEmailError("Enter a valid email address.");
       return;
     }
 
@@ -31,7 +30,7 @@ export default function ForgotPasswordPage() {
       });
 
       if (resetError) {
-        setError(
+        setFormError(
           resetError.message.toLowerCase().includes("rate limit")
             ? "Too many reset attempts. Please wait a moment and try again."
             : "We couldn’t send the reset email. Please try again."
@@ -41,7 +40,7 @@ export default function ForgotPasswordPage() {
 
       setSent(true);
     } catch {
-      setError("We couldn’t reach the password-reset service. Please try again.");
+      setFormError("We couldn’t reach the password-reset service. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -61,11 +60,12 @@ export default function ForgotPasswordPage() {
             <>
               <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", lineHeight: 1.6, marginBottom: "28px" }}>Enter your account email and we’ll send you a secure reset link.</p>
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-                <label style={{ display: "flex", flexDirection: "column", gap: "6px", color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>
-                  Email
-                  <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoFocus placeholder="you@example.com" style={{ padding: "13px 16px", borderRadius: "8px", border: validationError ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
-                </label>
-                {error && <p style={{ color: validationError ? "var(--rust-dim)" : "#e07070", fontSize: "13px", margin: 0 }}>{error}</p>}
+                <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                  <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>Email</label>
+                  <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoFocus placeholder="you@example.com" style={{ padding: "13px 16px", borderRadius: "8px", border: emailError ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
+                  {emailError && <p style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{emailError}</p>}
+                </div>
+                {formError && <p style={{ color: "#e07070", fontSize: "13px", margin: 0 }}>{formError}</p>}
                 <button type="submit" disabled={loading} style={{ background: loading ? "oklch(25% 0.01 55)" : "var(--rust)", color: "white", border: "none", padding: "14px", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: loading ? "default" : "pointer" }}>
                   {loading ? "Sending…" : "Send reset link"}
                 </button>

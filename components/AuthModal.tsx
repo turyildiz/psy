@@ -91,16 +91,18 @@ function PasswordField({ label, value, onChange, placeholder, error, hint, autoF
 function LoginForm({ onSwitch }: { onSwitch: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [status, setStatus] = useState<"idle" | "checking" | "success">("idle");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
-    setValidationError(false);
-    if (!email.includes("@")) { setValidationError(true); setErrorMsg("Enter a valid email address"); return; }
-    if (!password) { setValidationError(true); setErrorMsg("Password is required"); return; }
+    setFieldErrors({});
+    setFormError(null);
+    const nextFieldErrors: { email?: string; password?: string } = {};
+    if (!email.includes("@")) nextFieldErrors.email = "Enter a valid email address";
+    if (!password) nextFieldErrors.password = "Password is required";
+    if (Object.keys(nextFieldErrors).length > 0) { setFieldErrors(nextFieldErrors); return; }
 
     setStatus("checking");
     const supabase = createClient();
@@ -111,7 +113,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 
     if (error) {
       setStatus("idle");
-      setErrorMsg(
+      setFormError(
         error.message.toLowerCase().includes("banned")
           ? "This account has been banned. Contact support if you think this is a mistake."
           : "Invalid email or password"
@@ -138,9 +140,9 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
       </p>
 
       <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
-        <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoFocus />
+        <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={fieldErrors.email} autoFocus />
         <div>
-          <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" />
+          <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" error={fieldErrors.password} />
           <div style={{ textAlign: "right", marginTop: "8px" }}>
             <Link href="/forgot-password" style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", textDecoration: "none" }}>
               Forgot password?
@@ -148,9 +150,9 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
           </div>
         </div>
 
-        {errorMsg && (
-          <div style={{ background: validationError ? "transparent" : "oklch(35% 0.12 20 / 0.2)", border: validationError ? "1px solid var(--rust-dim)" : "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "11px 14px", fontSize: "13px", color: validationError ? "var(--rust-dim)" : "#e07070" }}>
-            {errorMsg}
+        {formError && (
+          <div style={{ background: "oklch(35% 0.12 20 / 0.2)", border: "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "11px 14px", fontSize: "13px", color: "#e07070" }}>
+            {formError}
           </div>
         )}
 

@@ -73,8 +73,8 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
   const [checkingHandle, setCheckingHandle] = useState(false);
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [passwordError, setPasswordError] = useState<string | null>(null);
-  const [passwordErrorOperational, setPasswordErrorOperational] = useState(false);
+  const [passwordFieldErrors, setPasswordFieldErrors] = useState<{ password?: string; confirmPassword?: string }>({});
+  const [passwordFormError, setPasswordFormError] = useState<string | null>(null);
   const [passwordSaved, setPasswordSaved] = useState(false);
   const handleErrorColor = handleError?.startsWith("We couldn’t check") ? "#c0392b" : "var(--rust-dim)";
 
@@ -169,13 +169,13 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
   };
 
   const handlePasswordSave = async () => {
-    setPasswordErrorOperational(false);
-    if (newPassword.length < 8) { setPasswordError("At least 8 characters"); return; }
-    if (newPassword !== confirmPassword) { setPasswordError("Passwords don't match"); return; }
-    setPasswordError(null);
+    setPasswordFieldErrors({});
+    setPasswordFormError(null);
+    if (newPassword.length < 8) { setPasswordFieldErrors({ password: "At least 8 characters" }); return; }
+    if (newPassword !== confirmPassword) { setPasswordFieldErrors({ confirmPassword: "Passwords don't match" }); return; }
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) { setPasswordErrorOperational(true); setPasswordError(error.message); return; }
+    if (error) { setPasswordFormError(error.message); return; }
     setNewPassword(""); setConfirmPassword(""); setPasswordSaved(true);
     setTimeout(() => setPasswordSaved(false), 3000);
   };
@@ -261,9 +261,15 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
           {/* Change password */}
           <div style={{ background: "var(--white)", borderRadius: "12px", border: "1px solid var(--sand)", padding: "20px", display: "flex", flexDirection: "column", gap: "14px" }}>
             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase", margin: 0 }}>Change Password</p>
-            <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min. 8 characters)" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: "1.5px solid var(--sand)" }} />
-            <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: "1.5px solid var(--sand)" }} />
-            {passwordError && <p style={{ fontSize: "12px", color: passwordErrorOperational ? "#c0392b" : "var(--rust-dim)", margin: 0 }}>{passwordError}</p>}
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <input className="autofill-cream" type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min. 8 characters)" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: `1.5px solid ${passwordFieldErrors.password ? "var(--rust-dim)" : "var(--sand)"}` }} />
+              {passwordFieldErrors.password && <p style={{ fontSize: "12px", color: "var(--rust-dim)", margin: 0 }}>{passwordFieldErrors.password}</p>}
+            </div>
+            <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+              <input className="autofill-cream" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: `1.5px solid ${passwordFieldErrors.confirmPassword ? "var(--rust-dim)" : "var(--sand)"}` }} />
+              {passwordFieldErrors.confirmPassword && <p style={{ fontSize: "12px", color: "var(--rust-dim)", margin: 0 }}>{passwordFieldErrors.confirmPassword}</p>}
+            </div>
+            {passwordFormError && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{passwordFormError}</p>}
             {passwordSaved && <p style={{ fontSize: "12px", color: "#27ae60", margin: 0 }}>Password updated ✓</p>}
             <button type="button" onClick={handlePasswordSave} disabled={!newPassword} style={{ background: newPassword ? "var(--dark)" : "var(--sand)", color: "white", border: "none", padding: "11px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: newPassword ? "pointer" : "default", fontFamily: "Manrope, var(--font-manrope)" }}>
               Update Password

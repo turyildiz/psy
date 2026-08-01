@@ -27,8 +27,8 @@ export default function RecoveryPage() {
   const [tokenHash, setTokenHash] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ password?: string; confirmPassword?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
 
   useEffect(() => {
     if (initialized.current) return;
@@ -52,32 +52,30 @@ export default function RecoveryPage() {
 
   const continueRecovery = () => {
     if (!tokenHash || state !== "ready") return;
-    setErrorMessage(null);
+    setFieldErrors({});
+    setFormError(null);
     setState("reset");
   };
 
   const updatePassword = async (event: React.FormEvent) => {
     event.preventDefault();
-    setErrorMessage(null);
-    setValidationError(false);
+    setFieldErrors({});
+    setFormError(null);
 
     if (!tokenHash) {
       setState("restart");
       return;
     }
     if (password.length < 8) {
-      setValidationError(true);
-      setErrorMessage("Password must be at least 8 characters.");
+      setFieldErrors({ password: "Password must be at least 8 characters." });
       return;
     }
     if (password.length > 1024) {
-      setValidationError(true);
-      setErrorMessage("Password is too long.");
+      setFieldErrors({ password: "Password is too long." });
       return;
     }
     if (password !== confirmPassword) {
-      setValidationError(true);
-      setErrorMessage("Passwords don’t match.");
+      setFieldErrors({ confirmPassword: "Passwords don’t match." });
       return;
     }
 
@@ -94,7 +92,7 @@ export default function RecoveryPage() {
       if (!response.ok) {
         if (result.retryable) {
           setState("reset");
-          setErrorMessage(result.error ?? "We couldn’t reach the password service. Check your connection and try again.");
+          setFormError(result.error ?? "We couldn’t reach the password service. Check your connection and try again.");
           return;
         }
 
@@ -102,7 +100,7 @@ export default function RecoveryPage() {
         setPassword("");
         setConfirmPassword("");
         setState("restart");
-        setErrorMessage(result.error ?? "This reset attempt could not finish. Request a new reset link and try again.");
+        setFormError(result.error ?? "This reset attempt could not finish. Request a new reset link and try again.");
         return;
       }
 
@@ -146,14 +144,16 @@ export default function RecoveryPage() {
               Existing sessions will be revoked before your password is changed.
             </p>
             <form onSubmit={updatePassword} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "24px" }}>
-              <label style={{ display: "flex", flexDirection: "column", gap: "6px", color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>
-                New password
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus autoComplete="new-password" disabled={busy} style={{ padding: "13px 16px", borderRadius: "8px", border: validationError ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
-              </label>
-              <label style={{ display: "flex", flexDirection: "column", gap: "6px", color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>
-                Confirm password
-                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={busy} style={{ padding: "13px 16px", borderRadius: "8px", border: validationError ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
-              </label>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>New password</label>
+                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus autoComplete="new-password" disabled={busy} style={{ padding: "13px 16px", borderRadius: "8px", border: fieldErrors.password ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
+                {fieldErrors.password && <p style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.password}</p>}
+              </div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>Confirm password</label>
+                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={busy} style={{ padding: "13px 16px", borderRadius: "8px", border: fieldErrors.confirmPassword ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
+                {fieldErrors.confirmPassword && <p style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.confirmPassword}</p>}
+              </div>
               <button type="submit" disabled={busy} style={{ background: busy ? "oklch(25% 0.01 55)" : "var(--rust)", color: "white", border: "none", padding: "14px", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: busy ? "wait" : "pointer" }}>
                 {state === "resetting" ? "Securing account…" : "Update password"}
               </button>
@@ -194,7 +194,7 @@ export default function RecoveryPage() {
           </>
         )}
 
-        {errorMessage && <p style={{ color: validationError ? "var(--rust-dim)" : "#e07070", fontSize: "13px", lineHeight: 1.5, margin: "14px 0 0" }}>{errorMessage}</p>}
+        {formError && <p style={{ color: "#e07070", fontSize: "13px", lineHeight: 1.5, margin: "14px 0 0" }}>{formError}</p>}
       </div>
     </AuthRouteModal>
   );

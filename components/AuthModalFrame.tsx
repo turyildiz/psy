@@ -17,6 +17,7 @@ export default function AuthModalFrame({ children, onClose }: AuthModalFrameProp
       style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", padding: "20px", background: "oklch(0% 0 0 / 0.65)", backdropFilter: "blur(6px)", WebkitBackdropFilter: "blur(6px)" }}
     >
       <div
+        className="auth-modal-panel"
         onClick={(event) => event.stopPropagation()}
         style={{ width: "100%", maxWidth: "420px", background: "oklch(10% 0.018 55)", borderRadius: "16px", border: "1px solid oklch(100% 0 0 / 0.1)", padding: "32px", position: "relative", maxHeight: "90vh", overflowY: "auto" }}
       >

@@ -78,8 +78,8 @@ type Status = "idle" | "checking" | "success" | "error";
 export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [validationError, setValidationError] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
+  const [formError, setFormError] = useState<string | null>(null);
   const [status, setStatus] = useState<Status>("idle");
   const [fading, setFading] = useState(false);
 
@@ -88,17 +88,18 @@ export default function LoginPage() {
       new URLSearchParams(window.location.search).get("error")
     );
     if (callbackError) {
-      setValidationError(false);
-      setErrorMsg(callbackError);
+      setFormError(callbackError);
     }
   }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setErrorMsg(null);
-    setValidationError(false);
-    if (!email.includes("@")) { setValidationError(true); setErrorMsg("Enter a valid email address"); return; }
-    if (!password) { setValidationError(true); setErrorMsg("Password is required"); return; }
+    setFieldErrors({});
+    setFormError(null);
+    const nextFieldErrors: { email?: string; password?: string } = {};
+    if (!email.includes("@")) nextFieldErrors.email = "Enter a valid email address";
+    if (!password) nextFieldErrors.password = "Password is required";
+    if (Object.keys(nextFieldErrors).length > 0) { setFieldErrors(nextFieldErrors); return; }
 
     setStatus("checking");
     try {
@@ -108,11 +109,11 @@ export default function LoginPage() {
       if (authError) {
         const authMessage = authError.message.toLowerCase();
         if (authMessage.includes("banned")) {
-          setErrorMsg("This account has been banned. Contact support if you think this is a mistake.");
+          setFormError("This account has been banned. Contact support if you think this is a mistake.");
         } else if (authMessage.includes("email not confirmed")) {
-          setErrorMsg("Please confirm your email first — check your inbox for the confirmation link.");
+          setFormError("Please confirm your email first — check your inbox for the confirmation link.");
         } else {
-          setErrorMsg("Invalid email or password");
+          setFormError("Invalid email or password");
         }
         setStatus("idle");
         return;
@@ -122,7 +123,7 @@ export default function LoginPage() {
       const requestedNext = new URLSearchParams(window.location.search).get("next");
       assignAtTop(getSafeRedirect(requestedNext, window.location.origin, "/"));
     } catch {
-      setErrorMsg("We couldn’t reach the login service. Check your connection and try again.");
+      setFormError("We couldn’t reach the login service. Check your connection and try again.");
       setStatus("idle");
     }
   };
@@ -145,9 +146,9 @@ export default function LoginPage() {
           </p>
 
           <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
-            <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" autoFocus />
+            <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={fieldErrors.email} autoFocus />
             <div>
-              <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="Your password" />
+              <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="Your password" error={fieldErrors.password} />
               <div style={{ textAlign: "right", marginTop: "8px" }}>
                 <Link href="/forgot-password" style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", textDecoration: "none" }}>
                   Forgot password?
@@ -155,13 +156,13 @@ export default function LoginPage() {
               </div>
             </div>
 
-            {errorMsg && (
-              <div style={{ background: validationError ? "transparent" : "oklch(35% 0.12 20 / 0.2)", border: validationError ? "1px solid var(--rust-dim)" : "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "12px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
+            {formError && (
+              <div style={{ background: "oklch(35% 0.12 20 / 0.2)", border: "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "12px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                  <circle cx="8" cy="8" r="7" stroke={validationError ? "var(--rust-dim)" : "#e05252"} strokeWidth="1.5" />
-                  <path d="M8 5v4M8 11v.5" stroke={validationError ? "var(--rust-dim)" : "#e05252"} strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="8" cy="8" r="7" stroke="#e05252" strokeWidth="1.5" />
+                  <path d="M8 5v4M8 11v.5" stroke="#e05252" strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                <p style={{ fontSize: "13px", color: validationError ? "var(--rust-dim)" : "#e07070", margin: 0 }}>{errorMsg}</p>
+                <p style={{ fontSize: "13px", color: "#e07070", margin: 0 }}>{formError}</p>
               </div>
             )}
 

@@ -91,6 +91,39 @@ body::after {
 
 select { appearance: none; }
 
+/* Preserve each form theme when browsers paint autofilled values. */
+input {
+  --autofill-bg: var(--white);
+  --autofill-text: var(--text);
+}
+
+.auth-modal-panel input,
+.footer-newsletter input {
+  --autofill-bg: oklch(15% 0.017 55);
+  --autofill-text: white;
+}
+
+input.autofill-cream {
+  --autofill-bg: var(--cream);
+}
+
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--autofill-text) !important;
+  caret-color: var(--autofill-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--autofill-bg) inset !important;
+  box-shadow: 0 0 0 1000px var(--autofill-bg) inset !important;
+  transition: background-color 9999s ease-out 0s;
+}
+
+input:autofill {
+  color: var(--autofill-text) !important;
+  caret-color: var(--autofill-text);
+  box-shadow: 0 0 0 1000px var(--autofill-bg) inset !important;
+}
+
 /* ── Layout ── */
 
 .site-shell {
