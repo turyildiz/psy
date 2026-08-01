@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
+import AuthRouteModal from "@/components/AuthRouteModal";
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
@@ -45,12 +45,7 @@ export default function ForgotPasswordPage() {
   };
 
   return (
-    <div style={{ minHeight: "100vh", background: "oklch(10% 0.018 55)", display: "flex", flexDirection: "column" }}>
-      <div style={{ padding: "20px 24px", borderBottom: "1px solid oklch(100% 0 0 / 0.07)" }}>
-        <Link href="/"><Image src="/logo.png" alt="psy.market" width={110} height={44} style={{ height: "36px", width: "auto", display: "block" }} /></Link>
-      </div>
-      <main style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
-        <div style={{ width: "100%", maxWidth: "400px" }}>
+    <AuthRouteModal dismissHref="/">
           <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "28px", color: "white", marginBottom: "8px" }}>Reset your password</h1>
           {sent ? (
             <>
@@ -75,8 +70,6 @@ export default function ForgotPasswordPage() {
               <p style={{ textAlign: "center", marginTop: "24px" }}><Link href="/login" style={{ color: "oklch(60% 0.01 70)", fontSize: "13px", textDecoration: "none" }}>Back to login</Link></p>
             </>
           )}
-        </div>
-      </main>
-    </div>
+    </AuthRouteModal>
   );
 }

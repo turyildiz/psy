@@ -723,3 +723,21 @@ test("profile updates require exactly one returned row", () => {
   const profileSource = readFileSync("components/EditProfileModal.tsx", "utf8");
   assert.match(profileSource, /\.eq\("id", profile\.id\)\.select\("id"\)\.single\(\)/);
 });
+
+test("direct auth pages are dismissible while one-time-token pages are not", () => {
+  for (const path of [
+    "app/login/page.tsx",
+    "app/signup/page.tsx",
+    "app/forgot-password/page.tsx",
+    "app/update-password/page.tsx",
+  ]) {
+    const source = readFileSync(path, "utf8");
+    assert.match(source, /<AuthRouteModal dismissHref="\/">/);
+  }
+
+  for (const path of ["app/auth/callback/page.tsx", "app/auth/recovery/page.tsx"]) {
+    const source = readFileSync(path, "utf8");
+    assert.match(source, /<AuthRouteModal>/);
+    assert.doesNotMatch(source, /dismissHref/);
+  }
+});

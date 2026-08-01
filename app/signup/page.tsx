@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
+import AuthRouteModal from "@/components/AuthRouteModal";
 
 /* ── Eye icon ── */
 function EyeIcon({ visible }: { visible: boolean }) {
@@ -218,25 +218,13 @@ export default function SignupPage() {
 
   /* ── Shared shell ── */
   const shell = (children: React.ReactNode) => (
-    <div style={{ minHeight: "100vh", background: "oklch(10% 0.018 55)", display: "flex", flexDirection: "column" }}>
-      {/* Top bar */}
-      <div style={{ padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid oklch(100% 0 0 / 0.07)" }}>
-        <Link href="/">
-          <Image src="/logo.png" alt="psy.market" width={110} height={44} style={{ height: "36px", width: "auto", display: "block" }} />
-        </Link>
-        <p style={{ fontSize: "13px", color: "oklch(55% 0.01 70)" }}>
-          Already have an account?{" "}
-          <Link href="/login" style={{ color: "var(--rust)", textDecoration: "none", fontWeight: 600 }}>Log in</Link>
-        </p>
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
-        <div style={{ width: "100%", maxWidth: "420px" }}>
-          {children}
-        </div>
-      </div>
-    </div>
+    <AuthRouteModal dismissHref="/">
+      <p style={{ fontSize: "13px", color: "oklch(55% 0.01 70)", textAlign: "right", margin: "0 0 22px" }}>
+        Already have an account?{" "}
+        <Link href="/login" style={{ color: "var(--rust)", textDecoration: "none", fontWeight: 600 }}>Log in</Link>
+      </p>
+      {children}
+    </AuthRouteModal>
   );
 
   /* ── Success ── */

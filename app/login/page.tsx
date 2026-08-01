@@ -2,9 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { createClient } from "@/lib/supabase/client";
 import { getLoginCallbackError, getSafeRedirect } from "@/lib/auth/safety";
+import AuthRouteModal from "@/components/AuthRouteModal";
 
 function EyeIcon({ visible }: { visible: boolean }) {
   return visible ? (
@@ -131,21 +131,8 @@ export default function LoginPage() {
   const btnLabel = isChecking ? "Checking…" : isSuccess ? "Welcome back!" : "Log In";
 
   return (
-    <div style={{ minHeight: "100vh", background: "oklch(10% 0.018 55)", display: "flex", flexDirection: "column", opacity: fading ? 0 : 1, transition: "opacity 0.4s ease" }}>
-      {/* Top bar */}
-      <div style={{ padding: "20px 24px", display: "flex", justifyContent: "space-between", alignItems: "center", borderBottom: "1px solid oklch(100% 0 0 / 0.07)" }}>
-        <Link href="/">
-          <Image src="/logo.png" alt="psy.market" width={110} height={44} style={{ height: "36px", width: "auto", display: "block" }} />
-        </Link>
-        <p style={{ fontSize: "13px", color: "oklch(55% 0.01 70)" }}>
-          New here?{" "}
-          <Link href="/signup" style={{ color: "var(--rust)", textDecoration: "none", fontWeight: 600 }}>Sign up free</Link>
-        </p>
-      </div>
-
-      {/* Content */}
-      <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", padding: "40px 24px" }}>
-        <div style={{ width: "100%", maxWidth: "400px" }}>
+    <AuthRouteModal dismissHref="/">
+      <div style={{ opacity: fading ? 0 : 1, transition: "opacity 0.4s ease" }}>
           <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "28px", fontWeight: 700, color: "white", marginBottom: "6px", letterSpacing: "-0.02em" }}>
             Welcome back
           </h1>
@@ -208,12 +195,11 @@ export default function LoginPage() {
             {" "}and{" "}
             <Link href="/privacy-policy" style={{ color: "oklch(55% 0.01 70)", textDecoration: "underline" }}>Privacy Policy</Link>
           </p>
-        </div>
+          <p style={{ textAlign: "center", fontSize: "13px", color: "oklch(55% 0.01 70)", marginTop: "18px" }}>
+            New here?{" "}
+            <Link href="/signup" style={{ color: "var(--rust)", textDecoration: "none", fontWeight: 600 }}>Sign up free</Link>
+          </p>
       </div>
-
-      <style>{`
-        @keyframes spin { to { transform: rotate(360deg); } }
-      `}</style>
-    </div>
+    </AuthRouteModal>
   );
 }
