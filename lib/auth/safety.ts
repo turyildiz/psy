@@ -34,7 +34,22 @@ export function getAllowedAuthOrigin(
     if (allowed.has(requestOrigin)) return requestOrigin;
   } catch {}
 
-  return configuredOrigin ?? "https://psy.market";
+  return configuredOrigin;
+}
+
+export function getAuthEmailRedirectOrigin(
+  browserOrigin: string | null,
+  requestUrl: string,
+  configuredSiteUrl?: string,
+  allowLocalDevelopment = false
+) {
+  // Browser-submitted auth requests should return to the exact reviewed origin
+  // where the user started. Configured origins remain fallback-only.
+  if (isAllowedAuthRequestOrigin(browserOrigin, undefined, allowLocalDevelopment)) {
+    return browserOrigin;
+  }
+
+  return getAllowedAuthOrigin(requestUrl, configuredSiteUrl, allowLocalDevelopment);
 }
 
 export function isAllowedAuthRequestOrigin(

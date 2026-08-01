@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { randomUUID } from "node:crypto";
 import { createClient } from "@supabase/supabase-js";
 import {
-  getAllowedAuthOrigin,
+  getAuthEmailRedirectOrigin,
   getFriendlySignupError,
   normalizeHandle,
   validateHandle,
@@ -71,11 +71,18 @@ export async function POST(request: Request) {
 
   // Callback destinations are server-owned and selected from the deployment
   // origin allowlist. Do not accept a client-provided authentication redirect.
-  const siteOrigin = getAllowedAuthOrigin(
+  const siteOrigin = getAuthEmailRedirectOrigin(
+    request.headers.get("origin"),
     request.url,
     process.env.NEXT_PUBLIC_SITE_URL,
     process.env.NODE_ENV !== "production"
   );
+  if (!siteOrigin) {
+    return NextResponse.json(
+      { error: "We couldn’t determine where to send your confirmation link. Please reload and try again." },
+      { status: 503 }
+    );
+  }
   const callbackUrl = `${siteOrigin}/auth/callback`;
 
   // Sign up without handle metadata. The DB trigger creates a temporary

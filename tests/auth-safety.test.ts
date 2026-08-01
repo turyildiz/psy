@@ -21,6 +21,7 @@ import {
 import {
   getSafeRedirect,
   getAllowedAuthOrigin,
+  getAuthEmailRedirectOrigin,
   isAllowedAuthRequestOrigin,
   getRecoveryToken,
   getRecoveryVerificationErrorStatus,
@@ -58,6 +59,61 @@ test("getSafeRedirect uses its fallback for empty or malformed values", () => {
   assert.equal(getSafeRedirect("http://[", "https://psy.market", "/login"), "/login");
 });
 
+test("auth email redirects prefer exact approved browser origins", () => {
+  const internalRequest = "http://localhost:3030/api/auth/signup";
+  for (const origin of [
+    "https://psy.market",
+    "https://www.psy.market",
+    "https://psy.heyturgay.com",
+  ]) {
+    assert.equal(
+      getAuthEmailRedirectOrigin(origin, internalRequest, undefined, false),
+      origin
+    );
+  }
+});
+
+test("auth email redirects reject hostile origins and use reviewed fallbacks", () => {
+  assert.equal(
+    getAuthEmailRedirectOrigin(
+      "https://evil.example",
+      "https://psy.heyturgay.com/api/auth/signup",
+      undefined,
+      false
+    ),
+    "https://psy.heyturgay.com"
+  );
+  assert.equal(
+    getAuthEmailRedirectOrigin(
+      "https://evil.example",
+      "http://localhost:3030/api/auth/signup",
+      "https://www.psy.market",
+      false
+    ),
+    "https://www.psy.market"
+  );
+});
+
+test("auth email redirects fail closed when no approved origin can be established", () => {
+  assert.equal(
+    getAuthEmailRedirectOrigin(
+      null,
+      "https://psy.heyturgay.com/api/auth/signup",
+      undefined,
+      false
+    ),
+    "https://psy.heyturgay.com"
+  );
+  assert.equal(
+    getAuthEmailRedirectOrigin(null, "http://localhost:3030/api/auth/signup", undefined, false),
+    null
+  );
+  assert.equal(
+    getAuthEmailRedirectOrigin(null, "http://localhost:3030/api/auth/signup", undefined, true),
+    "http://localhost:3030"
+  );
+});
+
 test("getAllowedAuthOrigin uses only reviewed deployment origins", () => {
   assert.equal(getAllowedAuthOrigin("https://psy.market/api/auth/signup"), "https://psy.market");
   assert.equal(getAllowedAuthOrigin("https://psy.heyturgay.com/api/auth/signup"), "https://psy.heyturgay.com");
@@ -66,7 +122,7 @@ test("getAllowedAuthOrigin uses only reviewed deployment origins", () => {
     "https://www.psy.market"
   );
   assert.equal(getAllowedAuthOrigin("http://localhost:3030/api/auth/signup", undefined, true), "http://localhost:3030");
-  assert.equal(getAllowedAuthOrigin("http://localhost:3030/api/auth/signup"), "https://psy.market");
+  assert.equal(getAllowedAuthOrigin("http://localhost:3030/api/auth/signup"), null);
 });
 
 test("recovery API origin checks accept only reviewed exact origins", () => {
@@ -259,6 +315,8 @@ test("new signup completion cleans up fail-closed on marker or profile failures"
 
 test("signup route wires the one-request marker and distinct duplicate responses", () => {
   const routeSource = readFileSync("app/api/auth/signup/route.ts", "utf8");
+  assert.match(routeSource, /getAuthEmailRedirectOrigin\(\s*request\.headers\.get\("origin"\)/);
+  assert.match(routeSource, /We couldn’t determine where to send your confirmation link/);
   assert.match(routeSource, /const signupAttemptId = randomUUID\(\)/);
   assert.match(routeSource, /data:\s*\{ display_name: displayName, signup_attempt_id: signupAttemptId \}/);
   assert.match(routeSource, /user_metadata:\s*\{ signup_attempt_id: null \}/);
@@ -273,6 +331,18 @@ test("signup route wires the one-request marker and distinct duplicate responses
   assert.ok(completionIndex >= 0);
   assert.ok(markerCleanupIndex > completionIndex);
   assert.ok(guardedProfileUpdateIndex > markerCleanupIndex);
+  assert.ok(
+    routeSource.indexOf("if (!siteOrigin)") < routeSource.indexOf("anonClient.auth.signUp(")
+  );
+});
+
+test("password recovery builds its redirect from the browser origin", () => {
+  const recoverySource = readFileSync("app/forgot-password/page.tsx", "utf8");
+  assert.match(
+    recoverySource,
+    /new URL\("\/auth\/recovery", window\.location\.origin\)/
+  );
+  assert.match(recoverySource, /resetPasswordForEmail\(email\.trim\(\), \{[\s\S]*redirectTo: recoveryUrl\.toString\(\)/);
 });
 
 test("generic auth callback accepts supported email credentials and rejects recovery or code transports", () => {
