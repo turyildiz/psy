@@ -1,6 +1,6 @@
 # psy.market V1 Punch List
 
-> Updated 2026-07-27 from the frozen scope in [`V1_DECISIONS.md`](./V1_DECISIONS.md), the accepted read-only reconciliation, and the owner-approved Step 11 architecture decision. Do not implement items from superseded PRD or SPEC sections where they conflict with the frozen decisions.
+> Updated 2026-08-01 from the frozen scope in [`V1_DECISIONS.md`](./V1_DECISIONS.md), the accepted read-only reconciliation, and the owner-approved Step 11 architecture decision. Do not implement items from superseded PRD or SPEC sections where they conflict with the frozen decisions.
 
 ## Ordered launch punch list
 
@@ -26,6 +26,7 @@
 4. **Harden the direct-publish listing flow — M**  
    Keep immediate `active` publication, add shared server-side validation and ownership checks, remove dead draft/review controls, add owner unpublish/mark-sold management, and ensure failed uploads cannot create invalid listings.
    - Keep this V1 work within the accepted current upload lifecycle. Do not pull the deferred Step 11 ledger/reservation architecture into pre-launch scope.
+   - **Open question:** the profile **Delete** action currently performs `update({ status: "draft" })` rather than deleting the listing row. Decide whether V1 should distinguish **Unpublish** from a real **Delete** action. Because the soft-deleted row and its `images` array remain in the database, those images remain referenced and never become public-orphan report candidates.
 
 5. **Add tickets as a normal listing category — M**  
    Extend schema/types/forms/search to support tickets, display the face-value guideline and ticket-specific safety messaging, and remove the hard-coded homepage ticket section. Do not add verification or affiliate links.
