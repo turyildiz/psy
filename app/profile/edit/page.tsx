@@ -27,7 +27,7 @@ function Field({
   const sharedStyle: React.CSSProperties = {
     width: "100%",
     padding: "11px 14px",
-    border: `1.5px solid ${error ? "#c0392b" : focused ? "var(--dark)" : "var(--sand)"}`,
+    border: `1.5px solid ${error ? "var(--rust-dim)" : focused ? "var(--dark)" : "var(--sand)"}`,
     borderRadius: "8px",
     fontSize: "14px",
     color: "var(--text)",
@@ -45,7 +45,7 @@ function Field({
           {label}
         </label>
         {maxLength && (
-          <span style={{ fontSize: "11px", color: value.length > maxLength * 0.9 ? (value.length >= maxLength ? "#c0392b" : "#e07730") : "var(--text-light)" }}>
+          <span style={{ fontSize: "11px", color: value.length > maxLength * 0.9 ? (value.length >= maxLength ? "var(--rust-dim)" : "#e07730") : "var(--text-light)" }}>
             {value.length}/{maxLength}
           </span>
         )}
@@ -73,7 +73,7 @@ function Field({
           style={sharedStyle}
         />
       )}
-      {error && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: "12px", color: "var(--rust-dim)", margin: 0 }}>{error}</p>}
       {!error && hint && <p style={{ fontSize: "12px", color: "var(--text-light)", margin: 0 }}>{hint}</p>}
     </div>
   );

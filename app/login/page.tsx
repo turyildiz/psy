@@ -48,7 +48,7 @@ function Field({ label, type = "text", value, onChange, placeholder, error, auto
             width: "100%",
             padding: isPassword ? "13px 44px 13px 16px" : "13px 16px",
             background: "oklch(100% 0 0 / 0.06)",
-            border: `1px solid ${error ? "#e05252" : focused ? "oklch(100% 0 0 / 0.4)" : "oklch(100% 0 0 / 0.14)"}`,
+            border: `1px solid ${error ? "var(--rust-dim)" : focused ? "oklch(100% 0 0 / 0.4)" : "oklch(100% 0 0 / 0.14)"}`,
             borderRadius: "8px",
             fontSize: "15px",
             color: "white",
@@ -68,7 +68,7 @@ function Field({ label, type = "text", value, onChange, placeholder, error, auto
           </button>
         )}
       </div>
-      {error && <p style={{ fontSize: "12px", color: "#e05252", margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: "12px", color: "var(--rust-dim)", margin: 0 }}>{error}</p>}
     </div>
   );
 }
@@ -79,6 +79,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState(false);
   const [status, setStatus] = useState<Status>("idle");
   const [fading, setFading] = useState(false);
 
@@ -87,6 +88,7 @@ export default function LoginPage() {
       new URLSearchParams(window.location.search).get("error")
     );
     if (callbackError) {
+      setValidationError(false);
       setErrorMsg(callbackError);
     }
   }, []);
@@ -94,8 +96,9 @@ export default function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg(null);
-    if (!email.includes("@")) { setErrorMsg("Enter a valid email address"); return; }
-    if (!password) { setErrorMsg("Password is required"); return; }
+    setValidationError(false);
+    if (!email.includes("@")) { setValidationError(true); setErrorMsg("Enter a valid email address"); return; }
+    if (!password) { setValidationError(true); setErrorMsg("Password is required"); return; }
 
     setStatus("checking");
     try {
@@ -153,12 +156,12 @@ export default function LoginPage() {
             </div>
 
             {errorMsg && (
-              <div style={{ background: "oklch(35% 0.12 20 / 0.2)", border: "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "12px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
+              <div style={{ background: validationError ? "transparent" : "oklch(35% 0.12 20 / 0.2)", border: validationError ? "1px solid var(--rust-dim)" : "1px solid oklch(50% 0.15 20 / 0.4)", borderRadius: "8px", padding: "12px 14px", display: "flex", alignItems: "center", gap: "10px" }}>
                 <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ flexShrink: 0 }}>
-                  <circle cx="8" cy="8" r="7" stroke="#e05252" strokeWidth="1.5" />
-                  <path d="M8 5v4M8 11v.5" stroke="#e05252" strokeWidth="1.5" strokeLinecap="round" />
+                  <circle cx="8" cy="8" r="7" stroke={validationError ? "var(--rust-dim)" : "#e05252"} strokeWidth="1.5" />
+                  <path d="M8 5v4M8 11v.5" stroke={validationError ? "var(--rust-dim)" : "#e05252"} strokeWidth="1.5" strokeLinecap="round" />
                 </svg>
-                <p style={{ fontSize: "13px", color: "#e07070", margin: 0 }}>{errorMsg}</p>
+                <p style={{ fontSize: "13px", color: validationError ? "var(--rust-dim)" : "#e07070", margin: 0 }}>{errorMsg}</p>
               </div>
             )}
 

@@ -789,3 +789,30 @@ test("header auth navigation keeps its cover until the pathname commits", () => 
   assert.match(authModalSource, /<button onClick=\{onSwitch\}[^>]*>\s*Sign up free/);
   assert.match(authModalSource, /<button onClick=\{onSwitch\}[^>]*>Log in<\/button>/);
 });
+
+test("validation presentation uses the deeper brand token while operational errors stay distinct", () => {
+  const validationSurfaces = [
+    "components/AuthModal.tsx",
+    "app/login/page.tsx",
+    "app/signup/page.tsx",
+    "app/forgot-password/page.tsx",
+    "app/auth/recovery/page.tsx",
+    "components/EditProfileModal.tsx",
+    "app/profile/edit/page.tsx",
+    "components/NewListingModal.tsx",
+    "components/EditListingModal.tsx",
+    "app/listings/new/page.tsx",
+    "app/listing/[id]/edit/page.tsx",
+  ];
+
+  for (const path of validationSurfaces) {
+    assert.match(readFileSync(path, "utf8"), /var\(--rust-dim\)/, `${path} should use the validation token`);
+  }
+
+  const signupSource = readFileSync("app/signup/page.tsx", "utf8");
+  const listingSource = readFileSync("components/NewListingModal.tsx", "utf8");
+  const profileSource = readFileSync("components/EditProfileModal.tsx", "utf8");
+  assert.match(signupSource, /signupError && <p[^>]+color: "#e05252"/);
+  assert.match(listingSource, /publishError && <p[^>]+color: "var\(--rust\)"/);
+  assert.match(profileSource, /\{error && <div[^\n]+color: "#c0392b"/);
+});

@@ -39,7 +39,7 @@ function F({ label, required, hint, error, children }: { label: string; required
         {label}{required && <span style={{ color: "var(--rust)", marginLeft: "3px" }}>*</span>}
       </label>
       {children}
-      {error && <p style={{ fontSize: "12px", color: "var(--rust)", margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: "12px", color: "var(--rust-dim)", margin: 0 }}>{error}</p>}
       {!error && hint && <p style={{ fontSize: "12px", color: "var(--text-light)", margin: 0 }}>{hint}</p>}
     </div>
   );
@@ -272,7 +272,7 @@ export default function EditListingPage() {
           <form onSubmit={handleSave} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
 
             <F label="Title" required error={errors.title}>
-              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Fractal Geometry Hoodie" maxLength={80} style={{ ...IS, borderColor: errors.title ? "var(--rust)" : undefined }} />
+              <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Fractal Geometry Hoodie" maxLength={80} style={{ ...IS, borderColor: errors.title ? "var(--rust-dim)" : undefined }} />
               <p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{title.length}/80</p>
             </F>
 
@@ -284,7 +284,7 @@ export default function EditListingPage() {
             <F label="Category" required error={errors.category}>
               <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
                 {CATEGORIES.map((c) => (
-                  <button key={c.value} type="button" onClick={() => setCategory(c.value)} style={{ padding: "8px 16px", borderRadius: "6px", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", transition: "all 0.15s", background: category === c.value ? "var(--dark)" : "var(--white)", border: `1px solid ${category === c.value ? "var(--dark)" : errors.category ? "var(--rust)" : "var(--sand)"}`, color: category === c.value ? "white" : "var(--text-mid)" }}>
+                  <button key={c.value} type="button" onClick={() => setCategory(c.value)} style={{ padding: "8px 16px", borderRadius: "6px", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", transition: "all 0.15s", background: category === c.value ? "var(--dark)" : "var(--white)", border: `1px solid ${category === c.value ? "var(--dark)" : errors.category ? "var(--rust-dim)" : "var(--sand)"}`, color: category === c.value ? "white" : "var(--text-mid)" }}>
                     {c.label}
                   </button>
                 ))}
@@ -294,7 +294,7 @@ export default function EditListingPage() {
             <F label="Condition" required error={errors.condition}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 {CONDITIONS.map((c) => (
-                  <label key={c.value} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "11px 14px", border: `1px solid ${condition === c.value ? "var(--dark)" : errors.condition ? "var(--rust)" : "var(--sand)"}`, borderRadius: "8px", cursor: "pointer", background: condition === c.value ? "oklch(96% 0.01 55)" : "var(--white)", transition: "all 0.15s" }}>
+                  <label key={c.value} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "11px 14px", border: `1px solid ${condition === c.value ? "var(--dark)" : errors.condition ? "var(--rust-dim)" : "var(--sand)"}`, borderRadius: "8px", cursor: "pointer", background: condition === c.value ? "oklch(96% 0.01 55)" : "var(--white)", transition: "all 0.15s" }}>
                     <input type="radio" name="condition" value={c.value} checked={condition === c.value} onChange={() => setCondition(c.value)} style={{ accentColor: "var(--dark)", width: "16px", height: "16px", flexShrink: 0 }} />
                     <div>
                       <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: 0 }}>{c.label}</p>
@@ -316,7 +316,7 @@ export default function EditListingPage() {
             <F label="Price (EUR)" required error={errors.price}>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "16px", color: "var(--text-mid)", fontWeight: 600 }}>€</span>
-                <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" min="1" step="0.01" style={{ ...IS, paddingLeft: "32px", borderColor: errors.price ? "var(--rust)" : undefined }} />
+                <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" min="1" step="0.01" style={{ ...IS, paddingLeft: "32px", borderColor: errors.price ? "var(--rust-dim)" : undefined }} />
               </div>
             </F>
 

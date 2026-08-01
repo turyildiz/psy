@@ -10,11 +10,14 @@ export default function ForgotPasswordPage() {
   const [loading, setLoading] = useState(false);
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError(null);
+    setValidationError(false);
     if (!email.includes("@")) {
+      setValidationError(true);
       setError("Enter a valid email address.");
       return;
     }
@@ -60,9 +63,9 @@ export default function ForgotPasswordPage() {
               <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
                 <label style={{ display: "flex", flexDirection: "column", gap: "6px", color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>
                   Email
-                  <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoFocus placeholder="you@example.com" style={{ padding: "13px 16px", borderRadius: "8px", border: "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
+                  <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoFocus placeholder="you@example.com" style={{ padding: "13px 16px", borderRadius: "8px", border: validationError ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
                 </label>
-                {error && <p style={{ color: "#e07070", fontSize: "13px", margin: 0 }}>{error}</p>}
+                {error && <p style={{ color: validationError ? "var(--rust-dim)" : "#e07070", fontSize: "13px", margin: 0 }}>{error}</p>}
                 <button type="submit" disabled={loading} style={{ background: loading ? "oklch(25% 0.01 55)" : "var(--rust)", color: "white", border: "none", padding: "14px", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: loading ? "default" : "pointer" }}>
                   {loading ? "Sending…" : "Send reset link"}
                 </button>

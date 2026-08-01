@@ -23,19 +23,19 @@ function Field({ label, value, onChange, placeholder, maxLength, error, multilin
     width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px",
     color: "var(--text)", background: "var(--white)", fontFamily: "Manrope, var(--font-manrope)",
     outline: "none", transition: "border-color 0.2s", boxSizing: "border-box",
-    border: `1.5px solid ${error ? "#c0392b" : focused ? "var(--dark)" : "var(--sand)"}`,
+    border: `1.5px solid ${error ? "var(--rust-dim)" : focused ? "var(--dark)" : "var(--sand)"}`,
   };
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline" }}>
         <label style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase" }}>{label}</label>
-        {maxLength && <span style={{ fontSize: "11px", color: value.length > maxLength * 0.9 ? (value.length >= maxLength ? "#c0392b" : "#e07730") : "var(--text-light)" }}>{value.length}/{maxLength}</span>}
+        {maxLength && <span style={{ fontSize: "11px", color: value.length > maxLength * 0.9 ? (value.length >= maxLength ? "var(--rust-dim)" : "#e07730") : "var(--text-light)" }}>{value.length}/{maxLength}</span>}
       </div>
       {multiline
         ? <textarea value={value} onChange={(e) => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} placeholder={placeholder} maxLength={maxLength} rows={4} style={{ ...s, resize: "vertical", minHeight: "100px" }} />
         : <input type="text" value={value} onChange={(e) => onChange(e.target.value)} onFocus={() => setFocused(true)} onBlur={() => setFocused(false)} placeholder={placeholder} maxLength={maxLength} style={s} />
       }
-      {error && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: "12px", color: "var(--rust-dim)", margin: 0 }}>{error}</p>}
     </div>
   );
 }
@@ -74,7 +74,9 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [passwordErrorOperational, setPasswordErrorOperational] = useState(false);
   const [passwordSaved, setPasswordSaved] = useState(false);
+  const handleErrorColor = handleError?.startsWith("We couldn’t check") ? "#c0392b" : "var(--rust-dim)";
 
   useEffect(() => {
     if (!handle || handle === profile.handle) { setCheckingHandle(false); setHandleError(null); return; }
@@ -167,12 +169,13 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
   };
 
   const handlePasswordSave = async () => {
+    setPasswordErrorOperational(false);
     if (newPassword.length < 8) { setPasswordError("At least 8 characters"); return; }
     if (newPassword !== confirmPassword) { setPasswordError("Passwords don't match"); return; }
     setPasswordError(null);
     const supabase = createClient();
     const { error } = await supabase.auth.updateUser({ password: newPassword });
-    if (error) { setPasswordError(error.message); return; }
+    if (error) { setPasswordErrorOperational(true); setPasswordError(error.message); return; }
     setNewPassword(""); setConfirmPassword(""); setPasswordSaved(true);
     setTimeout(() => setPasswordSaved(false), 3000);
   };
@@ -225,9 +228,9 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
               </div>
               <div style={{ position: "relative" }}>
                 <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", color: "var(--text-light)", fontSize: "14px", pointerEvents: "none" }}>@</span>
-                <input type="text" value={handle} onChange={(e) => { const nextHandle = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""); setHandle(nextHandle); setCheckingHandle(nextHandle !== profile.handle); }} maxLength={30} style={{ width: "100%", padding: "11px 14px 11px 28px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--white)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: `1.5px solid ${handleError ? "#c0392b" : "var(--sand)"}` }} />
+                <input type="text" value={handle} onChange={(e) => { const nextHandle = e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, ""); setHandle(nextHandle); setCheckingHandle(nextHandle !== profile.handle); }} maxLength={30} style={{ width: "100%", padding: "11px 14px 11px 28px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--white)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: `1.5px solid ${handleError ? handleErrorColor : "var(--sand)"}` }} />
               </div>
-              {handleError && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{handleError}</p>}
+              {handleError && <p style={{ fontSize: "12px", color: handleErrorColor, margin: 0 }}>{handleError}</p>}
             </div>
             <Field label="Bio" value={bio} onChange={setBio} placeholder="Tell the community about yourself…" maxLength={500} multiline />
             <Field label="Location" value={location} onChange={setLocation} placeholder="City, Country" maxLength={100} />
@@ -260,7 +263,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase", margin: 0 }}>Change Password</p>
             <input type="password" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} placeholder="New password (min. 8 characters)" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: "1.5px solid var(--sand)" }} />
             <input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} placeholder="Confirm new password" style={{ width: "100%", padding: "11px 14px", borderRadius: "8px", fontSize: "14px", color: "var(--text)", background: "var(--cream)", fontFamily: "Manrope, var(--font-manrope)", outline: "none", boxSizing: "border-box", border: "1.5px solid var(--sand)" }} />
-            {passwordError && <p style={{ fontSize: "12px", color: "#c0392b", margin: 0 }}>{passwordError}</p>}
+            {passwordError && <p style={{ fontSize: "12px", color: passwordErrorOperational ? "#c0392b" : "var(--rust-dim)", margin: 0 }}>{passwordError}</p>}
             {passwordSaved && <p style={{ fontSize: "12px", color: "#27ae60", margin: 0 }}>Password updated ✓</p>}
             <button type="button" onClick={handlePasswordSave} disabled={!newPassword} style={{ background: newPassword ? "var(--dark)" : "var(--sand)", color: "white", border: "none", padding: "11px", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: newPassword ? "pointer" : "default", fontFamily: "Manrope, var(--font-manrope)" }}>
               Update Password

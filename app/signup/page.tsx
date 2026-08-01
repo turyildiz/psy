@@ -24,10 +24,10 @@ function EyeIcon({ visible }: { visible: boolean }) {
 
 /* ── Input field ── */
 function Field({
-  label, type = "text", value, onChange, placeholder, error, hint, autoFocus, suffix,
+  label, type = "text", value, onChange, placeholder, error, errorColor = "var(--rust-dim)", hint, autoFocus, suffix,
 }: {
   label: string; type?: string; value: string; onChange: (v: string) => void;
-  placeholder?: string; error?: string | null; hint?: string; autoFocus?: boolean; suffix?: React.ReactNode;
+  placeholder?: string; error?: string | null; errorColor?: string; hint?: string; autoFocus?: boolean; suffix?: React.ReactNode;
 }) {
   const [focused, setFocused] = useState(false);
   return (
@@ -48,7 +48,7 @@ function Field({
             width: "100%",
             padding: suffix ? "13px 44px 13px 16px" : "13px 16px",
             background: "oklch(100% 0 0 / 0.06)",
-            border: `1px solid ${error ? "#e05252" : focused ? "oklch(100% 0 0 / 0.4)" : "oklch(100% 0 0 / 0.14)"}`,
+            border: `1px solid ${error ? errorColor : focused ? "oklch(100% 0 0 / 0.4)" : "oklch(100% 0 0 / 0.14)"}`,
             borderRadius: "8px",
             fontSize: "15px",
             color: "white",
@@ -63,7 +63,7 @@ function Field({
           </div>
         )}
       </div>
-      {error && <p style={{ fontSize: "12px", color: "#e05252", margin: 0 }}>{error}</p>}
+      {error && <p style={{ fontSize: "12px", color: errorColor, margin: 0 }}>{error}</p>}
       {!error && hint && <p style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", margin: 0 }}>{hint}</p>}
     </div>
   );
@@ -100,7 +100,7 @@ function PasswordField({ label, value, onChange, placeholder, error, hint, autoF
 }
 
 /* ── Handle availability indicator ── */
-function HandleStatus({ handle, error, checking }: { handle: string; error: string | null; checking: boolean }) {
+function HandleStatus({ handle, error, errorColor, checking }: { handle: string; error: string | null; errorColor: string; checking: boolean }) {
   if (!handle) return null;
   if (checking) return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none" style={{ animation: "spin 0.8s linear infinite" }}>
@@ -109,8 +109,8 @@ function HandleStatus({ handle, error, checking }: { handle: string; error: stri
   );
   if (error) return (
     <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
-      <circle cx="8" cy="8" r="7" stroke="#e05252" strokeWidth="1.5" />
-      <path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke="#e05252" strokeWidth="1.5" strokeLinecap="round" />
+      <circle cx="8" cy="8" r="7" stroke={errorColor} strokeWidth="1.5" />
+      <path d="M5.5 5.5l5 5M10.5 5.5l-5 5" stroke={errorColor} strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
   return (
@@ -138,6 +138,7 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [checkingHandle, setCheckingHandle] = useState(false);
+  const handleErrorColor = handleError?.startsWith("We couldn’t check") ? "#e05252" : "var(--rust-dim)";
 
   /* Live handle validation — format check instantly, DB check debounced */
   useEffect(() => {
@@ -317,9 +318,10 @@ export default function SignupPage() {
           onChange={(v) => setHandle(v.toLowerCase())}
           placeholder="yourhandle"
           error={handleError}
+          errorColor={handleErrorColor}
           hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
           autoFocus
-          suffix={<HandleStatus handle={handle} error={handleError} checking={checkingHandle} />}
+          suffix={<HandleStatus handle={handle} error={handleError} errorColor={handleErrorColor} checking={checkingHandle} />}
         />
 
         {signupError && <p style={{ fontSize: "13px", color: "#e05252", margin: 0 }}>{signupError}</p>}
