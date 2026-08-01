@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
+import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -154,6 +155,8 @@ export default function NewListingModal({ profileId, onClose }: { profileId: str
   const validateStep1 = () => {
     const e: Record<string, string> = {};
     if (!title.trim()) e.title = "Required";
+    const descriptionError = validateListingDescription(description);
+    if (descriptionError) e.description = descriptionError;
     if (!category) e.category = "Select a category";
     if (!condition) e.condition = "Select a condition";
     if (!price || isNaN(Number(price)) || Number(price) <= 0) e.price = "Enter a valid price";
@@ -176,6 +179,12 @@ export default function NewListingModal({ profileId, onClose }: { profileId: str
   };
 
   const publish = async () => {
+    const descriptionError = validateListingDescription(description);
+    if (descriptionError) {
+      setErrors1((current) => ({ ...current, description: descriptionError }));
+      setStep(1);
+      return;
+    }
     setPublishing(true); setPublishError("");
     const supabase = createClient();
     const uploadedUrls: string[] = [];
@@ -194,13 +203,13 @@ export default function NewListingModal({ profileId, onClose }: { profileId: str
       return;
     }
     const { data: listing, error } = await supabase.from("listings").insert({
-      profile_id: profileId, title, description: description || "No description provided.",
+      profile_id: profileId, title, description: description.trim(),
       price: Math.round(Number(price) * 100), condition, category,
       size: size || "One Size", tags, ships_to: shipsTo, images: uploadedUrls,
       status: "active", submitted_at: new Date().toISOString(),
     }).select("id").single();
     if (listing) { router.push(`/listing/${listing.id}`); }
-    else { setPublishError(error?.message || "Something went wrong."); setPublishing(false); }
+    else { setPublishError(getListingWriteErrorMessage(error, "publish")); setPublishing(false); }
   };
 
   const catLabel = CATEGORIES.find((c) => c.value === category)?.label;
@@ -230,7 +239,7 @@ export default function NewListingModal({ profileId, onClose }: { profileId: str
           <form onSubmit={goNext} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             {step === 1 && <>
               <F label="Title" required error={errors1.title}><input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="e.g. Fractal Geometry Hoodie" maxLength={80} style={{ ...IS, borderColor: errors1.title ? "var(--rust-dim)" : undefined }} /><p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{title.length}/80</p></F>
-              <F label="Description" hint="Materials, fit, story behind it…"><textarea value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Tell buyers what makes this special" rows={4} maxLength={1000} style={{ ...IS, resize: "vertical" }} /><p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{description.length}/1000</p></F>
+              <F label="Description" required error={errors1.description} hint="Materials, fit, story behind it…"><textarea value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Tell buyers what makes this special" rows={4} maxLength={LISTING_DESCRIPTION_MAX} style={{ ...IS, resize: "vertical", borderColor: errors1.description ? "var(--rust-dim)" : undefined }} /><p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{description.length}/{LISTING_DESCRIPTION_MAX}</p></F>
               <F label="Category" required error={errors1.category}><div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>{CATEGORIES.map((c) => <button key={c.value} type="button" onClick={() => setCategory(c.value)} style={{ padding: "8px 16px", borderRadius: "6px", fontSize: "13px", fontWeight: 500, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", transition: "all 0.15s", background: category === c.value ? "var(--dark)" : "var(--white)", border: `1px solid ${category === c.value ? "var(--dark)" : errors1.category ? "var(--rust-dim)" : "var(--sand)"}`, color: category === c.value ? "white" : "var(--text-mid)" }}>{c.label}</button>)}</div></F>
               <F label="Condition" required error={errors1.condition}><div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>{CONDITIONS.map((c) => <label key={c.value} style={{ display: "flex", alignItems: "center", gap: "12px", padding: "11px 14px", border: `1px solid ${condition === c.value ? "var(--dark)" : errors1.condition ? "var(--rust-dim)" : "var(--sand)"}`, borderRadius: "8px", cursor: "pointer", background: condition === c.value ? "oklch(96% 0.01 55)" : "var(--white)", transition: "all 0.15s" }}><input type="radio" name="condition" value={c.value} checked={condition === c.value} onChange={() => setCondition(c.value)} style={{ accentColor: "var(--dark)", width: "16px", height: "16px", flexShrink: 0 }} /><div><p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", margin: 0 }}>{c.label}</p><p style={{ fontSize: "12px", color: "var(--text-light)", margin: 0 }}>{c.hint}</p></div></label>)}</div></F>
               <F label="Size" hint="Leave blank if not applicable"><input value={size} onChange={(e) => setSize(e.target.value)} placeholder="e.g. M, L, One Size, EU42" style={IS} /></F>

@@ -4,6 +4,7 @@ import { useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
+import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
 import type { Listing } from "@/types/marketplace";
 
 const CONDITIONS = [
@@ -165,6 +166,8 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
   const validate = () => {
     const e: Record<string, string> = {};
     if (!title.trim()) e.title = "Required";
+    const descriptionError = validateListingDescription(description);
+    if (descriptionError) e.description = descriptionError;
     if (!category) e.category = "Select a category";
     if (!condition) e.condition = "Select a condition";
     if (!price || isNaN(Number(price)) || Number(price) <= 0) e.price = "Enter a valid price";
@@ -200,7 +203,7 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
     const finalImages = [...existingUrls, ...uploadedUrls];
     const { error: updateError } = await supabase.from("listings").update({
       title: title.trim(),
-      description: description.trim() || "No description provided.",
+      description: description.trim(),
       category, condition,
       size: size.trim() || "One Size",
       price: Math.round(Number(price) * 100),
@@ -209,7 +212,7 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
     }).eq("id", listing.id);
 
     setSaving(false);
-    if (updateError) { setError("Failed to save. Please try again."); return; }
+    if (updateError) { setError(getListingWriteErrorMessage(updateError, "save")); return; }
     onSaved({ ...listing, title: title.trim(), description: description.trim(), category: category as Listing["category"], condition: condition as Listing["condition"], size: size.trim() || "One Size", priceCents: Math.round(Number(price) * 100), tags, shipsTo, images: finalImages });
     onClose();
   };
@@ -230,8 +233,9 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
             <p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{title.length}/80</p>
           </F>
 
-          <F label="Description" hint="Materials, fit, story behind it…">
-            <textarea value={description} onChange={(e) => setDesc(e.target.value)} rows={4} maxLength={1000} style={{ ...IS, resize: "vertical" }} />
+          <F label="Description" required error={errors.description} hint="Materials, fit, story behind it…">
+            <textarea value={description} onChange={(e) => setDesc(e.target.value)} rows={4} maxLength={LISTING_DESCRIPTION_MAX} style={{ ...IS, resize: "vertical", borderColor: errors.description ? "var(--rust-dim)" : undefined }} />
+            <p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{description.length}/{LISTING_DESCRIPTION_MAX}</p>
           </F>
 
           <F label="Category" required error={errors.category}>

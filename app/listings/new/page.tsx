@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { conditionLabels, categoryLabels } from "@/lib/constants";
 import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
+import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -210,6 +211,8 @@ export default function NewListingPage() {
   const validateStep1 = () => {
     const e: Record<string, string> = {};
     if (!title.trim()) e.title = "Required";
+    const descriptionError = validateListingDescription(description);
+    if (descriptionError) e.description = descriptionError;
     if (!category) e.category = "Select a category";
     if (!condition) e.condition = "Select a condition";
     if (!price || isNaN(Number(price)) || Number(price) <= 0) e.price = "Enter a valid price";
@@ -232,6 +235,12 @@ export default function NewListingPage() {
   };
 
   const publish = async () => {
+    const descriptionError = validateListingDescription(description);
+    if (descriptionError) {
+      setErrors1((current) => ({ ...current, description: descriptionError }));
+      setStep(1);
+      return;
+    }
     setPublishing(true);
     setPublishError("");
     const supabase = createClient();
@@ -258,7 +267,7 @@ export default function NewListingPage() {
     const { data: listing, error } = await supabase.from("listings").insert({
       profile_id: profile.id,
       title,
-      description: description || "No description provided.",
+      description: description.trim(),
       price: Math.round(Number(price) * 100),
       condition,
       category,
@@ -273,7 +282,7 @@ export default function NewListingPage() {
     if (listing) {
       router.push(`/listing/${listing.id}`);
     } else {
-      setPublishError(error?.message || "Something went wrong. Please try again.");
+      setPublishError(getListingWriteErrorMessage(error, "publish"));
       setPublishing(false);
     }
   };
@@ -316,9 +325,9 @@ export default function NewListingPage() {
                 <p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{title.length}/80</p>
               </F>
 
-              <F label="Description" hint="Materials, fit, story behind it…">
-                <textarea value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Tell buyers what makes this special" rows={4} maxLength={1000} style={{ ...IS, resize: "vertical" }} />
-                <p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{description.length}/1000</p>
+              <F label="Description" required error={errors1.description} hint="Materials, fit, story behind it…">
+                <textarea value={description} onChange={(e) => setDesc(e.target.value)} placeholder="Tell buyers what makes this special" rows={4} maxLength={LISTING_DESCRIPTION_MAX} style={{ ...IS, resize: "vertical", borderColor: errors1.description ? "var(--rust-dim)" : undefined }} />
+                <p style={{ fontSize: "11px", color: "var(--text-light)", margin: 0 }}>{description.length}/{LISTING_DESCRIPTION_MAX}</p>
               </F>
 
               <F label="Category" required error={errors1.category}>
