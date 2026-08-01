@@ -5,6 +5,7 @@ export type AllowedImageType = (typeof config.allowedImageTypes)[number];
 
 export const ALLOWED_IMAGE_TYPES = [...config.allowedImageTypes] as AllowedImageType[];
 export const IMAGE_ACCEPT = ALLOWED_IMAGE_TYPES.join(",");
+export const UNSUPPORTED_IMAGE_TYPE_MESSAGE = "Only JPEG, PNG, and WebP images are allowed.";
 export const CLIENT_LONGEST_EDGE = config.clientLongestEdge;
 export const CLIENT_IMAGE_QUALITY = config.clientImageQuality;
 
@@ -21,6 +22,14 @@ export function isAllowedImageType(value: unknown): value is AllowedImageType {
   return typeof value === "string" && ALLOWED_IMAGE_TYPES.includes(value as AllowedImageType);
 }
 
+export function selectAllowedImageFiles<T extends { type: unknown }>(files: Iterable<T>, limit: number) {
+  const selected = Array.from(files);
+  return {
+    accepted: selected.filter((file) => isAllowedImageType(file.type)).slice(0, Math.max(0, Math.floor(limit))),
+    unsupportedTypeFound: selected.some((file) => !isAllowedImageType(file.type)),
+  };
+}
+
 export function getSafeExtension(contentType: string) {
   if (contentType === "image/jpeg") return "jpg";
   if (contentType === "image/png") return "png";
@@ -29,7 +38,7 @@ export function getSafeExtension(contentType: string) {
 }
 
 export function validateUploadDeclaration(purpose: UploadPurpose, contentType: string, size: number) {
-  if (!isAllowedImageType(contentType)) return "Only JPEG, PNG, and WebP images are allowed.";
+  if (!isAllowedImageType(contentType)) return UNSUPPORTED_IMAGE_TYPE_MESSAGE;
   if (!Number.isSafeInteger(size) || size <= 0) return "The image file is empty.";
 
   const policy = config.purposes[purpose];

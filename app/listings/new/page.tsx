@@ -7,7 +7,7 @@ import Header from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/client";
 import { conditionLabels, categoryLabels } from "@/lib/constants";
 import { uploadToR2 } from "@/lib/uploads/client";
-import { IMAGE_ACCEPT, isAllowedImageType } from "@/lib/uploads/policy";
+import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -92,7 +92,7 @@ function ShipsTo({ selected, onChange }: { selected: string[]; onChange: (s: str
 }
 
 /* ── Image uploader ── */
-function ImageUploader({ images, imageFiles, onChange }: { images: string[]; imageFiles: File[]; onChange: (imgs: string[], files: File[]) => void }) {
+function ImageUploader({ images, imageFiles, onChange, onUnsupportedType }: { images: string[]; imageFiles: File[]; onChange: (imgs: string[], files: File[]) => void; onUnsupportedType: (found: boolean) => void }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -102,7 +102,8 @@ function ImageUploader({ images, imageFiles, onChange }: { images: string[]; ima
     const newImgs: string[] = [];
     const newFiles: File[] = [];
     let loaded = 0;
-    const toLoad = Array.from(files).filter((f) => isAllowedImageType(f.type)).slice(0, remaining);
+    const { accepted: toLoad, unsupportedTypeFound } = selectAllowedImageFiles(files, remaining);
+    onUnsupportedType(unsupportedTypeFound);
     if (!toLoad.length) return;
     toLoad.forEach((file) => {
       const reader = new FileReader();
@@ -112,7 +113,7 @@ function ImageUploader({ images, imageFiles, onChange }: { images: string[]; ima
       };
       reader.readAsDataURL(file);
     });
-  }, [images, imageFiles, onChange]);
+  }, [images, imageFiles, onChange, onUnsupportedType]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
@@ -370,7 +371,7 @@ export default function NewListingPage() {
 
             {/* ── STEP 2: Photos ── */}
             {step === 2 && <>
-              <ImageUploader images={images} imageFiles={imageFiles} onChange={(imgs, files) => { setImages(imgs); setImageFiles(files); }} />
+              <ImageUploader images={images} imageFiles={imageFiles} onChange={(imgs, files) => { setImages(imgs); setImageFiles(files); }} onUnsupportedType={(found) => setErrors2((current) => ({ ...current, images: found ? UNSUPPORTED_IMAGE_TYPE_MESSAGE : "" }))} />
               {errors2.images && <p style={{ fontSize: "12px", color: "var(--rust-dim)", margin: 0 }}>{errors2.images}</p>}
 
               <button type="submit" style={{ padding: "14px", background: "var(--rust)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", marginTop: "8px" }}>

@@ -6,7 +6,7 @@ import Link from "next/link";
 import Header from "@/components/layout/Header";
 import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
-import { IMAGE_ACCEPT, isAllowedImageType } from "@/lib/uploads/policy";
+import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -91,12 +91,13 @@ function ShipsTo({ selected, onChange }: { selected: string[]; onChange: (s: str
 }
 
 function ImageManager({
-  existingUrls, newFiles, onExistingRemove, onNewFiles,
+  existingUrls, newFiles, onExistingRemove, onNewFiles, onUnsupportedType,
 }: {
   existingUrls: string[];
   newFiles: File[];
   onExistingRemove: (url: string) => void;
   onNewFiles: (files: File[]) => void;
+  onUnsupportedType: (found: boolean) => void;
 }) {
   const inputRef = useRef<HTMLInputElement>(null);
   const newPreviews = newFiles.map((f) => URL.createObjectURL(f));
@@ -105,9 +106,10 @@ function ImageManager({
   const handleFiles = useCallback((files: FileList | null) => {
     if (!files) return;
     const remaining = 5 - totalCount;
-    const added = Array.from(files).filter((f) => isAllowedImageType(f.type)).slice(0, remaining);
+    const { accepted: added, unsupportedTypeFound } = selectAllowedImageFiles(files, remaining);
+    onUnsupportedType(unsupportedTypeFound);
     if (added.length) onNewFiles([...newFiles, ...added]);
-  }, [totalCount, newFiles, onNewFiles]);
+  }, [totalCount, newFiles, onNewFiles, onUnsupportedType]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -330,6 +332,7 @@ export default function EditListingPage() {
                 newFiles={newImageFiles}
                 onExistingRemove={(url) => setExistingImages(existingImages.filter((u) => u !== url))}
                 onNewFiles={setNewImageFiles}
+                onUnsupportedType={(found) => setErrors((current) => ({ ...current, images: found ? UNSUPPORTED_IMAGE_TYPE_MESSAGE : "" }))}
               />
             </F>
 

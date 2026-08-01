@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   ALLOWED_IMAGE_TYPES,
@@ -10,6 +11,8 @@ import {
   detectImageContentType,
   getSafeExtension,
   getClientResizeDimensions,
+  selectAllowedImageFiles,
+  UNSUPPORTED_IMAGE_TYPE_MESSAGE,
 } from "../lib/uploads/policy.ts";
 import {
   IMMEDIATE_DELETE_REASONS,
@@ -43,6 +46,49 @@ test("declaration validation rejects unapproved MIME types and oversize files", 
   assert.equal(validateUploadDeclaration("avatar", "image/jpeg", 5 * MiB + 1), "Avatar images must be 5 MB or smaller.");
   assert.equal(validateUploadDeclaration("listing-image", "image/png", 10 * MiB + 1), "Listing images must be 10 MB or smaller.");
   assert.equal(validateUploadDeclaration("listing-image", "image/jpeg", 0), "The image file is empty.");
+});
+
+test("listing file selection reports unsupported types without changing the valid-file cap", () => {
+  const jpeg = { name: "one.jpg", type: "image/jpeg" };
+  const png = { name: "two.png", type: "image/png" };
+  const gif = { name: "three.gif", type: "image/gif" };
+  const svg = { name: "four.svg", type: "image/svg+xml" };
+
+  assert.deepEqual(selectAllowedImageFiles([jpeg, gif, png, svg], 5), {
+    accepted: [jpeg, png],
+    unsupportedTypeFound: true,
+  });
+  assert.deepEqual(selectAllowedImageFiles([gif, svg], 5), {
+    accepted: [],
+    unsupportedTypeFound: true,
+  });
+
+  const sixApproved = Array.from({ length: 6 }, (_, index) => ({
+    name: `${index}.webp`,
+    type: "image/webp",
+  }));
+  assert.deepEqual(selectAllowedImageFiles(sixApproved, 5), {
+    accepted: sixApproved.slice(0, 5),
+    unsupportedTypeFound: false,
+  });
+  assert.equal(UNSUPPORTED_IMAGE_TYPE_MESSAGE, "Only JPEG, PNG, and WebP images are allowed.");
+});
+
+test("every listing image selector surfaces unsupported-file feedback", () => {
+  const listingUploaders = [
+    "../app/listings/new/page.tsx",
+    "../components/NewListingModal.tsx",
+    "../app/listing/[id]/edit/page.tsx",
+    "../components/EditListingModal.tsx",
+  ];
+
+  for (const file of listingUploaders) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /selectAllowedImageFiles\(files, remaining\)/, file);
+    assert.match(source, /onUnsupportedType/, file);
+    assert.match(source, /UNSUPPORTED_IMAGE_TYPE_MESSAGE/, file);
+    assert.doesNotMatch(source, /filter\(\(f\) => isAllowedImageType\(f\.type\)\)/, file);
+  }
 });
 
 test("safe extensions are derived from accepted MIME types", () => {

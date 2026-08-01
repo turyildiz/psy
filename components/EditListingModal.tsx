@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
-import { IMAGE_ACCEPT, isAllowedImageType } from "@/lib/uploads/policy";
+import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 import type { Listing } from "@/types/marketplace";
 
 const CONDITIONS = [
@@ -79,10 +79,11 @@ function ShipsTo({ selected, onChange }: { selected: string[]; onChange: (s: str
   );
 }
 
-function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onChangeNew }: {
+function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onChangeNew, onUnsupportedType }: {
   existingUrls: string[]; newImages: string[]; newFiles: File[];
   onChangeExisting: (urls: string[]) => void;
   onChangeNew: (imgs: string[], files: File[]) => void;
+  onUnsupportedType: (found: boolean) => void;
 }) {
   const [dragging, setDragging] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -92,7 +93,8 @@ function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onC
     if (!files) return;
     const remaining = 5 - total;
     const newImgs: string[] = []; const newFs: File[] = []; let loaded = 0;
-    const toLoad = Array.from(files).filter((f) => isAllowedImageType(f.type)).slice(0, remaining);
+    const { accepted: toLoad, unsupportedTypeFound } = selectAllowedImageFiles(files, remaining);
+    onUnsupportedType(unsupportedTypeFound);
     if (!toLoad.length) return;
     toLoad.forEach((file) => {
       const reader = new FileReader();
@@ -102,7 +104,7 @@ function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onC
       };
       reader.readAsDataURL(file);
     });
-  }, [total, newImages, newFiles, onChangeNew]);
+  }, [total, newImages, newFiles, onChangeNew, onUnsupportedType]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
@@ -264,7 +266,7 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
           </F>
 
           <F label="Photos" error={errors.images}>
-            <ImageManager existingUrls={existingUrls} newImages={newImages} newFiles={newFiles} onChangeExisting={setExistingUrls} onChangeNew={(imgs, files) => { setNewImages(imgs); setNewFiles(files); }} />
+            <ImageManager existingUrls={existingUrls} newImages={newImages} newFiles={newFiles} onChangeExisting={setExistingUrls} onChangeNew={(imgs, files) => { setNewImages(imgs); setNewFiles(files); }} onUnsupportedType={(found) => setErrors((current) => ({ ...current, images: found ? UNSUPPORTED_IMAGE_TYPE_MESSAGE : "" }))} />
           </F>
 
           {error && <div style={{ background: "oklch(95% 0.02 20)", border: "1px solid oklch(80% 0.08 20)", borderRadius: "8px", padding: "12px 14px" }}><p style={{ fontSize: "13px", color: "#c0392b", margin: 0 }}>{error}</p></div>}
