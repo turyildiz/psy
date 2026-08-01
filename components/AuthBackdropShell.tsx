@@ -3,6 +3,7 @@
 import { useEffect, type ReactNode } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import HomePage from "@/app/page";
+import { restoreTopAfterNavigation } from "@/lib/navigation/scroll-reset";
 
 const DIRECT_AUTH_PATHS = new Set([
   "/login",
@@ -24,6 +25,10 @@ export default function AuthBackdropShell({ children }: { children: ReactNode })
   const isTokenAuth = TOKEN_AUTH_PATHS.has(pathname);
   const isAuthCallback = pathname === "/auth/callback";
   const isAuth = isDirectAuth || isTokenAuth;
+
+  useEffect(() => {
+    restoreTopAfterNavigation();
+  }, []);
 
   useEffect(() => {
     if (!isHome && !isAuth) return;

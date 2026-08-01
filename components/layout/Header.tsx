@@ -5,6 +5,7 @@ import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { assignAtTop } from "@/lib/navigation/scroll-reset";
 import AuthModal from "@/components/AuthModal";
 import ProfileAvatar from "@/components/ProfileAvatar";
 
@@ -44,19 +45,6 @@ export default function Header() {
   const [authLoading, setAuthLoading] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    try {
-      if (sessionStorage.getItem("psy_scroll_top_after_login") !== "1") return;
-      sessionStorage.removeItem("psy_scroll_top_after_login");
-    } catch {
-      return;
-    }
-    window.scrollTo(0, 0);
-    requestAnimationFrame(() => {
-      window.scrollTo(0, 0);
-      if ("scrollRestoration" in window.history) window.history.scrollRestoration = "auto";
-    });
-  }, []);
 
   useEffect(() => {
     try {
@@ -150,7 +138,7 @@ export default function Header() {
     try { sessionStorage.removeItem("psy_auth"); } catch {}
     const supabase = createClient();
     await supabase.auth.signOut();
-    window.location.href = "/";
+    assignAtTop("/");
   };
 
   useEffect(() => {

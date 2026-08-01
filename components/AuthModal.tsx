@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
+import { reloadAtTop } from "@/lib/navigation/scroll-reset";
 import AuthModalFrame from "@/components/AuthModalFrame";
 
 function EyeIcon({ visible }: { visible: boolean }) {
@@ -118,10 +119,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 
     setStatus("success");
     await new Promise<void>(r => setTimeout(r, 800));
-    try { sessionStorage.setItem("psy_scroll_top_after_login", "1"); } catch {}
-    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
-    window.scrollTo(0, 0);
-    window.location.reload();
+    reloadAtTop();
   };
 
   const isChecking = status === "checking";
@@ -260,7 +258,7 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
       <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "4px" }}>We sent a confirmation link to</p>
       <p style={{ fontSize: "14px", color: "white", fontWeight: 600, marginBottom: "4px" }}>{email}</p>
       <p style={{ fontSize: "12px", color: "oklch(45% 0.01 70)", marginBottom: "28px" }}>Click it to activate your account as <span style={{ color: "var(--rust)" }}>@{handle}</span></p>
-      <button onClick={() => window.location.reload()} style={{ background: "oklch(100% 0 0 / 0.06)", color: "oklch(65% 0.01 70)", border: "1px solid oklch(100% 0 0 / 0.12)", padding: "12px 32px", borderRadius: "8px", fontWeight: 600, fontSize: "14px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>
+      <button onClick={() => reloadAtTop()} style={{ background: "oklch(100% 0 0 / 0.06)", color: "oklch(65% 0.01 70)", border: "1px solid oklch(100% 0 0 / 0.12)", padding: "12px 32px", borderRadius: "8px", fontWeight: 600, fontSize: "14px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>
         Close
       </button>
     </div>

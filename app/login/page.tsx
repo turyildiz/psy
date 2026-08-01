@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { getLoginCallbackError, getSafeRedirect } from "@/lib/auth/safety";
+import { assignAtTop } from "@/lib/navigation/scroll-reset";
 import AuthRouteModal from "@/components/AuthRouteModal";
 
 function EyeIcon({ visible }: { visible: boolean }) {
@@ -116,7 +117,7 @@ export default function LoginPage() {
 
       setStatus("success");
       const requestedNext = new URLSearchParams(window.location.search).get("next");
-      window.location.assign(getSafeRedirect(requestedNext, window.location.origin, "/"));
+      assignAtTop(getSafeRedirect(requestedNext, window.location.origin, "/"));
     } catch {
       setErrorMsg("We couldn’t reach the login service. Check your connection and try again.");
       setStatus("idle");
