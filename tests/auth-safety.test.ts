@@ -770,3 +770,22 @@ test("auth-page links use client routing over a persistent backdrop", () => {
     assert.doesNotMatch(source, /<a[^>]+href="\/(login|signup|forgot-password|update-password)/);
   }
 });
+
+test("header auth navigation keeps its cover until the pathname commits", () => {
+  const authModalSource = readFileSync("components/AuthModal.tsx", "utf8");
+  const headerSource = readFileSync("components/layout/Header.tsx", "utf8");
+  const forgotLink = authModalSource.match(/<Link href="\/forgot-password"[^>]*>/)?.[0];
+
+  assert.ok(forgotLink);
+  assert.doesNotMatch(forgotLink, /onClick=/);
+  assert.match(headerSource, /setRightOpen\(false\);\s+setAuthModal\(null\);\s+}, \[pathname\]\);/);
+
+  // A failed or cancelled navigation leaves the current modal usable rather than
+  // removing its cover: backdrop, close button, and Escape still call onClose.
+  assert.match(authModalSource, /<AuthModalFrame onClose=\{onClose\}>/);
+  assert.match(authModalSource, /e\.key === "Escape"\) onClose\(\)/);
+
+  // These are local view switches, not route changes, so they must not close the modal.
+  assert.match(authModalSource, /<button onClick=\{onSwitch\}[^>]*>\s*Sign up free/);
+  assert.match(authModalSource, /<button onClick=\{onSwitch\}[^>]*>Log in<\/button>/);
+});

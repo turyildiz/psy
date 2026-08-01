@@ -87,7 +87,7 @@ function PasswordField({ label, value, onChange, placeholder, error, hint, autoF
 }
 
 /* ── Login form ── */
-function LoginForm({ onSwitch, onClose }: { onSwitch: () => void; onClose: () => void }) {
+function LoginForm({ onSwitch }: { onSwitch: () => void }) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -142,7 +142,7 @@ function LoginForm({ onSwitch, onClose }: { onSwitch: () => void; onClose: () =>
         <div>
           <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" />
           <div style={{ textAlign: "right", marginTop: "8px" }}>
-            <Link href="/forgot-password" onClick={onClose} style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", textDecoration: "none" }}>
+            <Link href="/forgot-password" style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", textDecoration: "none" }}>
               Forgot password?
             </Link>
           </div>
@@ -353,7 +353,7 @@ export default function AuthModal({ initial, onClose }: { initial: "login" | "si
   return (
     <AuthModalFrame onClose={onClose}>
       {view === "login"
-        ? <LoginForm onSwitch={() => setView("signup")} onClose={onClose} />
+        ? <LoginForm onSwitch={() => setView("signup")} />
         : <SignupForm onSwitch={() => setView("login")} />
       }
     </AuthModalFrame>

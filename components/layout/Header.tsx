@@ -135,6 +135,7 @@ export default function Header() {
     setQuery("");
     setLeftOpen(false);
     setRightOpen(false);
+    setAuthModal(null);
   }, [pathname]);
 
   const handleSearch = () => {
