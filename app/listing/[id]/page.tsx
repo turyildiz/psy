@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AuthModal from "@/components/AuthModal";
 import ProductCard from "@/components/ProductCard";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { categoryLabels, conditionLabels } from "@/lib/constants";
 import type { Listing, Profile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
@@ -445,12 +446,7 @@ export default function ListingDetailPage() {
 
         {/* ── Seller Card ── */}
         <div className="detail-seller-card">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={seller.avatarUrl}
-            className="detail-seller-avatar"
-            alt={seller.displayName}
-          />
+          <ProfileAvatar name={seller.displayName || seller.handle} url={seller.avatarUrl} size={64} className="detail-seller-avatar" />
           <div className="detail-seller-info">
             <p className="detail-seller-name">{seller.displayName}</p>
             <p className="detail-seller-meta">

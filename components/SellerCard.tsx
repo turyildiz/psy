@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import type { Profile } from "@/types/marketplace";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 export type SellerItem = Profile & {
   itemCount: number;
@@ -36,12 +37,12 @@ export default function SellerCard({ seller }: { seller: SellerItem }) {
       onMouseEnter={() => setHov(true)}
       onMouseLeave={() => setHov(false)}
     >
-      <div style={{ position: "relative", overflow: "hidden" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={seller.avatarUrl}
-          style={{ width: "100%", height: "180px", objectFit: "cover", display: "block", transition: "transform 0.4s", transform: hov ? "scale(1.05)" : "scale(1)" }}
-          alt={seller.displayName}
+      <div style={{ position: "relative", overflow: "hidden", height: "180px", display: "flex", alignItems: "center", justifyContent: "center", background: "var(--cream-mid)" }}>
+        <ProfileAvatar
+          name={seller.displayName || seller.handle}
+          url={seller.avatarUrl}
+          size={88}
+          imageStyle={{ position: "absolute", inset: 0, width: "100%", height: "100%", borderRadius: 0, transition: "transform 0.4s", transform: hov ? "scale(1.05)" : "scale(1)" }}
         />
         <span
           style={{

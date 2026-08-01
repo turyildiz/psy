@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 type Conversation = {
   id: string;
@@ -37,15 +38,6 @@ function formatTime(iso: string) {
   if (d.toDateString() === now.toDateString())
     return d.toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
   return d.toLocaleDateString("en", { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
-}
-
-function Avatar({ name, url, size = 38 }: { name: string; url: string | null; size?: number }) {
-  if (url) return <img src={url} alt={name} style={{ width: size, height: size, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />;
-  return (
-    <div style={{ width: size, height: size, borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: size * 0.38, fontWeight: 700, color: "white", flexShrink: 0 }}>
-      {name.charAt(0).toUpperCase()}
-    </div>
-  );
 }
 
 export default function MessagesInbox({ myProfileId }: { myProfileId: string | null }) {
@@ -176,7 +168,7 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><path d="M12.5 5L7.5 10L12.5 15" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
         )}
-        <Avatar name={activeConv.other.display_name || activeConv.other.handle} url={activeConv.other.avatar_url} size={32} />
+        <ProfileAvatar name={activeConv.other.display_name || activeConv.other.handle} url={activeConv.other.avatar_url} size={32} />
         <div style={{ flex: 1 }}>
           <Link href={`/${activeConv.other.handle}`} style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", textDecoration: "none" }}>{activeConv.other.display_name}</Link>
           {activeConv.listing && <Link href={`/listing/${activeConv.listing.id}`} style={{ fontSize: "12px", color: "var(--rust)", textDecoration: "none", display: "block" }}>Re: {activeConv.listing.title}</Link>}
@@ -255,7 +247,7 @@ export default function MessagesInbox({ myProfileId }: { myProfileId: string | n
               onMouseEnter={(e) => { if (activeId !== conv.id) e.currentTarget.style.background = "oklch(97% 0.01 76)"; }}
               onMouseLeave={(e) => { if (activeId !== conv.id) e.currentTarget.style.background = "transparent"; }}
             >
-              <Avatar name={conv.other?.display_name || conv.other?.handle || "?"} url={conv.other?.avatar_url ?? null} />
+              <ProfileAvatar name={conv.other?.display_name || conv.other?.handle || "?"} url={conv.other?.avatar_url ?? null} size={38} />
               {myProfileId && conv.unread_for.includes(myProfileId) && (
                 <div style={{ width: "8px", height: "8px", borderRadius: "50%", background: "var(--rust)", flexShrink: 0 }} />
               )}

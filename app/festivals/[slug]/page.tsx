@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { toProfile } from "@/lib/db";
 import type { Festival, Profile, NoticePost, NoticeCategory, NoticeEmoji } from "@/types/marketplace";
@@ -254,11 +255,8 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
             {visible.map((entry) => (
               <Link key={entry.id} href={`/${entry.profile.handle}`} style={{ textDecoration: "none" }}>
                 <div style={{ background: "oklch(20% 0.015 55)", borderRadius: 8, border: "1px solid oklch(30% 0.015 55)", overflow: "hidden", transition: "box-shadow 0.2s" }}>
-                  <div style={{ height: 140, background: "oklch(24% 0.015 55)", position: "relative" }}>
-                    {entry.profile.avatarUrl && (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={entry.profile.avatarUrl} alt={entry.profile.displayName} style={{ width: "100%", height: "100%", objectFit: "cover" }} />
-                    )}
+                  <div style={{ height: 140, background: "oklch(24% 0.015 55)", position: "relative", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                    <ProfileAvatar name={entry.profile.displayName || entry.profile.handle} url={entry.profile.avatarUrl} size={72} imageStyle={{ position: "absolute", inset: 0, width: "100%", height: "100%", borderRadius: 0 }} />
                     <div style={{ position: "absolute", top: 8, left: 8 }}>
                       <span style={{ fontSize: 10, fontWeight: 700, padding: "3px 8px", borderRadius: 3, letterSpacing: "0.06em", textTransform: "uppercase", background: entry.role === "selling" ? "var(--rust)" : "var(--dark)", color: "white" }}>
                         {entry.role === "selling" ? "Selling" : "Going"}
@@ -610,12 +608,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
                   {/* Footer: author + date */}
                   <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: "1px dashed oklch(0% 0 0 / 0.15)", paddingTop: 8, marginTop: 2 }}>
                     <Link href={`/${post.profile?.handle}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none", minWidth: 0 }}>
-                      {post.profile?.avatarUrl ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={post.profile.avatarUrl} alt="" style={{ width: 20, height: 20, borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-                      ) : (
-                        <div style={{ width: 20, height: 20, borderRadius: "50%", background: "oklch(0% 0 0 / 0.1)", flexShrink: 0 }} />
-                      )}
+                      <ProfileAvatar name={post.profile?.displayName || post.profile?.handle || "?"} url={post.profile?.avatarUrl} size={20} />
                       <span style={{ fontSize: 12, color: "oklch(38% 0.03 60)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{post.profile?.handle}</span>
                     </Link>
                     <span style={{ fontSize: 11, color: "oklch(48% 0.025 60)", marginLeft: "auto", flexShrink: 0 }}>

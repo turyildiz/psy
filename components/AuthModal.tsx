@@ -118,6 +118,9 @@ function LoginForm({ onSwitch, onClose }: { onSwitch: () => void; onClose: () =>
 
     setStatus("success");
     await new Promise<void>(r => setTimeout(r, 800));
+    try { sessionStorage.setItem("psy_scroll_top_after_login", "1"); } catch {}
+    if ("scrollRestoration" in window.history) window.history.scrollRestoration = "manual";
+    window.scrollTo(0, 0);
     window.location.reload();
   };
 

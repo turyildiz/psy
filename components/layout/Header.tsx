@@ -6,6 +6,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import AuthModal from "@/components/AuthModal";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 const CATEGORIES = [
   { label: "Apparel", href: "/apparel" },
@@ -42,6 +43,20 @@ export default function Header() {
   const [msgCount, setMsgCount] = useState(0);
   const [authLoading, setAuthLoading] = useState(true);
   const searchInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    try {
+      if (sessionStorage.getItem("psy_scroll_top_after_login") !== "1") return;
+      sessionStorage.removeItem("psy_scroll_top_after_login");
+    } catch {
+      return;
+    }
+    window.scrollTo(0, 0);
+    requestAnimationFrame(() => {
+      window.scrollTo(0, 0);
+      if ("scrollRestoration" in window.history) window.history.scrollRestoration = "auto";
+    });
+  }, []);
 
   useEffect(() => {
     try {
@@ -194,10 +209,7 @@ export default function Header() {
               ) : userHandle ? (
                 <>
                   <Link href={`/${userHandle}`} style={{ display: "flex", alignItems: "center", gap: "8px", textDecoration: "none", color: "white" }}>
-                    {userAvatar
-                      ? <img src={userAvatar} alt={userInitial} style={{ width: "32px", height: "32px", borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2px solid oklch(100% 0 0 / 0.15)" }} />
-                      : <div style={{ width: "32px", height: "32px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "13px", fontWeight: 700, color: "white", flexShrink: 0 }}>{userInitial}</div>
-                    }
+                    <ProfileAvatar name={userInitial || userHandle} url={userAvatar} size={32} style={{ border: "2px solid oklch(100% 0 0 / 0.15)" }} />
                     <span style={{ fontSize: "13px", fontWeight: 600, color: "oklch(85% 0.01 70)" }}>@{userHandle}</span>
                   </Link>
                   <Link href={`/${userHandle}?tab=inbox`} style={{ position: "relative", display: "flex", alignItems: "center", justifyContent: "center", width: "34px", height: "34px", borderRadius: "50%", background: "oklch(100% 0 0 / 0.08)", border: "1px solid oklch(100% 0 0 / 0.15)", textDecoration: "none", flexShrink: 0 }} title="Messages">
@@ -356,10 +368,7 @@ export default function Header() {
           {!authLoading && (userHandle ? (
             <>
               <Link href={`/${userHandle}`} onClick={closeAll} style={{ display: "flex", alignItems: "center", gap: "10px", padding: "12px 0", textDecoration: "none" }}>
-                {userAvatar
-                  ? <img src={userAvatar} alt={userInitial} style={{ width: "36px", height: "36px", borderRadius: "50%", objectFit: "cover", flexShrink: 0, border: "2px solid oklch(100% 0 0 / 0.15)" }} />
-                  : <div style={{ width: "36px", height: "36px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "14px", fontWeight: 700, color: "white", flexShrink: 0 }}>{userInitial}</div>
-                }
+                <ProfileAvatar name={userInitial || userHandle} url={userAvatar} size={36} style={{ border: "2px solid oklch(100% 0 0 / 0.15)" }} />
                 <span style={{ fontSize: "14px", fontWeight: 600, color: "white" }}>@{userHandle}</span>
               </Link>
               <Link href={`/${userHandle}?tab=inbox`} onClick={closeAll} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "12px 16px", borderRadius: "8px", background: "oklch(100% 0 0 / 0.06)", border: "1px solid oklch(100% 0 0 / 0.1)", textDecoration: "none" }}>

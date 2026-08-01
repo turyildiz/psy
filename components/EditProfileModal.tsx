@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { getFriendlySignupError, getHandleAvailabilityError } from "@/lib/auth/safety";
 import { uploadToR2 } from "@/lib/uploads/client";
 import type { Profile, ProfileType, SocialLinks } from "@/types/marketplace";
+import ProfileAvatar from "@/components/ProfileAvatar";
 
 const PROFILE_TYPES: { value: ProfileType; label: string }[] = [
   { value: "personal", label: "Personal" },
@@ -200,11 +201,7 @@ export default function EditProfileModal({ profile, onClose, onSaved }: {
           <div style={{ background: "var(--white)", borderRadius: "12px", border: "1px solid var(--sand)", padding: "20px" }}>
             <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: "14px" }}>Photo</p>
             <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              {avatarUrl
-                // eslint-disable-next-line @next/next/no-img-element
-                ? <img src={avatarUrl} alt="Avatar" style={{ width: "72px", height: "72px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sand)", flexShrink: 0 }} />
-                : <div style={{ width: "72px", height: "72px", borderRadius: "50%", background: "var(--sand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "26px", fontWeight: 700, color: "var(--text-light)", flexShrink: 0 }}>{initials}</div>
-              }
+              <ProfileAvatar name={displayName || handle || initials} url={avatarUrl} size={72} style={{ border: "2px solid var(--sand)" }} />
               <div>
                 <button type="button" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar} style={{ fontSize: "13px", fontWeight: 600, color: "var(--dark)", background: "var(--white)", border: "1.5px solid var(--dark)", padding: "7px 14px", borderRadius: "7px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>
                   {uploadingAvatar ? "Uploading…" : "Upload photo"}

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
 import type { ProfileType, SocialLinks } from "@/types/marketplace";
@@ -208,14 +209,7 @@ export default function EditProfilePage() {
             <div style={{ background: "var(--white)", borderRadius: "12px", border: "1px solid var(--sand)", padding: "24px" }}>
               <p style={{ fontSize: "12px", fontWeight: 600, color: "var(--text-mid)", letterSpacing: "0.04em", textTransform: "uppercase", marginBottom: "16px" }}>Photo</p>
               <div style={{ display: "flex", alignItems: "center", gap: "20px" }}>
-                {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={avatarUrl} alt="Avatar" style={{ width: "80px", height: "80px", borderRadius: "50%", objectFit: "cover", border: "2px solid var(--sand)", flexShrink: 0 }} />
-                ) : (
-                  <div style={{ width: "80px", height: "80px", borderRadius: "50%", background: "var(--sand)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", fontWeight: 700, color: "var(--text-light)", flexShrink: 0 }}>
-                    {initials}
-                  </div>
-                )}
+                <ProfileAvatar name={displayName || handle || initials} url={avatarUrl} size={80} style={{ border: "2px solid var(--sand)" }} />
                 <div>
                   <button
                     type="button"

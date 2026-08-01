@@ -4,6 +4,7 @@ import { useState, useEffect, type CSSProperties } from "react";
 import Link from "next/link";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
@@ -49,10 +50,7 @@ function FeaturedCard({ item }: { item: Listing }) {
           </div>
           {item.sellerHandle && (
             <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--sand)" }}>
-              {item.sellerAvatar
-                ? <img src={item.sellerAvatar} alt="" style={{ width: "20px", height: "20px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-                : <div style={{ width: "20px", height: "20px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "9px", fontWeight: 700, color: "white", flexShrink: 0 }}>{(item.sellerName || item.sellerHandle).charAt(0).toUpperCase()}</div>
-              }
+              <ProfileAvatar name={item.sellerName || item.sellerHandle} url={item.sellerAvatar} size={20} />
               <span style={{ fontSize: "11px", color: "var(--text-light)" }}>@{item.sellerHandle}</span>
             </div>
           )}
@@ -88,10 +86,7 @@ function JewelleryCard({ item }: { item: Listing }) {
           </div>
           {item.sellerHandle && (
             <div style={{ display: "flex", alignItems: "center", gap: "4px", paddingTop: "6px", borderTop: "1px solid var(--sand)" }}>
-              {item.sellerAvatar
-                ? <img src={item.sellerAvatar} alt="" style={{ width: "16px", height: "16px", borderRadius: "50%", objectFit: "cover", flexShrink: 0 }} />
-                : <div style={{ width: "16px", height: "16px", borderRadius: "50%", background: "var(--rust)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "8px", fontWeight: 700, color: "white", flexShrink: 0 }}>{(item.sellerName || item.sellerHandle).charAt(0).toUpperCase()}</div>
-              }
+              <ProfileAvatar name={item.sellerName || item.sellerHandle} url={item.sellerAvatar} size={16} />
               <span style={{ fontSize: "10px", color: "var(--text-light)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{item.sellerHandle}</span>
             </div>
           )}

@@ -10,6 +10,7 @@ import NewListingModal from "@/components/NewListingModal";
 import EditListingModal from "@/components/EditListingModal";
 import AuthModal from "@/components/AuthModal";
 import MessagesInbox from "@/components/MessagesInbox";
+import ProfileAvatar from "@/components/ProfileAvatar";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing, Profile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
@@ -275,19 +276,7 @@ function SellerProfilePageInner() {
               {/* Avatar column — avatar circle + social icons stacked */}
               <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", alignItems: "center", gap: "12px" }}>
                 <div className="profile-avatar-wrap" style={{ position: "relative", marginTop: "-52px" }}>
-                  {profile.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={profile.avatarUrl}
-                      alt={profile.displayName}
-                      className="profile-avatar-img"
-                      style={{ borderRadius: "50%", objectFit: "cover", border: "4px solid white", display: "block" }}
-                    />
-                  ) : (
-                    <div className="profile-avatar-img" style={{ borderRadius: "50%", border: "4px solid white", background: "var(--sand)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, color: "var(--text-light)" }}>
-                      {profile.displayName[0].toUpperCase()}
-                    </div>
-                  )}
+                  <ProfileAvatar name={profile.displayName || profile.handle} url={profile.avatarUrl} size={130} className="profile-avatar-img" style={{ border: "4px solid white" }} />
                   {profile.isVerified && (
                     <span style={{ position: "absolute", bottom: 4, right: 4, width: "22px", height: "22px", background: "var(--rust)", borderRadius: "50%", display: "flex", alignItems: "center", justifyContent: "center", border: "2px solid white" }}>
                       <svg width="11" height="9" viewBox="0 0 11 9" fill="none">
