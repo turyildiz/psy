@@ -741,3 +741,29 @@ test("direct auth pages are dismissible while one-time-token pages are not", () 
     assert.doesNotMatch(source, /dismissHref/);
   }
 });
+
+test("auth-page links use client routing over a persistent backdrop", () => {
+  const layoutSource = readFileSync("app/layout.tsx", "utf8");
+  const backdropSource = readFileSync("components/AuthBackdropShell.tsx", "utf8");
+  const routeModalSource = readFileSync("components/AuthRouteModal.tsx", "utf8");
+
+  assert.match(layoutSource, /<AuthBackdropShell>\{children\}<\/AuthBackdropShell>/);
+  for (const path of ["/login", "/signup", "/forgot-password", "/update-password"]) {
+    assert.match(backdropSource, new RegExp(`"${path}"`));
+  }
+  assert.match(backdropSource, /isAuthCallback \? "callback-auth-backdrop" : "persistent-auth-backdrop"/);
+  assert.match(routeModalSource, /router\.push\(dismissHref\)/);
+  assert.doesNotMatch(routeModalSource, /<HomePage/);
+
+  for (const path of [
+    "app/login/page.tsx",
+    "app/signup/page.tsx",
+    "app/forgot-password/page.tsx",
+    "app/update-password/page.tsx",
+    "app/auth/recovery/page.tsx",
+    "components/AuthModal.tsx",
+  ]) {
+    const source = readFileSync(path, "utf8");
+    assert.doesNotMatch(source, /<a[^>]+href="\/(login|signup|forgot-password|update-password)/);
+  }
+});

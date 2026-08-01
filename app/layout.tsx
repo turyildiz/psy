@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Manrope, Bricolage_Grotesque, Caveat, Permanent_Marker } from "next/font/google";
+import AuthBackdropShell from "@/components/AuthBackdropShell";
 import "./globals.css";
 
 const manrope = Manrope({
@@ -39,7 +40,7 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${manrope.variable} ${bricolageGrotesque.variable} ${caveat.variable} ${permanentMarker.variable}`}>
-      <body>{children}</body>
+      <body><AuthBackdropShell>{children}</AuthBackdropShell></body>
     </html>
   );
 }
