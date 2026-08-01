@@ -8,6 +8,7 @@ import {
   handleAutomaticAuthCallback,
   verifySignupConfirmation,
 } from "@/lib/auth/callback-flow";
+import AuthRouteModal from "@/components/AuthRouteModal";
 
 type SignupState = "none" | "ready" | "confirming";
 
@@ -75,8 +76,8 @@ export default function AuthCallback() {
   };
 
   return (
-    <main style={{ minHeight: "100vh", background: "oklch(10% 0.018 55)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-      <section style={{ width: "100%", maxWidth: "440px", background: "oklch(14% 0.018 55)", border: "1px solid oklch(100% 0 0 / 0.1)", borderRadius: "16px", padding: "36px", textAlign: "center", color: "white" }}>
+    <AuthRouteModal>
+      <div style={{ textAlign: "center", color: "white" }}>
         {signupState === "ready" ? (
           <>
             <h1 style={{ fontSize: "26px", margin: "0 0 10px" }}>Confirm your email</h1>
@@ -95,8 +96,7 @@ export default function AuthCallback() {
             </p>
           </>
         )}
-      </section>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </main>
+      </div>
+    </AuthRouteModal>
   );
 }

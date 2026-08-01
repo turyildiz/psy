@@ -2,8 +2,8 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
-import Image from "next/image";
 import { getRecoveryToken } from "@/lib/auth/safety";
+import AuthRouteModal from "@/components/AuthRouteModal";
 
 type RecoveryState =
   | "loading"
@@ -118,12 +118,8 @@ export default function RecoveryPage() {
   const busy = state === "resetting";
 
   return (
-    <main style={{ minHeight: "100vh", background: "oklch(10% 0.018 55)", display: "flex", alignItems: "center", justifyContent: "center", padding: "24px" }}>
-      <section style={{ width: "100%", maxWidth: "440px", background: "oklch(14% 0.018 55)", border: "1px solid oklch(100% 0 0 / 0.1)", borderRadius: "16px", padding: "36px" }}>
-        <div style={{ textAlign: "center", marginBottom: "28px" }}>
-          <Image src="/logo-white.png" alt="Psy.market" width={140} height={34} style={{ width: "140px", height: "auto" }} />
-        </div>
-
+    <AuthRouteModal>
+      <div>
         {state === "loading" && <p style={{ color: "oklch(70% 0.01 70)", textAlign: "center" }}>Checking your reset link…</p>}
 
         {state === "ready" && (
@@ -194,7 +190,7 @@ export default function RecoveryPage() {
         )}
 
         {errorMessage && <p style={{ color: "#e07070", fontSize: "13px", lineHeight: 1.5, margin: "14px 0 0" }}>{errorMessage}</p>}
-      </section>
-    </main>
+      </div>
+    </AuthRouteModal>
   );
 }
