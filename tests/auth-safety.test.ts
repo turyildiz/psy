@@ -752,6 +752,9 @@ test("auth-page links use client routing over a persistent backdrop", () => {
     assert.match(backdropSource, new RegExp(`"${path}"`));
   }
   assert.match(backdropSource, /isAuthCallback \? "callback-auth-backdrop" : "persistent-auth-backdrop"/);
+  assert.match(backdropSource, /background: "var\(--dark\)"/);
+  assert.match(backdropSource, /if \(!isHome && !isAuth\) return;\s+DIRECT_AUTH_PATHS\.forEach\(\(path\) => router\.prefetch\(path\)\);/);
+  assert.doesNotMatch(backdropSource, /TOKEN_AUTH_PATHS\.(forEach|map)/);
   assert.match(routeModalSource, /router\.push\(dismissHref\)/);
   assert.doesNotMatch(routeModalSource, /<HomePage/);
 
