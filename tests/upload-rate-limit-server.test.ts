@@ -16,6 +16,17 @@ function clientReturning(result: { data: unknown; error: unknown }) {
   return { calls, client };
 }
 
+async function captureConsoleError<T>(run: () => Promise<T>) {
+  const original = console.error;
+  const calls: unknown[][] = [];
+  console.error = (...args: unknown[]) => { calls.push(args); };
+  try {
+    return { result: await run(), calls };
+  } finally {
+    console.error = original;
+  }
+}
+
 test("authenticated browser rate-limit calls derive identity in the RPC", async () => {
   const harness = clientReturning({ data: true, error: null });
 
@@ -41,17 +52,126 @@ test("shared rate limiter preserves the quota rejection result", async () => {
   assert.equal(await consumeUploadIntentRateLimit(harness.client), "limited");
 });
 
-test("shared rate limiter fails closed on RPC errors, throws, or malformed results", async () => {
-  const rpcError = clientReturning({ data: null, error: { message: "database unavailable" } });
-  assert.equal(await consumeUploadIntentRateLimit(rpcError.client), "unavailable");
+test("allowed and rate-limited results do not produce error logs", async () => {
+  const allowed = clientReturning({ data: true, error: null });
+  const allowedCaptured = await captureConsoleError(
+    () => consumeUploadIntentRateLimit(allowed.client)
+  );
+  assert.equal(allowedCaptured.result, "allowed");
+  assert.deepEqual(allowedCaptured.calls, []);
 
-  const malformed = clientReturning({ data: "yes", error: null });
-  assert.equal(await consumeUploadIntentRateLimit(malformed.client), "unavailable");
+  const limited = clientReturning({ data: false, error: null });
+  const limitedCaptured = await captureConsoleError(
+    () => consumeUploadIntentRateLimit(limited.client)
+  );
+  assert.equal(limitedCaptured.result, "limited");
+  assert.deepEqual(limitedCaptured.calls, []);
+});
 
-  const throwing = {
-    rpc: async () => { throw new Error("network unavailable"); },
+test("Supabase RPC errors log only safe structured diagnostics", async () => {
+  const rpcError = {
+    sqlstate: "22007",
+    code: "22007",
+    message: "invalid timestamp input",
+    details: "internal database detail must not be logged",
+    hint: "internal database hint must not be logged",
+    access_token: "secret-token-must-not-be-logged",
+  };
+  const harness = clientReturning({ data: null, error: rpcError });
+  const captured = await captureConsoleError(
+    () => consumeUploadIntentRateLimit(harness.client)
+  );
+
+  assert.equal(captured.result, "unavailable");
+  assert.deepEqual(captured.calls, [[
+    "Upload intent rate-limit RPC failed.",
+    {
+      sqlstate: "22007",
+      code: "22007",
+      message: "invalid timestamp input",
+    },
+  ]]);
+  assert.doesNotMatch(JSON.stringify(captured.calls), /details|hint|secret-token/);
+});
+
+test("thrown RPC failures log safe diagnostics before failing closed", async () => {
+  const thrown = Object.assign(new Error("network unavailable"), {
+    code: "ETIMEDOUT",
+    authorization: "Bearer secret-must-not-be-logged",
+  });
+  const client = {
+    rpc: async () => { throw thrown; },
   } as unknown as SupabaseClient;
-  assert.equal(await consumeUploadIntentRateLimit(throwing), "unavailable");
+  const captured = await captureConsoleError(
+    () => consumeUploadIntentRateLimit(client)
+  );
+
+  assert.equal(captured.result, "unavailable");
+  assert.deepEqual(captured.calls, [[
+    "Upload intent rate-limit RPC failed.",
+    {
+      sqlstate: null,
+      code: "ETIMEDOUT",
+      message: "network unavailable",
+    },
+  ]]);
+  assert.doesNotMatch(JSON.stringify(captured.calls), /authorization|secret-must/);
+});
+
+test("primitive thrown values use the UNKNOWN diagnostic fallback", async () => {
+  const client = {
+    rpc: async () => { throw "connection unavailable"; },
+  } as unknown as SupabaseClient;
+  const captured = await captureConsoleError(
+    () => consumeUploadIntentRateLimit(client)
+  );
+
+  assert.equal(captured.result, "unavailable");
+  assert.deepEqual(captured.calls, [[
+    "Upload intent rate-limit RPC failed.",
+    {
+      sqlstate: null,
+      code: "UNKNOWN",
+      message: "Unknown Supabase RPC failure.",
+    },
+  ]]);
+});
+
+test("error objects without code or message use the UNKNOWN fallback safely", async () => {
+  const client = {
+    rpc: async () => { throw { details: "must not be logged", hint: "must not be logged" }; },
+  } as unknown as SupabaseClient;
+  const captured = await captureConsoleError(
+    () => consumeUploadIntentRateLimit(client)
+  );
+
+  assert.equal(captured.result, "unavailable");
+  assert.deepEqual(captured.calls, [[
+    "Upload intent rate-limit RPC failed.",
+    {
+      sqlstate: null,
+      code: "UNKNOWN",
+      message: "Unknown Supabase RPC failure.",
+    },
+  ]]);
+  assert.doesNotMatch(JSON.stringify(captured.calls), /details|hint|must not/);
+});
+
+test("malformed RPC results log a safe diagnostic and fail closed", async () => {
+  const malformed = clientReturning({ data: "yes", error: null });
+  const captured = await captureConsoleError(
+    () => consumeUploadIntentRateLimit(malformed.client)
+  );
+
+  assert.equal(captured.result, "unavailable");
+  assert.deepEqual(captured.calls, [[
+    "Upload intent rate-limit RPC failed.",
+    {
+      sqlstate: null,
+      code: "INVALID_RESPONSE",
+      message: "Supabase RPC returned a non-boolean result.",
+    },
+  ]]);
 });
 
 test("the process-local limiter and every fallback reference are removed", () => {
