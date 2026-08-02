@@ -16,28 +16,42 @@ async function requireActiveOwner(handle) {
 async function run() {
   const [,, localFile, purpose, ownerHandle, ...titleParts] = process.argv;
   if (!localFile || !purpose || !ownerHandle) {
-    throw new Error("Usage: node scripts/upload-r2.js <file> <avatar|header|listing-image|event-flyer> <owner-handle> [listing-title]");
+    throw new Error("Usage: node scripts/upload-r2.js <file> <avatar|header|listing-image|event-flyer> <owner-handle> [listing-title|event-id]");
   }
 
   const owner = await requireActiveOwner(ownerHandle);
-  const listingTitle = titleParts.join(" ");
+  const resourceArg = titleParts.join(" ");
   let listing = null;
-  if (listingTitle) {
-    const result = await supabase.from("listings").select("id, profile_id, images").eq("title", listingTitle).single();
+  let event = null;
+  if (purpose === "listing-image" && resourceArg) {
+    const result = await supabase.from("listings").select("id, profile_id, images").eq("title", resourceArg).single();
     listing = result.data;
     if (result.error || !listing || listing.profile_id !== owner.id) throw new Error("Owned listing not found.");
-    if (purpose !== "listing-image") throw new Error("Listing assignment requires listing-image purpose.");
     if ((listing.images || []).length >= 5) throw new Error("The listing already has five images.");
+  } else if (purpose === "event-flyer") {
+    if (!resourceArg) throw new Error("Event flyer uploads require an owned event ID.");
+    const result = await supabase.from("events").select("id, created_by").eq("id", resourceArg).single();
+    event = result.data;
+    if (result.error || !event || event.created_by !== owner.id) throw new Error("Owned event not found.");
+  } else if (resourceArg) {
+    throw new Error("Only listing images and event flyers accept an upload resource.");
   }
 
-  const publicUrl = await uploadValidatedImage({ localFile, purpose, ownerUserId: owner.user_id });
+  const publicUrl = await uploadValidatedImage({
+    localFile,
+    purpose,
+    ownerUserId: owner.user_id,
+    ownerId: owner.id,
+    resourceId: listing?.id ?? event?.id,
+    index: purpose === "listing-image" ? (listing?.images || []).length : undefined,
+  });
   console.log(`Uploaded: ${publicUrl}`);
 
   if (listing) {
     const images = [publicUrl, ...(listing.images || [])].slice(0, 5);
     const { error } = await supabase.from("listings").update({ images }).eq("id", listing.id).eq("profile_id", owner.id);
     if (error) throw new Error("Upload succeeded but listing assignment failed.");
-    console.log(`Assigned to listing: ${listingTitle}`);
+    console.log(`Assigned to listing: ${resourceArg}`);
   }
 }
 

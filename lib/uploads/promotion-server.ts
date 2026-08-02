@@ -65,9 +65,9 @@ async function invalidUpload(
   return { ok: false as const, error };
 }
 
-export async function promoteUploadIntent(
+async function promoteUploadIntentCore(
   intent: UploadIntentToken,
-  dependencies: UploadPromotionDependencies = defaultDependencies
+  dependencies: UploadPromotionDependencies
 ) {
   try {
     const object = await dependencies.headPending(intent.key);
@@ -113,9 +113,24 @@ export async function promoteUploadIntent(
   }
 }
 
-export async function cleanupUploadIntent(
+export function promoteUploadIntent(intent: UploadIntentToken) {
+  return promoteUploadIntentCore(intent, defaultDependencies);
+}
+
+export function promoteUploadIntentWithDependenciesForTests(
   intent: UploadIntentToken,
-  dependencies: UploadPromotionDependencies = defaultDependencies
+  dependencies: UploadPromotionDependencies
+) {
+  return promoteUploadIntentCore(intent, dependencies);
+}
+
+export function cleanupUploadIntent(intent: UploadIntentToken) {
+  return cleanupPending(intent, "failed-upload", defaultDependencies);
+}
+
+export function cleanupUploadIntentWithDependenciesForTests(
+  intent: UploadIntentToken,
+  dependencies: UploadPromotionDependencies
 ) {
   return cleanupPending(intent, "failed-upload", dependencies);
 }

@@ -3,7 +3,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 
 import { createSignedUploadIntent } from "../lib/uploads/intent-server.ts";
-import { promoteUploadIntent, type UploadPromotionDependencies } from "../lib/uploads/promotion-server.ts";
+import {
+  promoteUploadIntent,
+  promoteUploadIntentWithDependenciesForTests,
+  type UploadPromotionDependencies,
+} from "../lib/uploads/promotion-server.ts";
 import { verifyUploadToken, type UploadIntentToken } from "../lib/uploads/token.ts";
 
 const SECRET = "s".repeat(32);
@@ -73,7 +77,7 @@ function promotionHarness(overrides: Partial<UploadPromotionDependencies> = {}) 
 
 test("shared promotion preserves private verification, create-only promotion, public verification, and cleanup order", async () => {
   const harness = promotionHarness();
-  const result = await promoteUploadIntent(intent, harness.dependencies);
+  const result = await promoteUploadIntentWithDependenciesForTests(intent, harness.dependencies);
 
   assert.deepEqual(result, {
     ok: true,
@@ -94,7 +98,7 @@ test("shared promotion preserves validation errors and failed-upload cleanup", a
   const harness = promotionHarness({
     headPending: async () => ({ ContentLength: 11, ContentType: "image/webp", ETag: "pending-etag" }),
   });
-  const result = await promoteUploadIntent(intent, harness.dependencies);
+  const result = await promoteUploadIntentWithDependenciesForTests(intent, harness.dependencies);
 
   assert.deepEqual(result, {
     ok: false,
@@ -110,7 +114,7 @@ test("shared promotion preserves generic failure behavior when create-only promo
       throw new Error("destination already exists");
     },
   });
-  const result = await promoteUploadIntent(intent, harness.dependencies);
+  const result = await promoteUploadIntentWithDependenciesForTests(intent, harness.dependencies);
 
   assert.deepEqual(result, {
     ok: false,
@@ -122,6 +126,10 @@ test("shared promotion preserves generic failure behavior when create-only promo
     "promote-create-only",
     "cleanup-failed-upload",
   ]);
+});
+
+test("production promotion wrapper does not accept injectable dependencies", () => {
+  assert.equal(promoteUploadIntent.length, 1);
 });
 
 test("browser routes delegate only extracted mechanics and retain their response contracts", () => {

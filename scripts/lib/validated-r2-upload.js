@@ -1,10 +1,9 @@
 const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
-const { randomUUID } = require("node:crypto");
 const { spawnSync } = require("node:child_process");
-const { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } = require("@aws-sdk/client-s3");
 const policyConfig = require("../../lib/uploads/policy.json");
+const { uploadTrustedImage } = require("../../lib/uploads/trusted-upload-server.ts");
 
 function loadLocalEnv() {
   const externalKeys = new Set(Object.keys(process.env));
@@ -38,9 +37,6 @@ function contentTypeForFile(localFile) {
   throw new Error("Only JPEG, PNG, and WebP images are allowed.");
 }
 
-function safeExtension(contentType) {
-  return contentType === "image/jpeg" ? "jpg" : contentType === "image/png" ? "png" : "webp";
-}
 
 function validateLocalImage(localFile, purpose) {
   const policy = policyConfig.purposes[purpose];
@@ -91,45 +87,19 @@ function prepareLocalImage(localFile, purpose) {
   }
 }
 
-function createR2Client() {
-  return new S3Client({
-    region: "auto",
-    endpoint: `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com`,
-    credentials: {
-      accessKeyId: process.env.R2_ACCESS_KEY_ID,
-      secretAccessKey: process.env.R2_SECRET_ACCESS_KEY,
-    },
-  });
-}
-
-async function uploadValidatedImage({ localFile, purpose, ownerUserId }) {
-  if (!ownerUserId) throw new Error("A verified owner user ID is required.");
+async function uploadValidatedImage({ localFile, purpose, ownerUserId, ownerId, resourceId, index }) {
+  if (!ownerUserId || !ownerId) throw new Error("A verified owner user and profile are required.");
   const prepared = prepareLocalImage(localFile, purpose);
   try {
-    const { policy, contentType, size } = validateLocalImage(prepared.path, purpose);
-    const key = `${policy.folder}/${ownerUserId}/${randomUUID()}.${safeExtension(contentType)}`;
-    const r2 = createR2Client();
-    const bucket = process.env.R2_BUCKET_NAME;
-
-    await r2.send(new PutObjectCommand({
-      Bucket: bucket,
-      Key: key,
-      Body: fs.createReadStream(prepared.path),
-      ContentLength: size,
-      ContentType: contentType,
-    }));
-
-    const head = await r2.send(new HeadObjectCommand({ Bucket: bucket, Key: key }));
-    if (head.ContentLength !== size || head.ContentType !== contentType || size > policy.maxBytes) {
-      throw new Error("Uploaded object failed size or MIME verification.");
-    }
-    const sample = await r2.send(new GetObjectCommand({ Bucket: bucket, Key: key, Range: "bytes=0-31" }));
-    if (!sample.Body || detectContentType(Buffer.from(await sample.Body.transformToByteArray())) !== contentType) {
-      throw new Error("Uploaded object failed content-signature verification.");
-    }
-
-    const origin = process.env.NEXT_PUBLIC_R2_PUBLIC_URL.replace(/\/$/, "");
-    return `${origin}/${key}`;
+    validateLocalImage(prepared.path, purpose);
+    return await uploadTrustedImage({
+      localFile: prepared.path,
+      purpose,
+      userId: ownerUserId,
+      ownerId,
+      resourceId,
+      index,
+    });
   } finally {
     prepared.cleanup();
   }

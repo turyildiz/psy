@@ -1,5 +1,6 @@
 const { createClient } = require("@supabase/supabase-js");
 const { loadLocalEnv, uploadValidatedImage } = require("./lib/validated-r2-upload");
+const { validateListingDescription } = require("../lib/listings/validation.ts");
 
 loadLocalEnv();
 const supabase = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL, process.env.SUPABASE_SERVICE_ROLE_KEY);
@@ -16,13 +17,23 @@ async function run() {
   if (userError || !user) throw new Error("Owner account status could not be verified.");
   if (user.banned_at) throw new Error("Banned accounts cannot receive uploads.");
 
-  const publicUrl = await uploadValidatedImage({ localFile, purpose: "listing-image", ownerUserId: profile.user_id });
+  const listingDescription = description || `Handmade ${title.toLowerCase()}, unique piece.`;
+  const descriptionError = validateListingDescription(listingDescription);
+  if (descriptionError) throw new Error(descriptionError);
+
+  const publicUrl = await uploadValidatedImage({
+    localFile,
+    purpose: "listing-image",
+    ownerUserId: profile.user_id,
+    ownerId: profile.id,
+    index: 0,
+  });
   console.log(`Uploaded: ${publicUrl}`);
 
   const tags = tagsStr ? tagsStr.split(",").map((tag) => tag.trim()).filter(Boolean) : [];
   const { data: listing, error } = await supabase.from("listings").insert({
     title,
-    description: description || `Handmade ${title.toLowerCase()}, unique piece.`,
+    description: listingDescription.trim(),
     category: category || "accessories",
     condition: condition || "new",
     price: Math.round(Number(priceEuros) * 100),

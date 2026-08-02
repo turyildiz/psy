@@ -50,6 +50,21 @@ export async function createPresignedPut(key: string, contentType: string) {
   );
 }
 
+export async function putR2UploadObject(
+  key: string,
+  body: Uint8Array,
+  contentLength: number,
+  contentType: string
+) {
+  await getR2Client().send(new PutObjectCommand({
+    Bucket: getR2UploadBucket(),
+    Key: key,
+    Body: body,
+    ContentLength: contentLength,
+    ContentType: contentType,
+  }));
+}
+
 export async function headR2UploadObject(key: string) {
   return getR2Client().send(new HeadObjectCommand({ Bucket: getR2UploadBucket(), Key: key }));
 }
