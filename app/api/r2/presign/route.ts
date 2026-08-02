@@ -1,16 +1,16 @@
-import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { authorizeUpload } from "@/lib/uploads/authorization";
 import { createUploadAuthClient } from "@/lib/uploads/auth-server";
+import { createSignedUploadIntent } from "@/lib/uploads/intent-server";
 import {
   getSafeExtension,
   getUploadPolicy,
   isUploadPurpose,
+  type AllowedImageType,
   validateUploadDeclaration,
 } from "@/lib/uploads/policy";
-import { createPresignedPut, getUploadTokenSecret } from "@/lib/uploads/r2-server";
+import { createPresignedPut } from "@/lib/uploads/r2-server";
 import { allowUploadIntent } from "@/lib/uploads/rate-limit";
-import { createUploadToken } from "@/lib/uploads/token";
 
 export const runtime = "nodejs";
 
@@ -59,26 +59,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: authorization.error }, { status: authorization.status });
   }
 
-  const uploadId = randomUUID();
-  const key = `pending/${user.id}/${uploadId}.${extension}`;
-  const finalKey = `${policy.folder}/${user.id}/${uploadId}.${extension}`;
-  const expiresAt = Date.now() + 3 * 60 * 1000;
-  const uploadToken = createUploadToken({
-    version: 1,
-    uploadId,
+  const { intent, uploadToken } = createSignedUploadIntent({
     userId: user.id,
     ownerId,
     resourceId: resourceId as string | undefined,
     index: index as number | undefined,
     purpose,
-    key,
-    finalKey,
-    contentType,
+    contentType: contentType as AllowedImageType,
     declaredSize: size as number,
-    expiresAt,
-  }, getUploadTokenSecret());
+  });
 
-  const uploadUrl = await createPresignedPut(key, contentType);
+  const uploadUrl = await createPresignedPut(intent.key, intent.contentType);
   return NextResponse.json({
     uploadUrl,
     uploadToken,

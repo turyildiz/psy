@@ -1,7 +1,7 @@
-import type { UploadIntentToken } from "./token";
-import { canImmediatelyDelete } from "./lifecycle";
-import { isMediaKeyReferenced } from "./references-server";
-import { deleteR2UploadObject, headR2UploadObject } from "./r2-server";
+import type { UploadIntentToken } from "./token.ts";
+import { canImmediatelyDelete } from "./lifecycle.ts";
+import { isMediaKeyReferenced } from "./references-server.ts";
+import { deleteR2UploadObject, headR2UploadObject } from "./r2-server.ts";
 
 async function remainsUnreferencedAfterSecondCheck(key: string) {
   if (await isMediaKeyReferenced(key)) return false;

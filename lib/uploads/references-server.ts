@@ -1,5 +1,5 @@
 import { createClient } from "@supabase/supabase-js";
-import { mediaValuesReferenceKey } from "./cleanup-policy";
+import { mediaValuesReferenceKey } from "./cleanup-policy.ts";
 
 const PAGE_SIZE = 1000;
 
