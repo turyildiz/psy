@@ -10,7 +10,7 @@ import {
   validateUploadDeclaration,
 } from "@/lib/uploads/policy";
 import { createPresignedPut } from "@/lib/uploads/r2-server";
-import { allowUploadIntent } from "@/lib/uploads/rate-limit";
+import { consumeUploadIntentRateLimit } from "@/lib/uploads/rate-limit-server";
 
 export const runtime = "nodejs";
 
@@ -46,7 +46,12 @@ export async function POST(req: NextRequest) {
   const supabase = await createUploadAuthClient();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  if (!allowUploadIntent(user.id)) {
+
+  const rateLimit = await consumeUploadIntentRateLimit(supabase);
+  if (rateLimit === "unavailable") {
+    return NextResponse.json({ error: "Upload service is temporarily unavailable." }, { status: 503 });
+  }
+  if (rateLimit === "limited") {
     return NextResponse.json({ error: "Too many upload attempts. Please try again later." }, { status: 429 });
   }
 

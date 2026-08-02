@@ -139,6 +139,12 @@ test("browser routes delegate only extracted mechanics and retain their response
   assert.match(presign, /createSignedUploadIntent\(/);
   assert.match(presign, /createPresignedPut\(intent\.key, intent\.contentType\)/);
   assert.match(presign, /headers: \{ "Content-Type": contentType \}/);
+  assert.match(presign, /await consumeUploadIntentRateLimit\(supabase\)/);
+  assert.match(presign, /Too many upload attempts\. Please try again later\./);
+  assert.match(presign, /Upload service is temporarily unavailable\./);
+  assert.match(presign, /status: 429/);
+  assert.match(presign, /status: 503/);
+  assert.doesNotMatch(presign, /allowUploadIntent|uploads\/rate-limit"/);
   assert.match(finalize, /verifyUploadToken\(/);
   assert.match(finalize, /promoteUploadIntent\(intent\)/);
   assert.match(finalize, /status: 400/);

@@ -2,12 +2,6 @@ import test from "node:test";
 import assert from "node:assert/strict";
 
 import { createUploadToken, verifyUploadToken } from "../lib/uploads/token.ts";
-import {
-  allowUploadIntent,
-  MAX_UPLOAD_INTENTS,
-  resetUploadIntentRateLimitForTests,
-  WINDOW_MS,
-} from "../lib/uploads/rate-limit.ts";
 
 const secret = "test-only-secret-with-enough-entropy";
 const payload = {
@@ -47,14 +41,4 @@ test("even validly signed tokens cannot select arbitrary R2 keys", () => {
 test("listing slot index is part of the signed intent and remains bounded", () => {
   const invalidIndex = createUploadToken({ ...payload, index: 5 }, secret);
   assert.equal(verifyUploadToken(invalidIndex, secret, 1_900_000_000_000), null);
-});
-
-test("upload intents are rate-limited per authenticated user", () => {
-  resetUploadIntentRateLimitForTests();
-  for (let index = 0; index < MAX_UPLOAD_INTENTS; index += 1) {
-    assert.equal(allowUploadIntent("user-1", 1000 + index), true);
-  }
-  assert.equal(allowUploadIntent("user-1", 2000), false);
-  assert.equal(allowUploadIntent("user-2", 2000), true);
-  assert.equal(allowUploadIntent("user-1", 1000 + WINDOW_MS + MAX_UPLOAD_INTENTS), true);
 });

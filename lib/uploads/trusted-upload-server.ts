@@ -9,6 +9,7 @@ import {
   validateUploadDeclaration,
 } from "./policy.ts";
 import { cleanupUploadIntent, promoteUploadIntent } from "./promotion-server.ts";
+import { consumeUploadIntentRateLimit, type UploadIntentRateLimitResult } from "./rate-limit-server.ts";
 import { getUploadTokenSecret, putR2UploadObject } from "./r2-server.ts";
 import { verifyUploadToken, type UploadIntentToken } from "./token.ts";
 
@@ -37,6 +38,7 @@ type PromotionResult =
 
 export type TrustedUploadDependencies = {
   authorize: (userId: string, authorization: TrustedUploadAuthorization) => Promise<AuthorizationResult>;
+  consumeRateLimit: (targetUserId: string) => Promise<UploadIntentRateLimitResult>;
   createIntent: (input: SignedUploadIntentInput) => { intent: UploadIntentToken; uploadToken: string };
   putPrivate: (key: string, body: Uint8Array, size: number, contentType: string) => Promise<void>;
   verifyToken: (uploadToken: string) => UploadIntentToken | null;
@@ -81,6 +83,15 @@ async function uploadTrustedPreparedImageCore(
   const authorization = { purpose, userId: input.userId, ownerId: input.ownerId, resourceId: input.resourceId, index: input.index };
   const initialAuthorization = await dependencies.authorize(input.userId, authorization);
   if (!initialAuthorization.ok) throw new Error(initialAuthorization.error);
+
+  let rateLimit: UploadIntentRateLimitResult;
+  try {
+    rateLimit = await dependencies.consumeRateLimit(input.userId);
+  } catch {
+    rateLimit = "unavailable";
+  }
+  if (rateLimit === "unavailable") throw new Error("Upload service is temporarily unavailable.");
+  if (rateLimit === "limited") throw new Error("Too many upload attempts. Please try again later.");
 
   const { intent, uploadToken } = dependencies.createIntent({
     userId: input.userId,
@@ -199,6 +210,7 @@ export async function uploadTrustedImage(input: TrustedUploadInput) {
     size: body.byteLength,
   }, {
     authorize: (userId, authorization) => authorizeTrustedUpload(supabase, userId, authorization),
+    consumeRateLimit: (userId) => consumeUploadIntentRateLimit(supabase, userId),
     createIntent: createSignedUploadIntent,
     putPrivate: putR2UploadObject,
     verifyToken: (uploadToken) => verifyUploadToken(uploadToken, getUploadTokenSecret()),

@@ -42,6 +42,10 @@ function harness(overrides: Partial<TrustedUploadDependencies> = {}) {
       calls.push(`authorize-${authorizationCount}`);
       return { ok: true };
     },
+    consumeRateLimit: async (userId) => {
+      calls.push(`consume-rate-limit:${userId}`);
+      return "allowed";
+    },
     createIntent: () => {
       calls.push("create-intent");
       return { intent, uploadToken: "signed-token" };
@@ -73,11 +77,48 @@ test("trusted CLI uses private PUT before mandatory token verification and promo
   assert.equal(result, "https://images.psy.market/avatars/user-1/upload-1.webp");
   assert.deepEqual(testHarness.calls, [
     "authorize-1",
+    "consume-rate-limit:user-1",
     "create-intent",
     `put-private:${intent.key}`,
     "verify-token",
     "authorize-2",
     "promote-create-only",
+  ]);
+});
+
+test("trusted CLI stops before intent creation when shared quota is exhausted", async () => {
+  const testHarness = harness({
+    consumeRateLimit: async (userId) => {
+      testHarness.calls.push(`consume-rate-limit:${userId}`);
+      return "limited";
+    },
+  });
+
+  await assert.rejects(
+    uploadTrustedPreparedImageWithDependenciesForTests(baseInput, testHarness.dependencies),
+    /too many upload attempts/i
+  );
+  assert.deepEqual(testHarness.calls, [
+    "authorize-1",
+    "consume-rate-limit:user-1",
+  ]);
+});
+
+test("trusted CLI fails closed before intent creation when shared limiter is unavailable", async () => {
+  const testHarness = harness({
+    consumeRateLimit: async (userId) => {
+      testHarness.calls.push(`consume-rate-limit:${userId}`);
+      return "unavailable";
+    },
+  });
+
+  await assert.rejects(
+    uploadTrustedPreparedImageWithDependenciesForTests(baseInput, testHarness.dependencies),
+    /temporarily unavailable/i
+  );
+  assert.deepEqual(testHarness.calls, [
+    "authorize-1",
+    "consume-rate-limit:user-1",
   ]);
 });
 
@@ -99,6 +140,7 @@ test("mandatory token verification blocks promotion and cleans only pending stat
   );
   assert.deepEqual(testHarness.calls, [
     "authorize-1",
+    "consume-rate-limit:user-1",
     "create-intent",
     `put-private:${intent.key}`,
     "verify-token",
@@ -152,6 +194,7 @@ test("resource mismatch after token verification prevents promotion and cleans p
   );
   assert.deepEqual(testHarness.calls, [
     "authorize-1",
+    "consume-rate-limit:user-1",
     "create-intent",
     `put-private:${listingIntent.key}`,
     "verify-token",
@@ -199,6 +242,7 @@ test("trusted CLI production path exposes no direct public PUT or public cleanup
   assert.match(createScript, /ownerId: profile\.id/);
   assert.match(createScript, /index: 0/);
   assert.match(trustedServer, /profile\.user_id !== userId/);
+  assert.match(trustedServer, /consumeUploadIntentRateLimit\(supabase, userId\)/);
   assert.match(trustedServer, /listing\.profile_id !== authorization\.ownerId/);
   assert.match(trustedServer, /event\.created_by !== authorization\.ownerId/);
   assert.match(r2Server, /PutObjectCommand\(\{ Bucket: getR2UploadBucket\(\)/);
