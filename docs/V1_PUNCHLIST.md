@@ -26,6 +26,8 @@
 4. **Harden the direct-publish listing flow — M**  
    Keep immediate `active` publication, add shared server-side validation and ownership checks, remove dead draft/review controls, add owner unpublish/mark-sold management, and ensure failed uploads cannot create invalid listings.
    - Keep this V1 work within the accepted current upload lifecycle. Do not pull the deferred Step 11 ledger/reservation architecture into pre-launch scope.
+   - **Browser-test bug — price preview:** entering `19,99` shows `20 €` in the Step 3 review preview, while the published listing correctly shows `19,99 €`. The preview appears to round prices to whole euros. Fix the preview for V1 and keep an open check that comma-decimal input is handled reliably throughout listing creation, review, editing, and publication, since German sellers will enter `19,99` rather than `19.99`.
+   - **V1 missing feature — listing cover selection:** when a listing has multiple images, the seller cannot choose its cover; the first uploaded image is used on category pages, in search results, and on the listing detail page. Implement image reordering/cover selection for V1 by changing the order of the existing `images` array, with the chosen cover first. This requires no schema change.
    - **Open question:** the profile **Delete** action currently performs `update({ status: "draft" })` rather than deleting the listing row. Decide whether V1 should distinguish **Unpublish** from a real **Delete** action. Because the soft-deleted row and its `images` array remain in the database, those images remain referenced and never become public-orphan report candidates.
 
 5. **Add tickets as a normal listing category — M**  
