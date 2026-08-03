@@ -42,3 +42,27 @@ test("listing slot index is part of the signed intent and remains bounded", () =
   const invalidIndex = createUploadToken({ ...payload, index: 5 }, secret);
   assert.equal(verifyUploadToken(invalidIndex, secret, 1_900_000_000_000), null);
 });
+
+test("post-image tokens require slots zero through four and derive the posts key", () => {
+  const postPayload = {
+    ...payload,
+    purpose: "post-image" as const,
+    resourceId: "post-123",
+    finalKey: "posts/user-123/upload-123.webp",
+  };
+  for (const index of [0, 4]) {
+    const candidate = { ...postPayload, index };
+    const token = createUploadToken(candidate, secret);
+    assert.deepEqual(verifyUploadToken(token, secret, 1_900_000_000_000), candidate);
+  }
+  for (const index of [undefined, -1, 1.5, 5]) {
+    const candidate = { ...postPayload, index };
+    const token = createUploadToken(candidate, secret);
+    assert.equal(verifyUploadToken(token, secret, 1_900_000_000_000), null);
+  }
+  const arbitraryKey = createUploadToken({
+    ...postPayload,
+    finalKey: "posts/another-user/upload-123.webp",
+  }, secret);
+  assert.equal(verifyUploadToken(arbitraryKey, secret, 1_900_000_000_000), null);
+});

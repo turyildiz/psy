@@ -1,6 +1,7 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { authorizeUpload } from "../lib/uploads/authorization.ts";
 
 import {
   ALLOWED_IMAGE_TYPES,
@@ -13,6 +14,7 @@ import {
   getClientResizeDimensions,
   selectAllowedImageFiles,
   UNSUPPORTED_IMAGE_TYPE_MESSAGE,
+  validateUploadIndex,
 } from "../lib/uploads/policy.ts";
 import {
   IMMEDIATE_DELETE_REASONS,
@@ -31,6 +33,11 @@ test("approved upload policy limits are centralized", () => {
     maxBytes: 10 * MiB,
     maxCount: 5,
   });
+  assert.deepEqual(getUploadPolicy("post-image"), {
+    folder: "posts",
+    maxBytes: 10 * MiB,
+    maxCount: 5,
+  });
   assert.deepEqual(getUploadPolicy("avatar"), {
     folder: "avatars",
     maxBytes: 5 * MiB,
@@ -40,11 +47,55 @@ test("approved upload policy limits are centralized", () => {
   assert.equal(getUploadPolicy("event-flyer").maxBytes, 10 * MiB);
 });
 
+test("multi-image purposes require a bounded integer slot", () => {
+  for (const purpose of ["listing-image", "post-image"] as const) {
+    assert.equal(validateUploadIndex(purpose, 0), null);
+    assert.equal(validateUploadIndex(purpose, 4), null);
+    assert.match(validateUploadIndex(purpose, undefined) ?? "", /between 0 and 4/);
+    assert.match(validateUploadIndex(purpose, -1) ?? "", /between 0 and 4/);
+    assert.match(validateUploadIndex(purpose, 1.5) ?? "", /between 0 and 4/);
+    assert.match(validateUploadIndex(purpose, 5) ?? "", /between 0 and 4/);
+  }
+  assert.equal(validateUploadIndex("avatar", undefined), null);
+  assert.equal(validateUploadIndex("avatar", 0), null);
+  assert.equal(validateUploadIndex("avatar", 1), "This upload purpose accepts one image only.");
+});
+
+test("existing post resources must belong to the upload owner", async () => {
+  function client(postProfileId: string) {
+    return {
+      rpc: async () => ({ data: false, error: null }),
+      from: (table: string) => ({
+        select: () => ({
+          eq: () => ({
+            maybeSingle: async () => table === "profiles"
+              ? { data: { id: "profile-1", user_id: "user-1" }, error: null }
+              : { data: { id: "post-1", profile_id: postProfileId }, error: null },
+          }),
+        }),
+      }),
+    };
+  }
+
+  assert.deepEqual(await authorizeUpload(client("profile-1") as never, "user-1", {
+    purpose: "post-image",
+    ownerId: "profile-1",
+    resourceId: "post-1",
+  }), { ok: true });
+  assert.deepEqual(await authorizeUpload(client("profile-2") as never, "user-1", {
+    purpose: "post-image",
+    ownerId: "profile-1",
+    resourceId: "post-1",
+  }), { ok: false, status: 403, error: "You do not own this post." });
+});
+
 test("declaration validation rejects unapproved MIME types and oversize files", () => {
   assert.equal(validateUploadDeclaration("avatar", "image/webp", 5 * MiB), null);
   assert.equal(validateUploadDeclaration("avatar", "image/svg+xml", 100), "Only JPEG, PNG, and WebP images are allowed.");
   assert.equal(validateUploadDeclaration("avatar", "image/jpeg", 5 * MiB + 1), "Avatar images must be 5 MB or smaller.");
   assert.equal(validateUploadDeclaration("listing-image", "image/png", 10 * MiB + 1), "Listing images must be 10 MB or smaller.");
+  assert.equal(validateUploadDeclaration("post-image", "image/webp", 10 * MiB), null);
+  assert.equal(validateUploadDeclaration("post-image", "image/png", 10 * MiB + 1), "Post images must be 10 MB or smaller.");
   assert.equal(validateUploadDeclaration("listing-image", "image/jpeg", 0), "The image file is empty.");
 });
 

@@ -81,13 +81,15 @@ function keyFromPublicUrl(value) {
 
 async function referencedKeys() {
   const keys = new Set();
-  const [profiles, listings, events] = await Promise.all([
+  const [profiles, listings, posts, events] = await Promise.all([
     fetchAllRows("profiles", "avatar_url, header_url"),
     fetchAllRows("listings", "images"),
+    fetchAllRows("posts", "images"),
     fetchAllRows("events", "cover_image_url, logo_url"),
   ]);
   for (const row of profiles) for (const value of [row.avatar_url, row.header_url]) { const key = keyFromPublicUrl(value); if (key) keys.add(key); }
   for (const row of listings) for (const value of row.images || []) { const key = keyFromPublicUrl(value); if (key) keys.add(key); }
+  for (const row of posts) for (const value of row.images || []) { const key = keyFromPublicUrl(value); if (key) keys.add(key); }
   for (const row of events) for (const value of [row.cover_image_url, row.logo_url]) { const key = keyFromPublicUrl(value); if (key) keys.add(key); }
   return keys;
 }

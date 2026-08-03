@@ -22,6 +22,18 @@ export function isAllowedImageType(value: unknown): value is AllowedImageType {
   return typeof value === "string" && ALLOWED_IMAGE_TYPES.includes(value as AllowedImageType);
 }
 
+export function validateUploadIndex(purpose: UploadPurpose, index: unknown) {
+  const policy = getUploadPolicy(purpose);
+  if (policy.maxCount > 1) {
+    if (!Number.isInteger(index) || (index as number) < 0 || (index as number) >= policy.maxCount) {
+      return `${config.purposes[purpose].label.replace(/s$/, "")} index must be between 0 and ${policy.maxCount - 1}.`;
+    }
+    return null;
+  }
+  if (index !== undefined && index !== 0) return "This upload purpose accepts one image only.";
+  return null;
+}
+
 export function selectAllowedImageFiles<T extends { type: unknown }>(files: Iterable<T>, limit: number) {
   const selected = Array.from(files);
   return {

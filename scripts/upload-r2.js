@@ -18,6 +18,9 @@ async function run() {
   if (!localFile || !purpose || !ownerHandle) {
     throw new Error("Usage: node scripts/upload-r2.js <file> <avatar|header|listing-image|event-flyer> <owner-handle> [listing-title|event-id]");
   }
+  if (purpose === "post-image") {
+    throw new Error("Post image uploads are not supported by the CLI.");
+  }
 
   const owner = await requireActiveOwner(ownerHandle);
   const resourceArg = titleParts.join(" ");

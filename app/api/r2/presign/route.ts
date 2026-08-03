@@ -4,10 +4,10 @@ import { createUploadAuthClient } from "@/lib/uploads/auth-server";
 import { createSignedUploadIntent } from "@/lib/uploads/intent-server";
 import {
   getSafeExtension,
-  getUploadPolicy,
   isUploadPurpose,
   type AllowedImageType,
   validateUploadDeclaration,
+  validateUploadIndex,
 } from "@/lib/uploads/policy";
 import { createPresignedPut } from "@/lib/uploads/r2-server";
 import { consumeUploadIntentRateLimit } from "@/lib/uploads/rate-limit-server";
@@ -29,13 +29,8 @@ export async function POST(req: NextRequest) {
   if (resourceId !== undefined && typeof resourceId !== "string") {
     return NextResponse.json({ error: "Invalid upload resource." }, { status: 400 });
   }
-  const policy = getUploadPolicy(purpose);
-  if (purpose === "listing-image" && (!Number.isInteger(index) || (index as number) < 0 || (index as number) >= policy.maxCount)) {
-    return NextResponse.json({ error: `Listing image index must be between 0 and ${policy.maxCount - 1}.` }, { status: 400 });
-  }
-  if (purpose !== "listing-image" && index !== undefined && index !== 0) {
-    return NextResponse.json({ error: "This upload purpose accepts one image only." }, { status: 400 });
-  }
+  const indexError = validateUploadIndex(purpose, index);
+  if (indexError) return NextResponse.json({ error: indexError }, { status: 400 });
 
   const declarationError = validateUploadDeclaration(purpose, contentType, size as number);
   if (declarationError) return NextResponse.json({ error: declarationError }, { status: 400 });

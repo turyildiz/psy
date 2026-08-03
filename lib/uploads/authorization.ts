@@ -37,6 +37,17 @@ export async function authorizeUpload(
     }
   }
 
+  if (authorization.purpose === "post-image" && authorization.resourceId) {
+    const { data: post, error } = await supabase
+      .from("posts")
+      .select("id, profile_id")
+      .eq("id", authorization.resourceId)
+      .maybeSingle();
+    if (error || !post || post.profile_id !== authorization.ownerId) {
+      return { ok: false as const, status: 403, error: "You do not own this post." };
+    }
+  }
+
   if (authorization.purpose === "event-flyer") {
     if (!authorization.resourceId) {
       return { ok: false as const, status: 400, error: "An event is required for event flyers." };

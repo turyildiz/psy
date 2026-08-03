@@ -4,6 +4,7 @@ import {
   getUploadPolicy,
   isAllowedImageType,
   isUploadPurpose,
+  validateUploadIndex,
   type AllowedImageType,
   type UploadPurpose,
 } from "./policy.ts";
@@ -60,8 +61,7 @@ export function verifyUploadToken(token: string, secret: string, now = Date.now(
 
     const extension = getSafeExtension(value.contentType!);
     const policy = getUploadPolicy(value.purpose!);
-    if (value.purpose === "listing-image" && (value.index === undefined || value.index < 0 || value.index >= policy.maxCount)) return null;
-    if (value.purpose !== "listing-image" && value.index !== undefined && value.index !== 0) return null;
+    if (validateUploadIndex(value.purpose!, value.index)) return null;
     if (
       !extension ||
       value.key !== `pending/${value.userId}/${value.uploadId}.${extension}` ||

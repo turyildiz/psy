@@ -6,6 +6,7 @@ const PAGE_SIZE = 1000;
 type MediaReferenceRows = {
   profiles: Array<{ avatar_url: string | null; header_url: string | null }>;
   listings: Array<{ images: string[] | null }>;
+  posts: Array<{ images: string[] | null }>;
   events: Array<{ cover_image_url: string | null; logo_url: string | null }>;
 };
 
@@ -39,21 +40,23 @@ async function fetchAllRows<T>(table: string, columns: string): Promise<T[]> {
 }
 
 export async function readAllMediaReferences(): Promise<MediaReferenceRows> {
-  const [profiles, listings, events] = await Promise.all([
+  const [profiles, listings, posts, events] = await Promise.all([
     fetchAllRows<MediaReferenceRows["profiles"][number]>("profiles", "avatar_url, header_url"),
     fetchAllRows<MediaReferenceRows["listings"][number]>("listings", "images"),
+    fetchAllRows<MediaReferenceRows["posts"][number]>("posts", "images"),
     fetchAllRows<MediaReferenceRows["events"][number]>("events", "cover_image_url, logo_url"),
   ]);
-  return { profiles, listings, events };
+  return { profiles, listings, posts, events };
 }
 
 export async function isMediaKeyReferenced(key: string) {
   const publicBaseUrl = process.env.NEXT_PUBLIC_R2_PUBLIC_URL;
   if (!publicBaseUrl) throw new Error("R2 public URL is not configured.");
-  const { profiles, listings, events } = await readAllMediaReferences();
+  const { profiles, listings, posts, events } = await readAllMediaReferences();
   return mediaValuesReferenceKey([
     profiles.flatMap((row) => [row.avatar_url, row.header_url]),
     listings.map((row) => row.images ?? []),
+    posts.map((row) => row.images ?? []),
     events.flatMap((row) => [row.cover_image_url, row.logo_url]),
   ], key, publicBaseUrl);
 }

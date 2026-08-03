@@ -148,11 +148,11 @@ test("mandatory token verification blocks promotion and cleans only pending stat
   ]);
 });
 
-test("unsupported purposes fail before authorization or storage", async () => {
+test("post-image CLI uploads are explicitly rejected before authorization or storage", async () => {
   const testHarness = harness();
   await assert.rejects(
     uploadTrustedPreparedImageWithDependenciesForTests({ ...baseInput, purpose: "post-image" }, testHarness.dependencies),
-    /unknown upload purpose/i
+    /post image uploads are not supported by the CLI/i
   );
   assert.deepEqual(testHarness.calls, []);
 });
@@ -238,6 +238,11 @@ test("trusted CLI production path exposes no direct public PUT or public cleanup
   assert.doesNotMatch(helper, /PutObjectCommand|R2_BUCKET_NAME|HeadObjectCommand|GetObjectCommand/);
   assert.match(helper, /uploadTrustedImage\(/);
   assert.match(uploadScript, /ownerId: owner\.id/);
+  assert.ok(
+    uploadScript.indexOf('purpose === "post-image"') >= 0
+      && uploadScript.indexOf('purpose === "post-image"') < uploadScript.indexOf("await requireActiveOwner"),
+    "post-image CLI rejection must run before owner authorization"
+  );
   assert.match(uploadScript, /resourceId: listing\?\.id/);
   assert.match(createScript, /ownerId: profile\.id/);
   assert.match(createScript, /index: 0/);

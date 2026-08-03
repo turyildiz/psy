@@ -7,6 +7,7 @@ import {
   isAllowedImageType,
   isUploadPurpose,
   validateUploadDeclaration,
+  validateUploadIndex,
 } from "./policy.ts";
 import { cleanupUploadIntent, promoteUploadIntent } from "./promotion-server.ts";
 import { consumeUploadIntentRateLimit, type UploadIntentRateLimitResult } from "./rate-limit-server.ts";
@@ -47,6 +48,7 @@ export type TrustedUploadDependencies = {
 };
 
 function validatePreparedInput(input: TrustedUploadPreparedInput) {
+  if (input.purpose === "post-image") throw new Error("Post image uploads are not supported by the CLI.");
   if (!isUploadPurpose(input.purpose)) throw new Error("Unknown upload purpose.");
   if (!input.userId || !input.ownerId) throw new Error("A verified owner user and profile are required.");
   if (!(input.body instanceof Uint8Array) || input.body.byteLength !== input.size) {
@@ -59,16 +61,8 @@ function validatePreparedInput(input: TrustedUploadPreparedInput) {
     throw new Error("The prepared image content did not match its upload declaration.");
   }
 
-  const policy = getUploadPolicy(input.purpose);
-  if (
-    input.purpose === "listing-image" &&
-    (!Number.isInteger(input.index) || input.index! < 0 || input.index! >= policy.maxCount)
-  ) {
-    throw new Error(`Listing image index must be between 0 and ${policy.maxCount - 1}.`);
-  }
-  if (input.purpose !== "listing-image" && input.index !== undefined && input.index !== 0) {
-    throw new Error("This upload purpose accepts one image only.");
-  }
+  const indexError = validateUploadIndex(input.purpose, input.index);
+  if (indexError) throw new Error(indexError);
   if (input.resourceId !== undefined && typeof input.resourceId !== "string") {
     throw new Error("Invalid upload resource.");
   }
@@ -191,6 +185,7 @@ async function authorizeTrustedUpload(
 }
 
 export async function uploadTrustedImage(input: TrustedUploadInput) {
+  if (input.purpose === "post-image") throw new Error("Post image uploads are not supported by the CLI.");
   if (!isUploadPurpose(input.purpose)) throw new Error("Unknown upload purpose.");
   const policy = getUploadPolicy(input.purpose);
   const fileStat = await stat(input.localFile);

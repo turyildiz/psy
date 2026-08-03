@@ -1,5 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 
 import {
   mediaValuesReferenceKey,
@@ -24,8 +25,22 @@ test("pending cleanup derives only controlled promoted-key candidates", () => {
     `avatars/${USER}/${UPLOAD}.webp`,
     `headers/${USER}/${UPLOAD}.webp`,
     `listings/${USER}/${UPLOAD}.webp`,
+    `posts/${USER}/${UPLOAD}.webp`,
     `festivals/${USER}/${UPLOAD}.webp`,
   ]);
   assert.deepEqual(promotedKeyCandidatesForPending(`pending/${USER}/bad.webp`), []);
   assert.deepEqual(promotedKeyCandidatesForPending(`pending/../${UPLOAD}.webp`), []);
+});
+
+test("all complete reference scanners include post image arrays", () => {
+  const scanners = [
+    "../lib/uploads/references-server.ts",
+    "../scripts/report-r2-orphans.js",
+    "../scripts/cleanup-promoted-pending.js",
+  ];
+  for (const file of scanners) {
+    const source = readFileSync(new URL(file, import.meta.url), "utf8");
+    assert.match(source, /fetchAllRows(?:<[^>]+>)?\("posts", "images"\)/, file);
+    assert.match(source, /posts\.map\(\(row\) => row\.images \?\? \[\]\)|row of posts[^\n]*row\.images \|\| \[\]/, file);
+  }
 });

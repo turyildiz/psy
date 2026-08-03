@@ -7,6 +7,7 @@
     "avatar": { "folder": "avatars", "maxBytes": 5242880, "maxCount": 1, "label": "Avatar images", "clientLabel": "avatar" },
     "header": { "folder": "headers", "maxBytes": 10485760, "maxCount": 1, "label": "Header images", "clientLabel": "header" },
     "listing-image": { "folder": "listings", "maxBytes": 10485760, "maxCount": 5, "label": "Listing images", "clientLabel": "listing image" },
+    "post-image": { "folder": "posts", "maxBytes": 10485760, "maxCount": 5, "label": "Post images", "clientLabel": "post image" },
     "event-flyer": { "folder": "festivals", "maxBytes": 10485760, "maxCount": 1, "label": "Event flyers", "clientLabel": "event flyer" }
   }
 }
