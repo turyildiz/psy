@@ -11,6 +11,7 @@ import EditListingModal from "@/components/EditListingModal";
 import AuthModal from "@/components/AuthModal";
 import MessagesInbox from "@/components/MessagesInbox";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import ProfileWall from "@/components/ProfileWall";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing, Profile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
@@ -141,11 +142,11 @@ function SellerProfilePageInner() {
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
   const [authModal, setAuthModal] = useState<"login" | "signup" | null>(null);
   const [messagingLoading, setMessagingLoading] = useState(false);
-  const [tab, setTab] = useState<"listings" | "inbox">("listings");
+  const [tab, setTab] = useState<"wall" | "listings" | "inbox">("wall");
   const [inboxCount, setInboxCount] = useState(0);
   useEffect(() => {
-    if (searchParams.get("tab") === "inbox") setTab("inbox");
-  }, [searchParams]);
+    setTab(searchParams.get("tab") === "inbox" ? "inbox" : "wall");
+  }, [handle, searchParams]);
 
   const handleMessageSeller = async () => {
     if (!myProfileId || !profile) return;
@@ -191,15 +192,29 @@ function SellerProfilePageInner() {
   }, []);
 
   useEffect(() => {
-    const supabase = createClient();
-    supabase.from("profiles").select("*").eq("handle", handle).single().then(async ({ data }) => {
-      if (!data) { setProfile(null); return; }
-      setProfile(toProfile(data));
+    let cancelled = false;
+    const loadProfile = async () => {
+      setProfile(undefined);
+      setListingsLoading(true);
+      const supabase = createClient();
+      const { data } = await supabase.from("profiles").select("*").eq("handle", handle).single();
+      if (cancelled) return;
+      if (!data) {
+        setProfile(null);
+        setListings([]);
+        setListingsLoading(false);
+        return;
+      }
+      const nextProfile = toProfile(data);
       const { data: ls } = await supabase
         .from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("profile_id", data.id).eq("status", "active").order("created_at", { ascending: false });
+      if (cancelled) return;
+      setProfile(nextProfile);
       setListings((ls ?? []).map(toListing));
       setListingsLoading(false);
-    });
+    };
+    void loadProfile();
+    return () => { cancelled = true; };
   }, [handle]);
 
   const isOwner = !!myHandle && myHandle === handle;
@@ -384,6 +399,12 @@ function SellerProfilePageInner() {
       <div className="stagger-item" style={{ '--i': 1, borderBottom: "1px solid var(--sand)", background: "var(--white)" } as CSSProperties}>
         <div className="site-shell" style={{ display: "flex", gap: "0", paddingTop: 0, paddingBottom: 0 }}>
           <button
+            onClick={() => setTab("wall")}
+            style={{ padding: "16px 0", marginRight: "28px", fontSize: "14px", fontWeight: 600, color: tab === "wall" ? "var(--text)" : "var(--text-light)", background: "none", border: "none", borderBottom: tab === "wall" ? "2px solid var(--rust)" : "2px solid transparent", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", transition: "color 0.15s", whiteSpace: "nowrap" }}
+          >
+            Wall
+          </button>
+          <button
             onClick={() => setTab("listings")}
             style={{ padding: "16px 0", marginRight: "28px", fontSize: "14px", fontWeight: 600, color: tab === "listings" ? "var(--text)" : "var(--text-light)", background: "none", border: "none", borderBottom: tab === "listings" ? "2px solid var(--rust)" : "2px solid transparent", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", transition: "color 0.15s", whiteSpace: "nowrap" }}
           >
@@ -402,7 +423,11 @@ function SellerProfilePageInner() {
       </div>
 
       {/* Content area */}
-      {tab === "listings" ? (
+      {tab === "wall" ? (
+        <div className="site-shell">
+          <ProfileWall key={profile.id} profile={profile} isOwner={isOwner} />
+        </div>
+      ) : tab === "listings" ? (
         <div className="site-shell" style={{ paddingTop: "36px", paddingBottom: "80px" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "flex-end", marginBottom: "24px" }}>
             {isOwner && (
