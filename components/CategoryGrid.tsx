@@ -3,6 +3,7 @@
 import { useReveal } from "@/hooks/useReveal";
 import ProductCard, { type ProductItem } from "@/components/ProductCard";
 import Link from "next/link";
+import { shouldRenderCategorySection } from "@/lib/homepage/categories";
 
 type Props = {
   title: string;
@@ -20,7 +21,7 @@ export default function CategoryGrid({ title, link, href, items, bigOnRight, bg,
   const smalls = rest.slice(0, 4);
 
   if (!big) {
-    if (!loading) return null;
+    if (!shouldRenderCategorySection(items, Boolean(loading))) return null;
     return (
       <section className="section-pad" style={{ background: bg || "var(--cream)" }}>
         <div className="site-shell">

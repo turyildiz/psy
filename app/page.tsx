@@ -13,6 +13,7 @@ import type { SellerItem } from "@/components/SellerCard";
 import type { TicketItem } from "@/components/TicketCard";
 import { createClient } from "@/lib/supabase/client";
 import { toListing, toProfile } from "@/lib/db";
+import { loadCategorySection } from "@/lib/homepage/categories";
 
 const tickets: TicketItem[] = [
   { name: "Ozora Festival 2026", location: "Ozora, Hungary", date: "Jul 28–Aug 3", price: "€320", imageUrl: "https://images.psy.market/festivals/ai-generated/1780567591314.jpg" },
@@ -27,21 +28,45 @@ export default function HomePage() {
   const [jewelleryItems, setJewelleryItems] = useState<ProductItem[]>([]);
   const [musicItems, setMusicItems] = useState<ProductItem[]>([]);
   const [sellers, setSellers] = useState<SellerItem[]>([]);
+  const [fashionLoading, setFashionLoading] = useState(true);
+  const [jewelleryLoading, setJewelleryLoading] = useState(true);
+  const [musicLoading, setMusicLoading] = useState(true);
 
   useEffect(() => {
     const supabase = createClient();
-    Promise.all([
-      supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "clothing").eq("status", "active").limit(5),
-      supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "accessories").eq("status", "active").limit(5),
-      supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "gear").eq("status", "active").limit(5),
-      supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(6),
-    ]).then(async ([{ data: f }, { data: j }, { data: m }, { data: p }]) => {
-      setFashionItems((f ?? []).map(toListing));
-      setJewelleryItems((j ?? []).map(toListing));
-      setMusicItems((m ?? []).map(toListing));
+    let cancelled = false;
+
+    const loadFashion = () => loadCategorySection({
+      query: supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "clothing").eq("status", "active").limit(5),
+      map: toListing,
+      isCancelled: () => cancelled,
+      setItems: setFashionItems,
+      setLoading: setFashionLoading,
+    });
+
+    const loadJewellery = () => loadCategorySection({
+      query: supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "accessories").eq("status", "active").limit(5),
+      map: toListing,
+      isCancelled: () => cancelled,
+      setItems: setJewelleryItems,
+      setLoading: setJewelleryLoading,
+    });
+
+    const loadMusic = () => loadCategorySection({
+      query: supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", "gear").eq("status", "active").limit(5),
+      map: toListing,
+      isCancelled: () => cancelled,
+      setItems: setMusicItems,
+      setLoading: setMusicLoading,
+    });
+
+    const loadSellers = async () => {
+      const { data: p } = await supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(6);
+      if (cancelled) return;
       const profileRows = p ?? [];
       const profileIds = profileRows.map((r) => r.id);
       const { data: counts } = await supabase.from("listings").select("profile_id").in("profile_id", profileIds).eq("status", "active");
+      if (cancelled) return;
       const countMap: Record<string, number> = {};
       (counts ?? []).forEach((r) => { countMap[r.profile_id] = (countMap[r.profile_id] ?? 0) + 1; });
       setSellers(profileRows.map((row, i) => ({
@@ -49,14 +74,20 @@ export default function HomePage() {
         itemCount: countMap[row.id] ?? 0,
         badge: ["Featured", "Top Rated", "Power Seller"][i] || "Verified",
       })));
-    });
+    };
+
+    void loadFashion();
+    void loadJewellery();
+    void loadMusic();
+    void loadSellers();
+    return () => { cancelled = true; };
   }, []);
 
   return (
     <div>
       <Header />
 
-      <CategoryGrid title="Trending: Festival Fashion" link="View All" href="/apparel" items={fashionItems} loading={fashionItems.length === 0} />
+      <CategoryGrid title="Trending: Festival Fashion" link="View All" href="/apparel" items={fashionItems} loading={fashionLoading} />
 
       <Carousel
         title="Community Spotlight"
@@ -67,11 +98,11 @@ export default function HomePage() {
       />
 
 
-      <CategoryGrid title="Jewellery & Accessories" link="View All" href="/jewellery" items={jewelleryItems} bigOnRight bg="var(--cream)" loading={jewelleryItems.length === 0} />
+      <CategoryGrid title="Jewellery & Accessories" link="View All" href="/jewellery" items={jewelleryItems} bigOnRight bg="var(--cream)" loading={jewelleryLoading} />
 
       <FestivalSection />
 
-      <CategoryGrid title="Music & Instruments" link="View All" href="/music" items={musicItems} bg="var(--cream-mid)" loading={musicItems.length === 0} />
+      <CategoryGrid title="Music & Instruments" link="View All" href="/music" items={musicItems} bg="var(--cream-mid)" loading={musicLoading} />
 
       <Carousel
         title="Tickets"
