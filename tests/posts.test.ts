@@ -175,19 +175,19 @@ test("Stream navigation leads desktop categories and all routed category links s
 
   const desktopStream = header.indexOf('<Link href="/stream" className={`header-category-link');
   const desktopCategories = header.indexOf("{CATEGORIES.map");
-  const mobileMenu = header.indexOf("mobile-drawer-right");
+  const mobileCategories = header.indexOf("mobile-drawer-left");
   const mobileStream = header.indexOf('<Link href="/stream" onClick={closeAll} className={`mobile-drawer-link');
-  const mobileAuth = header.indexOf("{!authLoading &&", mobileMenu);
+  const mobileDivider = header.indexOf('className="mobile-stream-divider"');
+  const mobileCategoryList = header.indexOf("{CATEGORIES.map", mobileCategories);
+  const mobileMenu = header.indexOf("mobile-drawer-right");
 
   assert.ok(desktopStream >= 0 && desktopStream < desktopCategories);
-  assert.ok(mobileStream > mobileMenu && mobileStream < mobileAuth);
+  assert.ok(mobileStream > mobileCategories && mobileStream < mobileDivider && mobileDivider < mobileCategoryList);
+  assert.equal(header.indexOf('href="/stream"', mobileMenu), -1);
+  assert.equal(header.match(/href="\/stream"/g)?.length, 2);
   assert.match(header, /const isActivePath = \(href: string\) => pathname === href/);
   assert.match(header, /key=\{label\} href=\{href\} className=\{`header-category-link\$\{isActivePath\(href\) \? " active" : ""\}`\} aria-current=\{isActivePath\(href\) \? "page" : undefined\}/);
   assert.match(header, /key=\{label\} href=\{href\} onClick=\{closeAll\} className=\{`mobile-drawer-link\$\{isActivePath\(href\) \? " active" : ""\}`\} aria-current=\{isActivePath\(href\) \? "page" : undefined\}/);
-  assert.match(header, /\{ label: "Art & Decor", href: null \}/);
-  assert.match(header, /\{ label: "Tickets", href: null \}/);
-  assert.match(header, /\{ label: "Vintage", href: null \}/);
-  assert.match(header, /\{ label: "New Arrivals", href: null \}/);
   assert.match(styles, /\.header-category-link\.active/);
   assert.match(styles, /\.mobile-drawer-link\.active/);
 });

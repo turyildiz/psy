@@ -11,12 +11,12 @@ import ProfileAvatar from "@/components/ProfileAvatar";
 
 const CATEGORIES = [
   { label: "Apparel", href: "/apparel" },
-  { label: "Art & Decor", href: null },
+  { label: "Art & Decor", href: "/art" },
   { label: "Jewellery", href: "/jewellery" },
   { label: "Music", href: "/music" },
-  { label: "Tickets", href: null },
-  { label: "Vintage", href: null },
-  { label: "New Arrivals", href: null },
+  { label: "Tickets", href: "/tickets" },
+  { label: "Vintage", href: "/vintage" },
+  { label: "New Arrivals", href: "/new-arrivals" },
 ];
 
 const QUICK_LINKS = [
@@ -323,6 +323,8 @@ export default function Header() {
           <button onClick={closeAll} className="mobile-drawer-close">✕</button>
         </div>
         <nav style={{ padding: "8px 0" }}>
+          <Link href="/stream" onClick={closeAll} className={`mobile-drawer-link${isActivePath("/stream") ? " active" : ""}`} aria-current={isActivePath("/stream") ? "page" : undefined}>Stream</Link>
+          <div className="mobile-stream-divider" aria-hidden style={{ height: "1px", margin: "8px 20px", background: "oklch(100% 0 0 / 0.12)" }} />
           {CATEGORIES.map(({ label, href }) => (
             href
               ? <Link key={label} href={href} onClick={closeAll} className={`mobile-drawer-link${isActivePath(href) ? " active" : ""}`} aria-current={isActivePath(href) ? "page" : undefined}>{label}</Link>
@@ -355,7 +357,6 @@ export default function Header() {
             />
           </div>
         </div>
-        <Link href="/stream" onClick={closeAll} className={`mobile-drawer-link${isActivePath("/stream") ? " active" : ""}`} aria-current={isActivePath("/stream") ? "page" : undefined}>Stream</Link>
         <div style={{ padding: "8px 20px 24px", display: "flex", flexDirection: "column", gap: "10px" }}>
           {!authLoading && (userHandle ? (
             <>
