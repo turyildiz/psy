@@ -1,6 +1,6 @@
 import test from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 import {
   POST_BODY_MAX,
@@ -132,4 +132,62 @@ test("post and listing galleries reuse one keyboard and swipe-capable image ligh
 test("Wall remains a centered constrained reading column", () => {
   const source = readFileSync("components/ProfileWall.tsx", "utf8");
   assert.match(source, /\.profile-wall \{ max-width: 680px; margin: 0 auto;/);
+});
+
+test("public Stream reuses Wall cards and filters only on the database-backed Stream flag", () => {
+  assert.equal(existsSync("app/stream/page.tsx"), true, "Stream page must exist");
+  const stream = readFileSync("app/stream/page.tsx", "utf8");
+  const wall = readFileSync("components/ProfileWall.tsx", "utf8");
+
+  assert.match(wall, /export function PostCard/);
+  assert.match(stream, /import \{[\s\S]*PostCard[\s\S]*\} from "@\/components\/ProfileWall"/);
+  assert.match(stream, /\.from\("posts"\)/);
+  assert.match(stream, /\.eq\("show_in_stream", true\)/);
+  assert.match(stream, /profiles\(/);
+  assert.doesNotMatch(stream, /is_banned|is_suspended|suspended_at|banned_at/);
+  assert.doesNotMatch(stream, /\.auth\.|getUser\(/);
+});
+
+test("Stream is strictly chronological with independent keyset pagination and a resolved empty state", () => {
+  const stream = readFileSync("app/stream/page.tsx", "utf8");
+
+  assert.match(stream, /\.order\("created_at", \{ ascending: false \}\)/);
+  assert.match(stream, /\.order\("id", \{ ascending: false \}\)/);
+  assert.match(stream, /\.limit\(POST_PAGE_SIZE \+ 1\)/);
+  assert.match(stream, /created_at\.lt\.\$\{cursor\.createdAt\}/);
+  assert.match(stream, /id\.lt\.\$\{cursor\.id\}/);
+  assert.match(stream, /paginationInFlight\.current/);
+  assert.match(stream, />\s*Load more\s*</);
+  assert.match(stream, /No posts in the Stream yet/);
+  assert.match(stream, /loading \? \([\s\S]*posts\.length === 0/);
+  assert.match(stream, /\.stream-column \{ max-width: 680px; margin: 0 auto;/);
+});
+
+test("shared post cards link avatar, display name, and handle to the author profile", () => {
+  const wall = readFileSync("components/ProfileWall.tsx", "utf8");
+  assert.match(wall, /<Link href=\{`\/\$\{profile\.handle\}`\} className="post-author-link">/);
+  assert.match(wall, /<ProfileAvatar[\s\S]*?<strong>\{profile\.displayName\}[\s\S]*?@\{profile\.handle\}/);
+});
+
+test("Stream navigation leads desktop categories and all routed category links share its active state", () => {
+  const header = readFileSync("components/layout/Header.tsx", "utf8");
+  const styles = readFileSync("app/globals.css", "utf8");
+
+  const desktopStream = header.indexOf('<Link href="/stream" className={`header-category-link');
+  const desktopCategories = header.indexOf("{CATEGORIES.map");
+  const mobileMenu = header.indexOf("mobile-drawer-right");
+  const mobileStream = header.indexOf('<Link href="/stream" onClick={closeAll} className={`mobile-drawer-link');
+  const mobileAuth = header.indexOf("{!authLoading &&", mobileMenu);
+
+  assert.ok(desktopStream >= 0 && desktopStream < desktopCategories);
+  assert.ok(mobileStream > mobileMenu && mobileStream < mobileAuth);
+  assert.match(header, /const isActivePath = \(href: string\) => pathname === href/);
+  assert.match(header, /key=\{label\} href=\{href\} className=\{`header-category-link\$\{isActivePath\(href\) \? " active" : ""\}`\} aria-current=\{isActivePath\(href\) \? "page" : undefined\}/);
+  assert.match(header, /key=\{label\} href=\{href\} onClick=\{closeAll\} className=\{`mobile-drawer-link\$\{isActivePath\(href\) \? " active" : ""\}`\} aria-current=\{isActivePath\(href\) \? "page" : undefined\}/);
+  assert.match(header, /\{ label: "Art & Decor", href: null \}/);
+  assert.match(header, /\{ label: "Tickets", href: null \}/);
+  assert.match(header, /\{ label: "Vintage", href: null \}/);
+  assert.match(header, /\{ label: "New Arrivals", href: null \}/);
+  assert.match(styles, /\.header-category-link\.active/);
+  assert.match(styles, /\.mobile-drawer-link\.active/);
 });

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import Link from "next/link";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import { createClient } from "@/lib/supabase/client";
@@ -23,7 +24,7 @@ import type { Profile } from "@/types/marketplace";
 export const POST_PAGE_SIZE = 10;
 const POST_IMAGE_LIMIT = getUploadPolicy("post-image").maxCount;
 
-type Post = {
+export type Post = {
   id: string;
   profileId: string;
   body: string;
@@ -32,6 +33,8 @@ type Post = {
   createdAt: string;
   updatedAt: string;
 };
+
+export type PostAuthor = Pick<Profile, "id" | "handle" | "displayName" | "avatarUrl">;
 
 type ImageChoice = {
   id: string;
@@ -47,7 +50,7 @@ type PostEditorProps = {
   onSaved: (post?: Post) => void;
 };
 
-function toPost(row: Record<string, unknown>): Post {
+export function toPost(row: Record<string, unknown>): Post {
   return {
     id: String(row.id),
     profileId: String(row.profile_id),
@@ -277,9 +280,9 @@ function PostEditor({ profileId, post, onCancel, onSaved }: PostEditorProps) {
   );
 }
 
-function PostCard({ post, profile, isOwner, onUpdated, onDeleted }: {
+export function PostCard({ post, profile, isOwner, onUpdated, onDeleted }: {
   post: Post;
-  profile: Profile;
+  profile: PostAuthor;
   isOwner: boolean;
   onUpdated: (post: Post) => void;
   onDeleted: (id: string) => void;
@@ -319,11 +322,13 @@ function PostCard({ post, profile, isOwner, onUpdated, onDeleted }: {
   return (
     <article className="post-card">
       <header>
-        <ProfileAvatar name={profile.displayName || profile.handle} url={profile.avatarUrl} size={42} />
-        <div>
-          <strong>{profile.displayName}</strong>
-          <span>@{profile.handle} · {formatPostDate(post.createdAt)}</span>
-        </div>
+        <Link href={`/${profile.handle}`} className="post-author-link">
+          <ProfileAvatar name={profile.displayName || profile.handle} url={profile.avatarUrl} size={42} />
+          <div className="post-author-copy">
+            <strong>{profile.displayName}</strong>
+            <span>@{profile.handle} · {formatPostDate(post.createdAt)}</span>
+          </div>
+        </Link>
         {isOwner && (
           <div className="post-author-actions">
             <button type="button" onClick={() => setEditing(true)}>Edit</button>
@@ -481,7 +486,8 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         .post-form-error { margin: 12px 0 0; color: #a52e24; font-size: 12px; line-height: 1.5; }
         .post-list { display: flex; flex-direction: column; gap: 16px; }
         .post-card header { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
-        .post-card header > div:nth-child(2) { display: flex; flex-direction: column; min-width: 0; }
+        .post-author-link { display: flex; align-items: center; gap: 11px; min-width: 0; color: inherit; text-decoration: none; }
+        .post-author-copy { display: flex; flex-direction: column; min-width: 0; }
         .post-card header strong { color: var(--text); font-size: 13px; }
         .post-card header span { color: var(--text-light); font-size: 11px; }
         .post-author-actions { margin-left: auto; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }

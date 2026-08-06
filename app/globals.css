@@ -223,6 +223,15 @@ input:autofill {
   right: 0;
 }
 
+.header-category-link.active {
+  color: white;
+}
+
+.header-category-link.active::after {
+  left: 0;
+  right: 0;
+}
+
 /* Mobile hamburger buttons — hidden by default */
 .header-ham {
   display: none;
@@ -286,6 +295,12 @@ input:autofill {
 }
 
 .mobile-drawer-link:hover { color: white; background: oklch(100% 0 0 / 0.05); }
+
+.mobile-drawer-link.active {
+  color: white;
+  background: oklch(100% 0 0 / 0.08);
+  box-shadow: inset 3px 0 0 var(--rust);
+}
 
 .mobile-auth-btn {
   display: block;

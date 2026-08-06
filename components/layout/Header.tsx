@@ -153,6 +153,7 @@ export default function Header() {
   }, [leftOpen, rightOpen, searchOpen]);
 
   const closeAll = () => { setLeftOpen(false); setRightOpen(false); };
+  const isActivePath = (href: string) => pathname === href;
 
   return (
     <>
@@ -168,9 +169,10 @@ export default function Header() {
 
             {/* Desktop nav + search icon */}
             <div className="header-nav-center">
+              <Link href="/stream" className={`header-category-link${isActivePath("/stream") ? " active" : ""}`} aria-current={isActivePath("/stream") ? "page" : undefined}>Stream</Link>
               {CATEGORIES.map(({ label, href }) => (
                 href
-                  ? <Link key={label} href={href} className="header-category-link">{label}</Link>
+                  ? <Link key={label} href={href} className={`header-category-link${isActivePath(href) ? " active" : ""}`} aria-current={isActivePath(href) ? "page" : undefined}>{label}</Link>
                   : <span key={label} className="header-category-link" style={{ cursor: "default" }}>{label}</span>
               ))}
               <button
@@ -323,7 +325,7 @@ export default function Header() {
         <nav style={{ padding: "8px 0" }}>
           {CATEGORIES.map(({ label, href }) => (
             href
-              ? <Link key={label} href={href} onClick={closeAll} className="mobile-drawer-link">{label}</Link>
+              ? <Link key={label} href={href} onClick={closeAll} className={`mobile-drawer-link${isActivePath(href) ? " active" : ""}`} aria-current={isActivePath(href) ? "page" : undefined}>{label}</Link>
               : <span key={label} className="mobile-drawer-link" style={{ cursor: "default" }}>{label}</span>
           ))}
         </nav>
@@ -353,6 +355,7 @@ export default function Header() {
             />
           </div>
         </div>
+        <Link href="/stream" onClick={closeAll} className={`mobile-drawer-link${isActivePath("/stream") ? " active" : ""}`} aria-current={isActivePath("/stream") ? "page" : undefined}>Stream</Link>
         <div style={{ padding: "8px 20px 24px", display: "flex", flexDirection: "column", gap: "10px" }}>
           {!authLoading && (userHandle ? (
             <>
