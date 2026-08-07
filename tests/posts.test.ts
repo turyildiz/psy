@@ -136,7 +136,8 @@ test("Wall remains a centered constrained reading column", () => {
 
 test("public Stream reuses Wall cards and filters only on the database-backed Stream flag", () => {
   assert.equal(existsSync("app/stream/page.tsx"), true, "Stream page must exist");
-  const stream = readFileSync("app/stream/page.tsx", "utf8");
+  assert.equal(existsSync("components/StreamPageClient.tsx"), true, "Stream client must exist");
+  const stream = readFileSync("components/StreamPageClient.tsx", "utf8");
   const wall = readFileSync("components/ProfileWall.tsx", "utf8");
 
   assert.match(wall, /export function PostCard/);
@@ -149,7 +150,7 @@ test("public Stream reuses Wall cards and filters only on the database-backed St
 });
 
 test("Stream is strictly chronological with independent keyset pagination and a resolved empty state", () => {
-  const stream = readFileSync("app/stream/page.tsx", "utf8");
+  const stream = readFileSync("components/StreamPageClient.tsx", "utf8");
 
   assert.match(stream, /\.order\("created_at", \{ ascending: false \}\)/);
   assert.match(stream, /\.order\("id", \{ ascending: false \}\)/);
@@ -161,6 +162,37 @@ test("Stream is strictly chronological with independent keyset pagination and a 
   assert.match(stream, /No posts in the Stream yet/);
   assert.match(stream, /loading \? \([\s\S]*posts\.length === 0/);
   assert.match(stream, /\.stream-column \{ max-width: 680px; margin: 0 auto;/);
+});
+
+test("Stream date ranges are server-normalized, URL-backed, and applied to the existing keyset query", () => {
+  const page = readFileSync("app/stream/page.tsx", "utf8");
+  const stream = readFileSync("components/StreamPageClient.tsx", "utf8");
+
+  assert.doesNotMatch(page, /"use client"/);
+  assert.match(page, /normalizeStreamDateRange\(searchParams\)/);
+  assert.match(page, /redirect\(`/);
+  assert.match(page, /<StreamPageClient range=\{range\}/);
+
+  const baseQuery = stream.indexOf('.eq("show_in_stream", true)');
+  const lowerBound = stream.indexOf('.gte("created_at", rangeBounds.fromInclusive)');
+  const upperBound = stream.indexOf('.lt("created_at", rangeBounds.toExclusive)');
+  const cursor = stream.indexOf("created_at.lt.${cursor.createdAt}");
+  assert.ok(baseQuery >= 0 && lowerBound > baseQuery && upperBound > lowerBound && cursor > upperBound);
+  assert.equal(stream.match(/\.from\("posts"\)/g)?.length, 1);
+
+  assert.match(stream, />Time range</);
+  assert.equal(stream.match(/type="date"/g)?.length, 2);
+  assert.match(stream, /streamRangeQueryString/);
+  assert.match(stream, /getStreamLocalDateBounds\(range\)/);
+  assert.match(stream, /router\.push\(`\/stream\?\$\{queryString\}`\)/);
+  assert.match(stream, /router\.push\("\/stream"\)/);
+  assert.match(stream, /No posts in this period/);
+  assert.match(stream, /min=\{draftFrom/);
+  assert.match(stream, /max=\{draftTo/);
+  assert.doesNotMatch(stream, /dateTimeZone=|<em>UTC<\/em>/);
+  const wall = readFileSync("components/ProfileWall.tsx", "utf8");
+  assert.doesNotMatch(wall, /dateTimeZone\?: string|timeZone: dateTimeZone/);
+  assert.match(wall, /formatPostDate\(post\.createdAt\)/);
 });
 
 test("shared post cards link avatar, display name, and handle to the author profile", () => {
