@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type CSSProperties } from "react";
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import {
   POST_PAGE_SIZE,
   PostCard,
+  PostListSkeleton,
   toPost,
   type Post,
   type PostAuthor,
@@ -17,6 +18,7 @@ import { getStreamLocalDateBounds, streamRangeQueryString, type StreamDateRange 
 type StreamPost = {
   post: Post;
   profile: PostAuthor;
+  animationIndex: number;
 };
 
 function toStreamPost(row: Record<string, unknown>): StreamPost | null {
@@ -29,6 +31,7 @@ function toStreamPost(row: Record<string, unknown>): StreamPost | null {
 
   return {
     post: toPost(row),
+    animationIndex: 0,
     profile: {
       id,
       handle,
@@ -42,9 +45,12 @@ function toStreamPost(row: Record<string, unknown>): StreamPost | null {
 
 export default function StreamPageClient({ range }: { range: StreamDateRange }) {
   const router = useRouter();
+  const rangeKey = `${range.from ?? ""}:${range.to ?? ""}`;
   const [posts, setPosts] = useState<StreamPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [resolvedRangeKey, setResolvedRangeKey] = useState<string | null>(null);
+  const [rangeNavigationPending, startRangeTransition] = useTransition();
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rangeOpen, setRangeOpen] = useState(Boolean(range.from || range.to));
@@ -95,7 +101,8 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         const next = (data ?? [])
           .slice(0, POST_PAGE_SIZE)
           .map((row) => toStreamPost(row as Record<string, unknown>))
-          .filter((entry): entry is StreamPost => entry !== null);
+          .filter((entry): entry is StreamPost => entry !== null)
+          .map((entry, index) => ({ ...entry, animationIndex: Math.min(index, 9) }));
         setHasMore((data ?? []).length > POST_PAGE_SIZE);
         setPosts((current) => reset ? next : [...current, ...next]);
       }
@@ -106,11 +113,12 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
     } finally {
       if (paginationInFlight.current === requestId) paginationInFlight.current = null;
       if (requestId === requestGeneration.current) {
+        if (reset) setResolvedRangeKey(rangeKey);
         setLoading(false);
         setLoadingMore(false);
       }
     }
-  }, [posts, rangeBounds.fromInclusive, rangeBounds.toExclusive]);
+  }, [posts, rangeBounds.fromInclusive, rangeBounds.toExclusive, rangeKey]);
 
   useEffect(() => {
     setDraftFrom(range.from ?? "");
@@ -125,6 +133,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
   }, [range.from, range.to]);
 
   const rangeActive = Boolean(range.from || range.to);
+  const requestInFlight = loading || rangeNavigationPending || resolvedRangeKey !== rangeKey;
 
   function applyRange() {
     let from = draftFrom;
@@ -134,15 +143,17 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
     setDraftTo(to);
     setRangeOpen(false);
     const queryString = streamRangeQueryString({ from: from || null, to: to || null });
-    if (queryString) router.push(`/stream?${queryString}`);
-    else router.push("/stream");
+    startRangeTransition(() => {
+      if (queryString) router.push(`/stream?${queryString}`);
+      else router.push("/stream");
+    });
   }
 
   function clearRange() {
     setDraftFrom("");
     setDraftTo("");
     setRangeOpen(false);
-    router.push("/stream");
+    startRangeTransition(() => router.push("/stream"));
   }
 
   return (
@@ -183,16 +194,14 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
                     if (next && draftFrom && next < draftFrom) setDraftFrom(next);
                   }} />
                 </label>
-                <button type="submit" className="stream-range-apply">Apply</button>
-                {(draftFrom || draftTo) && <button type="button" className="stream-range-clear" onClick={clearRange}>Clear</button>}
+                <button type="submit" className="stream-range-apply" disabled={rangeNavigationPending}>{rangeNavigationPending ? "Applying…" : "Apply"}</button>
+                {(draftFrom || draftTo) && <button type="button" className="stream-range-clear" onClick={clearRange} disabled={rangeNavigationPending}>Clear</button>}
               </form>
             )}
           </div>
 
-          {loading ? (
-            <div className="post-list" aria-label="Loading Stream">
-              {Array.from({ length: 3 }).map((_, index) => <div key={index} className="skeleton-block post-skeleton" />)}
-            </div>
+          {requestInFlight ? (
+            <PostListSkeleton label="Loading Stream" />
           ) : loadError && posts.length === 0 ? (
             <div className="post-empty">
               <p>{loadError}</p>
@@ -205,20 +214,25 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
             </div>
           ) : (
             <div className="post-list">
-              {posts.map(({ post, profile }) => (
-                <PostCard
+              {posts.map(({ post, profile, animationIndex }) => (
+                <div
                   key={post.id}
-                  post={post}
-                  profile={profile}
-                  isOwner={false}
-                  onUpdated={() => {}}
-                  onDeleted={() => {}}
-                />
+                  className="stagger-item"
+                  style={{ "--i": animationIndex } as CSSProperties}
+                >
+                  <PostCard
+                    post={post}
+                    profile={profile}
+                    isOwner={false}
+                    onUpdated={() => {}}
+                    onDeleted={() => {}}
+                  />
+                </div>
               ))}
               {loadError && <p className="post-form-error" role="alert">{loadError}</p>}
               {hasMore && (
                 <button type="button" className="post-load-more" onClick={() => void loadPosts(false)} disabled={loadingMore}>
-                  Load more
+                  {loadingMore ? "Loading…" : "Load more"}
                 </button>
               )}
             </div>
@@ -248,6 +262,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         .stream-range-apply, .stream-range-clear { border-radius: 6px; padding: 8px 12px; font: 600 12px Manrope, var(--font-manrope); cursor: pointer; }
         .stream-range-apply { border: 1px solid var(--rust); background: var(--rust); color: white; }
         .stream-range-clear { border: 0; background: transparent; color: var(--rust); }
+        .stream-range-apply:disabled, .stream-range-clear:disabled { opacity: .55; cursor: not-allowed; }
         .post-list { display: flex; flex-direction: column; gap: 16px; }
         .post-card { background: var(--white); border: 1px solid var(--sand); border-radius: 12px; padding: 20px; }
         .post-card header { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }

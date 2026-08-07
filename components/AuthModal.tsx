@@ -5,6 +5,7 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
 import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
 import { reloadAtTop } from "@/lib/navigation/scroll-reset";
+import { tryBeginAuthUiTransition } from "@/lib/auth/ui-transition";
 import AuthModalFrame from "@/components/AuthModalFrame";
 
 function EyeIcon({ visible }: { visible: boolean }) {
@@ -88,7 +89,15 @@ function PasswordField({ label, value, onChange, placeholder, error, hint, autoF
 }
 
 /* ── Login form ── */
-function LoginForm({ onSwitch }: { onSwitch: () => void }) {
+function LoginForm({
+  onSwitch,
+  onSuccess,
+  onPendingChange,
+}: {
+  onSwitch: () => void;
+  onSuccess: () => void;
+  onPendingChange: (pending: boolean) => void;
+}) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [fieldErrors, setFieldErrors] = useState<{ email?: string; password?: string }>({});
@@ -104,26 +113,50 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
     if (!password) nextFieldErrors.password = "Password is required";
     if (Object.keys(nextFieldErrors).length > 0) { setFieldErrors(nextFieldErrors); return; }
 
+    const transition = tryBeginAuthUiTransition();
+    if (!transition) {
+      setFormError("A login is already in progress.");
+      return;
+    }
+    onPendingChange(true);
     setStatus("checking");
     const supabase = createClient();
-    const [{ error }] = await Promise.all([
-      supabase.auth.signInWithPassword({ email, password }),
-      new Promise<void>(r => setTimeout(r, 700)),
-    ]);
+    let error: { message: string } | null = null;
+    let signedInUserId: string | null = null;
+    try {
+      const [result] = await Promise.all([
+        supabase.auth.signInWithPassword({ email, password }),
+        new Promise<void>(resolve => setTimeout(resolve, 700)),
+      ]);
+      error = result.error;
+      signedInUserId = result.data.user?.id ?? null;
+    } catch {
+      transition.cancel();
+      onPendingChange(false);
+      setStatus("idle");
+      setFormError("We couldn’t reach the login service. Please try again.");
+      return;
+    }
 
-    if (error) {
+    if (error || !signedInUserId) {
+      transition.cancel();
+      onPendingChange(false);
       setStatus("idle");
       setFormError(
-        error.message.toLowerCase().includes("banned")
+        error?.message.toLowerCase().includes("banned")
           ? "This account has been banned. Contact support if you think this is a mistake."
           : "Invalid email or password"
       );
       return;
     }
 
+    transition.expect(signedInUserId);
     setStatus("success");
-    await new Promise<void>(r => setTimeout(r, 800));
-    reloadAtTop();
+    await Promise.all([
+      transition.wait(),
+      new Promise<void>(resolve => setTimeout(resolve, 800)),
+    ]);
+    onSuccess();
   };
 
   const isChecking = status === "checking";
@@ -144,9 +177,15 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
         <div>
           <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" error={fieldErrors.password} />
           <div style={{ textAlign: "right", marginTop: "8px" }}>
-            <Link href="/forgot-password" style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", textDecoration: "none" }}>
-              Forgot password?
-            </Link>
+            {status === "idle" ? (
+              <Link href="/forgot-password" style={{ fontSize: "12px", color: "oklch(55% 0.01 70)", textDecoration: "none" }}>
+                Forgot password?
+              </Link>
+            ) : (
+              <span aria-disabled="true" style={{ fontSize: "12px", color: "oklch(45% 0.01 70)" }}>
+                Forgot password?
+              </span>
+            )}
           </div>
         </div>
 
@@ -166,7 +205,7 @@ function LoginForm({ onSwitch }: { onSwitch: () => void }) {
 
       <p style={{ textAlign: "center", fontSize: "13px", color: "oklch(55% 0.01 70)", marginTop: "24px" }}>
         Don&apos;t have an account?{" "}
-        <button onClick={onSwitch} style={{ background: "none", border: "none", color: "var(--rust)", fontWeight: 600, cursor: "pointer", fontSize: "13px", fontFamily: "Manrope, var(--font-manrope)", padding: 0 }}>
+        <button onClick={onSwitch} disabled={status !== "idle"} style={{ background: "none", border: "none", color: "var(--rust)", fontWeight: 600, cursor: status === "idle" ? "pointer" : "default", opacity: status === "idle" ? 1 : 0.5, fontSize: "13px", fontFamily: "Manrope, var(--font-manrope)", padding: 0 }}>
           Sign up free
         </button>
       </p>
@@ -346,8 +385,11 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
 /* ── Modal ── */
 export default function AuthModal({ initial, onClose }: { initial: "login" | "signup"; onClose: () => void }) {
   const [view, setView] = useState<"login" | "signup">(initial);
+  const [loginPending, setLoginPending] = useState(false);
 
-  const handleKey = useCallback((e: KeyboardEvent) => { if (e.key === "Escape") onClose(); }, [onClose]);
+  const handleKey = useCallback((event: KeyboardEvent) => {
+    if (event.key === "Escape" && !loginPending) onClose();
+  }, [loginPending, onClose]);
   useEffect(() => {
     document.addEventListener("keydown", handleKey);
     document.body.style.overflow = "hidden";
@@ -355,9 +397,17 @@ export default function AuthModal({ initial, onClose }: { initial: "login" | "si
   }, [handleKey]);
 
   return (
-    <AuthModalFrame onClose={onClose}>
+    <AuthModalFrame
+      onClose={loginPending ? undefined : onClose}
+    >
       {view === "login"
-        ? <LoginForm onSwitch={() => setView("signup")} />
+        ? (
+          <LoginForm
+            onSwitch={() => setView("signup")}
+            onSuccess={onClose}
+            onPendingChange={setLoginPending}
+          />
+        )
         : <SignupForm onSwitch={() => setView("login")} />
       }
     </AuthModalFrame>

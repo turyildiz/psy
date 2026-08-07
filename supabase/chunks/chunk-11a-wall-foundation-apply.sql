@@ -2,7 +2,7 @@
 -- APPLY: Wall foundation, follows hardening, link blocklist, validation helpers,
 -- and internal post-write burst limiter.
 --
--- Status: NOT APPLIED.
+-- Status: APPLIED AND VERIFIED (owner-confirmed).
 -- Dependency: chunk-11-wall-data-model-preflight.sql must return
 -- all_preflight_checks_pass = true.
 --

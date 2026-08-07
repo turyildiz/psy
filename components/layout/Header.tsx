@@ -5,6 +5,8 @@ import { useRouter, usePathname } from "next/navigation";
 import Image from "next/image";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
+import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
 import { assignAtTop } from "@/lib/navigation/scroll-reset";
 import AuthModal from "@/components/AuthModal";
 import ProfileAvatar from "@/components/ProfileAvatar";
@@ -59,42 +61,79 @@ export default function Header() {
     } catch {}
 
     const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) {
-        sessionStorage.removeItem("psy_auth");
-        setUserHandle(null);
-        setUserInitial("");
-        setUserAvatar(null);
-        setAuthLoading(false);
+    const authUiParticipant = registerAuthUiRefreshParticipant();
+    let cancelled = false;
+    let authGeneration = 0;
+    let observedUserId: string | null | undefined;
+
+    const clearAuthenticatedUser = () => {
+      try { sessionStorage.removeItem("psy_auth"); } catch {}
+      setUserHandle(null);
+      setUserInitial("");
+      setUserAvatar(null);
+      setMsgCount(0);
+      setAuthLoading(false);
+    };
+
+    const syncAuthenticatedUser = async (userId: string | null) => {
+      if (cancelled || observedUserId === userId) return;
+      observedUserId = userId;
+      const generation = ++authGeneration;
+
+      if (!userId) {
+        clearAuthenticatedUser();
         return;
       }
+
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("handle, display_name, avatar_url")
-        .eq("user_id", data.user.id)
+        .select("id, handle, display_name, avatar_url")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(1);
+      if (cancelled || generation !== authGeneration) return;
+
       const profile = profiles?.[0] ?? null;
-      if (profile) {
-        const handle = profile.handle;
-        const initial = (profile.display_name || profile.handle).charAt(0).toUpperCase();
-        const avatar = profile.avatar_url ?? null;
-        try { sessionStorage.setItem("psy_auth", JSON.stringify({ handle, initial, avatar })); } catch {}
-        setUserHandle(handle);
-        setUserInitial(initial);
-        setUserAvatar(avatar);
-        // Fetch unread message count for nav badge
-        const { data: profileId } = await supabase.from("profiles").select("id").eq("handle", handle).single();
-        if (profileId) {
-          const { data: unreadConvs } = await supabase.from("conversations")
-            .select("id, unread_for")
-            .or(`buyer_profile_id.eq.${profileId.id},seller_profile_id.eq.${profileId.id}`);
-          const unreadCount = (unreadConvs ?? []).filter((c: any) => (c.unread_for ?? []).includes(profileId.id)).length;
-          setMsgCount(unreadCount);
-        }
+      if (!profile) {
+        clearAuthenticatedUser();
+        return;
       }
+
+      const handle = profile.handle;
+      const initial = (profile.display_name || profile.handle).charAt(0).toUpperCase();
+      const avatar = profile.avatar_url ?? null;
+      try { sessionStorage.setItem("psy_auth", JSON.stringify({ handle, initial, avatar })); } catch {}
+      setUserHandle(handle);
+      setUserInitial(initial);
+      setUserAvatar(avatar);
+
+      const { data: unreadConvs } = await supabase.from("conversations")
+        .select("id, unread_for")
+        .or(`buyer_profile_id.eq.${profile.id},seller_profile_id.eq.${profile.id}`);
+      if (cancelled || generation !== authGeneration) return;
+      const unreadCount = (unreadConvs ?? []).filter((conversation: { unread_for?: string[] | null }) =>
+        (conversation.unread_for ?? []).includes(profile.id)
+      ).length;
+      setMsgCount(unreadCount);
       setAuthLoading(false);
+    };
+
+    const authGate = createInitialAuthSnapshotGate<string | null>((userId) => {
+      authUiParticipant.track(userId, syncAuthenticatedUser(userId));
     });
+
+    void supabase.auth.getUser().then(({ data }) => {
+      authGate.applyInitial(data.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authGate.applyEvent(session?.user.id ?? null);
+    });
+
+    return () => {
+      cancelled = true;
+      authUiParticipant.unregister();
+      subscription.unsubscribe();
+    };
   }, []);
 
   // Autofocus when overlay opens

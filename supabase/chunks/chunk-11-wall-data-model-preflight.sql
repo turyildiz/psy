@@ -1,7 +1,7 @@
 -- psy.market database Chunk 11
 -- READ-ONLY PRE-APPLY PREFLIGHT: Wall data model package
 --
--- Status: NOT APPLIED. Run before Chunk 11A.
+-- Status: COMPLETED before owner application of Chunk 11A.
 -- This script performs no writes. Expected: exactly one row with
 -- all_preflight_checks_pass = true.
 

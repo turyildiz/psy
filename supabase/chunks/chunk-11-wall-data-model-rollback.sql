@@ -2,7 +2,7 @@
 -- ROLLBACK: fully remove the Wall data-model package and restore the reviewed
 -- pre-Chunk-11 follows schema and ACL state.
 --
--- Status: NOT APPLIED.
+-- Status: AVAILABLE FOR ROLLBACK ONLY; NOT RUN.
 -- This rollback is for a fully applied 11A + 11B + 11C package.
 --
 -- Schema/authorization rollback is complete, but no rollback can resurrect:

@@ -12,6 +12,8 @@ import ImageLightbox from "@/components/ImageLightbox";
 import { categoryLabels, conditionLabels } from "@/lib/constants";
 import type { Listing, Profile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
+import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
+import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
 import { toListing, toProfile } from "@/lib/db";
 
 /* ── Helpers ── */
@@ -113,13 +115,48 @@ export default function ListingDetailPage() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
-      setIsLoggedIn(true);
+    const authUiParticipant = registerAuthUiRefreshParticipant();
+    let cancelled = false;
+    let authGeneration = 0;
+    let observedUserId: string | null | undefined;
+
+    const syncAuthenticatedUser = async (userId: string | null) => {
+      if (cancelled || observedUserId === userId) return;
+      observedUserId = userId;
+      const generation = ++authGeneration;
+
+      if (!userId) {
+        setIsLoggedIn(false);
+        setMyProfileId(null);
+        return;
+      }
+
       const { data: profile } = await supabase
-        .from("profiles").select("id").eq("user_id", data.user.id).single();
-      if (profile) setMyProfileId(profile.id);
+        .from("profiles")
+        .select("id")
+        .eq("user_id", userId)
+        .single();
+      if (cancelled || generation !== authGeneration) return;
+      setIsLoggedIn(true);
+      setMyProfileId(profile?.id ?? null);
+    };
+
+    const authGate = createInitialAuthSnapshotGate<string | null>((userId) => {
+      authUiParticipant.track(userId, syncAuthenticatedUser(userId));
     });
+
+    void supabase.auth.getUser().then(({ data }) => {
+      authGate.applyInitial(data.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authGate.applyEvent(session?.user.id ?? null);
+    });
+
+    return () => {
+      cancelled = true;
+      authUiParticipant.unregister();
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

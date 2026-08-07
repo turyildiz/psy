@@ -863,5 +863,6 @@ input:autofill {
   .wall-masonry { column-count: 1; }
 }
 @media (prefers-reduced-motion: reduce) {
+  .stagger-item { animation: none; }
   .wall-note, .wall-tab { transition: none; }
 }

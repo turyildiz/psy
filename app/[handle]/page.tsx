@@ -15,6 +15,8 @@ import ProfileWall from "@/components/ProfileWall";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing, Profile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
+import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
+import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
 import { toListing, toProfile } from "@/lib/db";
 
 const PROFILE_TYPE_LABELS: Record<string, string> = {
@@ -172,23 +174,60 @@ function SellerProfilePageInner() {
 
   useEffect(() => {
     const supabase = createClient();
-    supabase.auth.getUser().then(async ({ data }) => {
-      if (!data.user) return;
+    const authUiParticipant = registerAuthUiRefreshParticipant();
+    let cancelled = false;
+    let authGeneration = 0;
+
+    const syncAuthenticatedUser = async (userId: string | null) => {
+      const requestId = ++authGeneration;
+      if (!userId) {
+        setMyHandle(null);
+        setMyProfileId(null);
+        setInboxCount(0);
+        return;
+      }
+
       const { data: p } = await supabase
         .from("profiles")
         .select("id, handle")
-        .eq("user_id", data.user.id)
+        .eq("user_id", userId)
         .single();
-      if (p) {
-        setMyHandle(p.handle);
-        setMyProfileId(p.id);
-        // Count unread conversations for inbox badge
-        const { data: unreadConvs } = await supabase.from("conversations")
-          .select("id, unread_for")
-          .or(`buyer_profile_id.eq.${p.id},seller_profile_id.eq.${p.id}`);
-        setInboxCount((unreadConvs ?? []).filter((c: any) => (c.unread_for ?? []).includes(p.id)).length);
+      if (cancelled || requestId !== authGeneration) return;
+      if (!p) {
+        setMyHandle(null);
+        setMyProfileId(null);
+        setInboxCount(0);
+        return;
       }
+
+      setMyHandle(p.handle);
+      setMyProfileId(p.id);
+      const { data: unreadConvs } = await supabase.from("conversations")
+        .select("id, unread_for")
+        .or(`buyer_profile_id.eq.${p.id},seller_profile_id.eq.${p.id}`);
+      if (cancelled || requestId !== authGeneration) return;
+      setInboxCount((unreadConvs ?? []).filter((conversation: { unread_for?: string[] | null }) =>
+        (conversation.unread_for ?? []).includes(p.id)
+      ).length);
+    };
+
+    const authGate = createInitialAuthSnapshotGate<string | null>((userId) => {
+      authUiParticipant.track(userId, syncAuthenticatedUser(userId));
     });
+
+    void supabase.auth.getUser().then(({ data }) => {
+      authGate.applyInitial(data.user?.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authGate.applyEvent(session?.user.id ?? null);
+    });
+
+    return () => {
+      cancelled = true;
+      authGeneration += 1;
+      authUiParticipant.unregister();
+      subscription.unsubscribe();
+    };
   }, []);
 
   useEffect(() => {

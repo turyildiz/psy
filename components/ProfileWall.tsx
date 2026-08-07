@@ -5,6 +5,11 @@ import Link from "next/link";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import { createClient } from "@/lib/supabase/client";
+import {
+  createInitialAuthSnapshotGate,
+  createWallAuthRefreshCoordinator,
+} from "@/lib/auth/initial-snapshot-gate";
+import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
 import { uploadToR2 } from "@/lib/uploads/client";
 import {
   IMAGE_ACCEPT,
@@ -263,10 +268,19 @@ function PostEditor({ profileId, post, onCancel, onSaved }: PostEditorProps) {
           <span>{images.length}/{POST_IMAGE_LIMIT}</span>
           <input ref={inputRef} type="file" accept={IMAGE_ACCEPT} multiple hidden onChange={chooseImages} disabled={saving} />
         </div>
-        <label>
-          <input type="checkbox" checked={showInStream} onChange={(event) => setShowInStream(event.target.checked)} disabled={saving} />
-          Show in Stream
-        </label>
+        <div className="post-visibility-option">
+          <label>
+            <input type="checkbox" checked={showInStream} onChange={(event) => setShowInStream(event.target.checked)} disabled={saving} />
+            Make this post public
+          </label>
+          <p>
+            {showInStream ? (
+              <><strong>Public</strong> — everyone can see it on your Wall and in Stream.</>
+            ) : (
+              <><strong>Members only</strong> — signed-in people can see it on your Wall. It won’t appear in Stream.</>
+            )}
+          </p>
+        </div>
       </div>
 
       {error && <p className="post-form-error" role="alert">{error}</p>}
@@ -276,6 +290,21 @@ function PostEditor({ profileId, post, onCancel, onSaved }: PostEditorProps) {
           {saving ? (post ? "Saving…" : "Publishing…") : (post ? "Save changes" : "Publish")}
         </button>
       </div>
+    </div>
+  );
+}
+
+export function PostListSkeleton({ label }: { label: string }) {
+  return (
+    <div className="post-list" style={{ display: "flex", flexDirection: "column", gap: "16px" }} role="status" aria-label={label} aria-live="polite">
+      {Array.from({ length: 3 }).map((_, index) => (
+        <div
+          key={index}
+          className="skeleton-block post-skeleton"
+          style={{ height: "210px", borderRadius: "12px" }}
+          aria-hidden="true"
+        />
+      ))}
     </div>
   );
 }
@@ -346,7 +375,7 @@ export function PostCard({ post, profile, isOwner, onUpdated, onDeleted }: {
       </header>
       <PostBody post={post} />
       <PostImages images={post.images} onOpen={(index) => setLightbox({ index })} />
-      {!post.showInStream && isOwner && <span className="post-stream-note">Wall only</span>}
+      {!post.showInStream && isOwner && <span className="post-stream-note">Members only</span>}
       {deleteError && <p className="post-form-error" role="alert">{deleteError}</p>}
       {lightbox && (
         <ImageLightbox
@@ -366,16 +395,24 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
   const requestGeneration = useRef(0);
   const paginationInFlight = useRef<number | null>(null);
+  const loadPostsRef = useRef<(
+    reset: boolean,
+    options?: { silent?: boolean }
+  ) => Promise<void>>(async () => undefined);
 
-  const loadPosts = useCallback(async (reset: boolean) => {
+  const loadPosts = useCallback(async (
+    reset: boolean,
+    options?: { silent?: boolean }
+  ) => {
     if (!reset && paginationInFlight.current !== null) return;
     const requestId = reset ? requestGeneration.current + 1 : requestGeneration.current;
     if (reset) {
       requestGeneration.current += 1;
       paginationInFlight.current = null;
-      setLoading(true);
+      if (!options?.silent) setLoading(true);
       setLoadingMore(false);
     } else {
       paginationInFlight.current = requestId;
@@ -420,13 +457,44 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
   }, [posts, profile.id]);
 
   useEffect(() => {
-    void loadPosts(true);
+    loadPostsRef.current = (reset, options) => loadPosts(reset, options);
+  }, [loadPosts]);
+
+  useEffect(() => {
+    const supabase = createClient();
+    const authUiParticipant = registerAuthUiRefreshParticipant();
+    let cancelled = false;
+
+    const refreshCoordinator = createWallAuthRefreshCoordinator({
+      clearSensitiveRows: () => {
+        setPosts([]);
+        setHasMore(false);
+      },
+      refresh: ({ silent }) => loadPostsRef.current(true, { silent }),
+    });
+
+    const syncAuthState = (nextUserId: string | null) => {
+      if (cancelled) return;
+      setIsAuthenticated(nextUserId !== null);
+      authUiParticipant.track(nextUserId, refreshCoordinator.observe(nextUserId));
+    };
+
+    const authGate = createInitialAuthSnapshotGate<string | null>(syncAuthState);
+
+    void supabase.auth.getSession().then(({ data }) => {
+      authGate.applyInitial(data.session?.user.id ?? null);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      authGate.applyEvent(session?.user.id ?? null);
+    });
+
     return () => {
+      cancelled = true;
       requestGeneration.current += 1;
       paginationInFlight.current = null;
+      authUiParticipant.unregister();
+      subscription.unsubscribe();
     };
-    // Reload only when the viewed profile changes; pagination updates posts separately.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile.id]);
 
   return (
@@ -434,14 +502,12 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
       {isOwner && <PostEditor profileId={profile.id} onSaved={() => void loadPosts(true)} />}
 
       {loading ? (
-        <div className="post-list" aria-label="Loading Wall">
-          {Array.from({ length: 3 }).map((_, index) => <div key={index} className="skeleton-block post-skeleton" />)}
-        </div>
+        <PostListSkeleton label="Loading Wall" />
       ) : loadError && posts.length === 0 ? (
         <div className="post-empty"><p>{loadError}</p><button type="button" onClick={() => void loadPosts(true)}>Try again</button></div>
       ) : posts.length === 0 ? (
         <div className="post-empty">
-          <h2>No posts yet</h2>
+          <h2>{!isOwner && isAuthenticated === false ? "No public posts yet" : "No posts yet"}</h2>
           <p>{isOwner ? "Share the first post on your Wall." : "Check back soon."}</p>
         </div>
       ) : (
@@ -478,6 +544,9 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         .post-editor-options { justify-content: space-between; flex-wrap: wrap; margin-top: 14px; }
         .post-editor-options span, .post-editor-options label { color: var(--text-mid); font-size: 12px; }
         .post-editor-options label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+        .post-editor-options > .post-visibility-option { max-width: 390px; flex-direction: column; align-items: flex-start; gap: 3px; }
+        .post-visibility-option p { margin: 0; color: var(--text-light); font-size: 11px; line-height: 1.45; }
+        .post-visibility-option strong { color: var(--text-mid); }
         .post-editor-options input[type='checkbox'] { accent-color: var(--rust); }
         .post-image-button, .post-secondary-button, .post-author-actions button, .post-load-more, .post-empty button { border: 1px solid var(--sand); background: var(--white); color: var(--text-mid); border-radius: 7px; padding: 8px 12px; font: 600 12px Manrope, var(--font-manrope); cursor: pointer; }
         .post-editor-actions { justify-content: flex-end; margin-top: 14px; }

@@ -2,7 +2,7 @@
 -- APPLY: coded post reactions, metadata-only admin deletion audit, reaction
 -- RPCs, and atomic admin hard deletion.
 --
--- Status: NOT APPLIED.
+-- Status: APPLIED AND VERIFIED (owner-confirmed).
 -- Dependency: Chunks 11A and 11B applied and verified.
 
 begin;

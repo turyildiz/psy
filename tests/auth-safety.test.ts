@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import * as authSafety from "../lib/auth/safety.ts";
 import {
+  createInitialAuthSnapshotGate,
+  createWallAuthRefreshCoordinator,
+  getWallAuthRefreshMode,
+} from "../lib/auth/initial-snapshot-gate.ts";
+import {
+  registerAuthUiRefreshParticipant,
+  tryBeginAuthUiTransition,
+} from "../lib/auth/ui-transition.ts";
+import {
   handleRecoveryUpdate,
   type RecoveryAuthClient,
   type RecoveryProviderError,
@@ -30,6 +39,128 @@ import {
   getFriendlySignupError,
   isExistingSignupUser,
 } from "../lib/auth/safety.ts";
+
+test("initial auth snapshots cannot overwrite a newer auth event", () => {
+  const applied: Array<string | null> = [];
+  const gate = createInitialAuthSnapshotGate<string | null>((userId) => applied.push(userId));
+
+  gate.applyEvent("signed-in-user");
+  gate.applyInitial(null);
+
+  assert.deepEqual(applied, ["signed-in-user"]);
+});
+
+test("an initial auth snapshot applies when no auth event has arrived", () => {
+  const applied: Array<string | null> = [];
+  const gate = createInitialAuthSnapshotGate<string | null>((userId) => applied.push(userId));
+
+  gate.applyInitial("existing-session-user");
+  gate.applyEvent(null);
+
+  assert.deepEqual(applied, ["existing-session-user", null]);
+});
+
+test("one sign-in invokes the production Wall refresh callback exactly once", async () => {
+  const refreshes: string[] = [];
+  const coordinator = createWallAuthRefreshCoordinator({
+    clearSensitiveRows: () => refreshes.push("clear"),
+    refresh: async ({ silent }) => {
+      refreshes.push(silent ? "silent" : "visible");
+    },
+  });
+
+  await coordinator.observe(null);
+  const refreshesBeforeSignIn = refreshes.length;
+  await coordinator.observe("member-1");
+  await coordinator.observe("member-1");
+
+  assert.deepEqual(refreshes.slice(refreshesBeforeSignIn), ["silent"]);
+  assert.equal(getWallAuthRefreshMode("member-1", null), "secure-reset");
+  assert.equal(getWallAuthRefreshMode("member-1", "member-2"), "secure-reset");
+});
+
+test("initial authenticated hydration performs one visible Wall query", async () => {
+  const refreshes: string[] = [];
+  const coordinator = createWallAuthRefreshCoordinator({
+    clearSensitiveRows: () => refreshes.push("clear"),
+    refresh: async ({ silent }) => {
+      refreshes.push(silent ? "silent" : "visible");
+    },
+  });
+
+  await coordinator.observe("member-1");
+  await coordinator.observe("member-1");
+
+  assert.deepEqual(refreshes, ["visible"]);
+});
+
+test("auth UI transition waits for every registered page participant", async () => {
+  const wall = registerAuthUiRefreshParticipant();
+  const header = registerAuthUiRefreshParticipant();
+  const transition = tryBeginAuthUiTransition();
+  assert.ok(transition);
+
+  wall.track(null, Promise.resolve());
+
+  let releaseWall: (() => void) | undefined;
+  const wallRefresh = new Promise<void>((resolve) => { releaseWall = resolve; });
+  wall.track("member-1", wallRefresh);
+  wall.track("member-1", Promise.resolve());
+  transition.expect("member-1");
+
+  let settled = false;
+  const waiting = transition.wait().then(() => { settled = true; });
+  await Promise.resolve();
+  assert.equal(settled, false);
+
+  header.track("member-1", Promise.resolve());
+  await new Promise<void>((resolve) => setTimeout(resolve, 0));
+  assert.equal(settled, false);
+
+  releaseWall?.();
+  await waiting;
+  assert.equal(settled, true);
+  wall.unregister();
+  header.unregister();
+});
+
+test("a second auth UI transition cannot replace one already in progress", async () => {
+  const participant = registerAuthUiRefreshParticipant();
+  const first = tryBeginAuthUiTransition();
+  assert.ok(first);
+  assert.equal(tryBeginAuthUiTransition(), null);
+
+  first.expect("member-1");
+  participant.track("member-1", Promise.resolve());
+  await first.wait();
+  participant.unregister();
+});
+
+test("modal login keeps the normal translucent backdrop without a full-page reload", () => {
+  const authModal = readFileSync("components/AuthModal.tsx", "utf8");
+  const header = readFileSync("components/layout/Header.tsx", "utf8");
+  const listingPage = readFileSync("app/listing/[id]/page.tsx", "utf8");
+  const authModalFrame = readFileSync("components/AuthModalFrame.tsx", "utf8");
+  const loginForm = authModal.slice(
+    authModal.indexOf("function LoginForm"),
+    authModal.indexOf("/* ── Signup form ── */")
+  );
+
+  assert.match(loginForm, /onSuccess/);
+  assert.match(loginForm, /onPendingChange/);
+  assert.match(loginForm, /transition\.wait\(\)/);
+  assert.doesNotMatch(loginForm, /reloadAtTop/);
+  assert.match(loginForm, /status === "idle"[\s\S]*?<Link href="\/forgot-password"/);
+  assert.match(loginForm, /<button onClick=\{onSwitch\} disabled=\{status !== "idle"\}/);
+  assert.doesNotMatch(authModalFrame, /obscureBackground/);
+  assert.match(authModalFrame, /background: "oklch\(0% 0 0 \/ 0\.65\)"/);
+  assert.match(authModal, /onClose=\{loginPending \? undefined : onClose\}/);
+  assert.doesNotMatch(authModal, /obscureBackground/);
+  assert.match(header, /onAuthStateChange/);
+  assert.match(listingPage, /onAuthStateChange/);
+  assert.match(listingPage, /registerAuthUiRefreshParticipant/);
+  assert.match(listingPage, /authUiParticipant\.track/);
+});
 
 test("getSafeRedirect accepts local paths and strips a same-origin absolute URL to a local target", () => {
   assert.equal(getSafeRedirect("/messages?tab=unread#latest", "https://psy.market"), "/messages?tab=unread#latest");
@@ -780,10 +911,10 @@ test("header auth navigation keeps its cover until the pathname commits", () => 
   assert.doesNotMatch(forgotLink, /onClick=/);
   assert.match(headerSource, /setRightOpen\(false\);\s+setAuthModal\(null\);\s+}, \[pathname\]\);/);
 
-  // A failed or cancelled navigation leaves the current modal usable rather than
-  // removing its cover: backdrop, close button, and Escape still call onClose.
-  assert.match(authModalSource, /<AuthModalFrame onClose=\{onClose\}>/);
-  assert.match(authModalSource, /e\.key === "Escape"\) onClose\(\)/);
+  // A failed login leaves the modal usable, while an in-flight successful login
+  // keeps the normal translucent modal in place until tracked refreshes settle.
+  assert.match(authModalSource, /onClose=\{loginPending \? undefined : onClose\}/);
+  assert.match(authModalSource, /event\.key === "Escape" && !loginPending\) onClose\(\)/);
 
   // These are local view switches, not route changes, so they must not close the modal.
   assert.match(authModalSource, /<button onClick=\{onSwitch\}[^>]*>\s*Sign up free/);

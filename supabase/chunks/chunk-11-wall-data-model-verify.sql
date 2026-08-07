@@ -1,7 +1,7 @@
 -- psy.market database Chunk 11
 -- READ-ONLY POST-APPLY VERIFICATION: Wall data model
 --
--- Status: NOT RUN.
+-- Status: COMPLETED; Chunks 11A, 11B, and 11C owner-confirmed applied and verified.
 -- This one script is intentionally stage-aware:
 --   * after 11A: chunk_11a_checks_pass = true; 11B/11C are null;
 --   * after 11B: chunk_11a_checks_pass and chunk_11b_checks_pass = true;

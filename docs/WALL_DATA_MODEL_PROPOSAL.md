@@ -2,7 +2,7 @@
 
 ## Document status and authority
 
-This is a design proposal, not an executable migration or implementation. It separates verified findings about the current system from the proposed V1 design.
+This document began as a design proposal. Chunk 11A–11D are now owner-applied and verified; the text below records the resulting V1 model and retains historical design context. The 2026-08-07 visibility amendment supersedes the earlier “hidden only from Stream” model.
 
 The binding product requirements come from the **Wall, Stream & Posts (V1)** section of `docs/V1_DECISIONS.md`:
 
@@ -15,7 +15,7 @@ The binding product requirements come from the **Wall, Stream & Posts (V1)** sec
 - V1 supports one reaction per profile per post and no comments. Reactions store fixed allowlisted codes rather than Unicode characters; the app maps codes to visuals so custom psytrance artwork can replace them later without a database change. Festival Notice Board reactions remain unchanged.
 - Authors may edit and physically delete their own posts.
 - Post deletion must make image references disappear from the database so the images can enter the manual orphan-report process. Status-only soft deletion is prohibited.
-- `show in Stream` defaults on. Turning it off hides a post only from Stream; the post remains on its author's Wall and in followers' Following feeds.
+- `Make this post public` defaults on. Checked posts are publicly readable, including by logged-out visitors. Unchecked posts are readable only by signed-in members on the author's Wall and are excluded from Stream; reactions inherit the parent post's visibility.
 - A post excluded from Stream cannot be flagged for the Homepage Hero.
 - Following is part of V1. The owner-only Following tab is absent while the owner follows nobody.
 - Profile tabs have their own URLs and Wall is the default.
@@ -420,14 +420,16 @@ The UI mirrors these rules but is not the enforcement boundary.
 
 ### Visibility semantics
 
+The centralized base RLS rule first preserves the author-ban and active-admin behavior, then applies the public/member boundary: `show_in_stream = true` is readable by everyone, while `show_in_stream = false` is readable only when `auth.role() = 'authenticated'`. Reaction readability uses the same parent-post visibility rule and retains the reactor-ban predicate.
+
 | Surface | Additional filter after base visible-post policy |
 |---|---|
 | Author Wall | Matching `profile_id` |
-| Following feed | Author profile is followed by the current profile |
+| Following feed | Author profile is followed by the current profile; members-only rows still require authentication |
 | Stream | `show_in_stream` is true |
 | Homepage Hero | `show_in_stream` and `is_hero_featured` are both true |
 
-The base post policy hides banned authors. `show_in_stream` must not be part of base RLS because unchecked posts still belong on Wall and Following.
+`show_in_stream` is therefore both the public-versus-members-only RLS input and the explicit Stream/Hero query filter. The application keeps the explicit Stream filter even though RLS also enforces anonymous visibility.
 
 ### Indexes
 
@@ -568,9 +570,9 @@ The privileged admin-delete operation validates the active admin and bounded rea
 
 ### Read policy
 
-Public read is allowed only when the post author's account is not banned. A separate active-admin branch allows active admins to read banned-author posts for inline moderation.
+Read access requires the existing author visibility rule: an unbanned author, or the existing active-admin exception for inline moderation. The centralized visibility helper then allows `show_in_stream = true` to everyone and `show_in_stream = false` only to authenticated members. The posts table has one permissive read policy so no broader policy can leak members-only rows through PostgreSQL policy `OR` composition.
 
-Stream and Hero flags are query filters, not general RLS filters.
+Stream and Hero retain their explicit `show_in_stream` query filters. Reaction reads call the same parent-post visibility rule and preserve the reactor-ban predicate.
 
 ### Insert policy
 

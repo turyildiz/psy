@@ -92,7 +92,7 @@ test("every deliberate full navigation uses the shared top-reset helper", () => 
   const header = readFileSync("components/layout/Header.tsx", "utf8");
   const rootShell = readFileSync("components/AuthBackdropShell.tsx", "utf8");
 
-  assert.equal(authModal.match(/reloadAtTop\(\)/g)?.length, 2);
+  assert.equal(authModal.match(/reloadAtTop\(\)/g)?.length, 1);
   assert.match(loginPage, /assignAtTop\(getSafeRedirect\(/);
   assert.match(header, /assignAtTop\("\/"\)/);
   assert.match(rootShell, /restoreTopAfterNavigation\(\)/);

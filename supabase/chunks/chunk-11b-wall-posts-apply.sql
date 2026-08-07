@@ -2,7 +2,7 @@
 -- APPLY: posts table, database invariants, RLS, trusted author/Hero RPCs,
 -- and ban-time Hero clearing.
 --
--- Status: NOT APPLIED.
+-- Status: APPLIED AND VERIFIED (owner-confirmed).
 -- Dependency: Chunk 11A applied and verified.
 
 begin;

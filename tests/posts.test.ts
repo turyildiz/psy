@@ -52,7 +52,29 @@ test("profile Wall uses only trusted post RPCs for mutations and the existing po
   assert.match(source, /purpose:\s*"post-image"/);
   assert.doesNotMatch(source, /\.from\("posts"\)\s*\.\s*(?:insert|update|delete)\(/);
   assert.match(source, /getPostCharacterCount\(body\)/);
-  assert.match(source, /Show in Stream/);
+  assert.match(source, /Make this post public/);
+});
+
+test("Wall presents the approved public and members-only visibility states", () => {
+  const wall = readFileSync("components/ProfileWall.tsx", "utf8");
+  const profilePage = readFileSync("app/[handle]/page.tsx", "utf8");
+
+  assert.match(wall, /Make this post public/);
+  assert.match(wall, /Public<\/strong> — everyone can see it on your Wall and in Stream\./);
+  assert.match(wall, /Members only<\/strong> — signed-in people can see it on your Wall\. It won’t appear in Stream\./);
+  assert.match(wall, /post-stream-note">Members only<\/span>/);
+  assert.doesNotMatch(wall, /Wall only|Show in Stream/);
+  assert.match(wall, /No public posts yet/);
+  assert.match(wall, /onAuthStateChange/);
+  assert.match(wall, /createWallAuthRefreshCoordinator\(/);
+  assert.match(wall, /clearSensitiveRows:[\s\S]*?setPosts\(\[\]\)/);
+  assert.match(wall, /refresh: \(\{ silent \}\) => loadPostsRef\.current\(true, \{ silent \}\)/);
+  assert.match(wall, /authUiParticipant\.track\(nextUserId, refreshCoordinator\.observe\(nextUserId\)\)/);
+  assert.match(wall, /if \(!options\?\.silent\) setLoading\(true\)/);
+  assert.match(wall, /setPosts\(\(current\) => reset \? next : \[\.\.\.current, \.\.\.next\]\)/);
+  assert.match(profilePage, /onAuthStateChange/);
+  assert.match(profilePage, /setMyHandle\(null\)/);
+  assert.match(profilePage, /setMyProfileId\(null\)/);
 });
 
 test("profile Wall renders linkified posts and keyset-paginated load-more results", () => {
@@ -141,7 +163,10 @@ test("public Stream reuses Wall cards and filters only on the database-backed St
   const wall = readFileSync("components/ProfileWall.tsx", "utf8");
 
   assert.match(wall, /export function PostCard/);
-  assert.match(stream, /import \{[\s\S]*PostCard[\s\S]*\} from "@\/components\/ProfileWall"/);
+  assert.match(wall, /export function PostListSkeleton/);
+  assert.match(wall, /className="post-list" style=\{\{ display: "flex", flexDirection: "column", gap: "16px" \}\}/);
+  assert.match(wall, /className="skeleton-block post-skeleton"[\s\S]*style=\{\{ height: "210px", borderRadius: "12px" \}\}/);
+  assert.match(stream, /import \{[\s\S]*PostCard[\s\S]*PostListSkeleton[\s\S]*\} from "@\/components\/ProfileWall"/);
   assert.match(stream, /\.from\("posts"\)/);
   assert.match(stream, /\.eq\("show_in_stream", true\)/);
   assert.match(stream, /profiles\(/);
@@ -151,6 +176,8 @@ test("public Stream reuses Wall cards and filters only on the database-backed St
 
 test("Stream is strictly chronological with independent keyset pagination and a resolved empty state", () => {
   const stream = readFileSync("components/StreamPageClient.tsx", "utf8");
+  const wall = readFileSync("components/ProfileWall.tsx", "utf8");
+  const globals = readFileSync("app/globals.css", "utf8");
 
   assert.match(stream, /\.order\("created_at", \{ ascending: false \}\)/);
   assert.match(stream, /\.order\("id", \{ ascending: false \}\)/);
@@ -158,9 +185,19 @@ test("Stream is strictly chronological with independent keyset pagination and a 
   assert.match(stream, /created_at\.lt\.\$\{cursor\.createdAt\}/);
   assert.match(stream, /id\.lt\.\$\{cursor\.id\}/);
   assert.match(stream, /paginationInFlight\.current/);
-  assert.match(stream, />\s*Load more\s*</);
+  assert.match(stream, /loadingMore \? "Loading…" : "Load more"/);
   assert.match(stream, /No posts in the Stream yet/);
-  assert.match(stream, /loading \? \([\s\S]*posts\.length === 0/);
+  assert.match(stream, /const requestInFlight = loading \|\| rangeNavigationPending \|\| resolvedRangeKey !== rangeKey/);
+  assert.match(stream, /requestInFlight \? \(\s*<PostListSkeleton label="Loading Stream" \/>/);
+  assert.match(stream, /\) : posts\.length === 0 \? \(/);
+  assert.match(stream, /className="stagger-item"/);
+  assert.match(stream, /key=\{post\.id\}[\s\S]*?className="stagger-item"/);
+  assert.match(stream, /animationIndex: Math\.min\(index, 9\)/);
+  assert.match(stream, /"--i": animationIndex/);
+  assert.match(globals, /\.stagger-item \{\s*animation: fadeUp 0\.45s cubic-bezier\(0\.22, 1, 0\.36, 1\) both;/);
+  assert.match(globals, /animation-delay: calc\(var\(--i, 0\) \* 55ms\)/);
+  assert.match(globals, /@media \(prefers-reduced-motion: reduce\)[\s\S]*?\.stagger-item \{ animation: none; \}/);
+  assert.doesNotMatch(wall, /className="stagger-item"/);
   assert.match(stream, /\.stream-column \{ max-width: 680px; margin: 0 auto;/);
 });
 
@@ -172,6 +209,8 @@ test("Stream date ranges are server-normalized, URL-backed, and applied to the e
   assert.match(page, /normalizeStreamDateRange\(searchParams\)/);
   assert.match(page, /redirect\(`/);
   assert.match(page, /<StreamPageClient range=\{range\}/);
+  assert.match(stream, /useTransition\(\)/);
+  assert.match(stream, /startRangeTransition\([\s\S]*router\.push/);
 
   const baseQuery = stream.indexOf('.eq("show_in_stream", true)');
   const lowerBound = stream.indexOf('.gte("created_at", rangeBounds.fromInclusive)');
