@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "reac
 import Link from "next/link";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ImageLightbox from "@/components/ImageLightbox";
+import AuthModal from "@/components/AuthModal";
 import { createClient } from "@/lib/supabase/client";
 import {
   createInitialAuthSnapshotGate,
@@ -25,6 +26,16 @@ import {
   validatePostBody,
 } from "@/lib/posts/validation";
 import type { Profile } from "@/types/marketplace";
+import {
+  POST_REACTION_ICON_VIEWBOX,
+  POST_REACTION_OPTIONS,
+  applyOptimisticPostReaction,
+  summarizePostReactions,
+  toPostReactionRows,
+  type PostReactionCode,
+  type PostReactionRow,
+} from "@/lib/posts/reactions";
+import { useReactionViewerProfileId } from "@/lib/posts/use-reaction-viewer";
 
 export const POST_PAGE_SIZE = 10;
 const POST_IMAGE_LIMIT = getUploadPolicy("post-image").maxCount;
@@ -37,6 +48,7 @@ export type Post = {
   showInStream: boolean;
   createdAt: string;
   updatedAt: string;
+  reactions: PostReactionRow[];
 };
 
 export type PostAuthor = Pick<Profile, "id" | "handle" | "displayName" | "avatarUrl">;
@@ -64,6 +76,7 @@ export function toPost(row: Record<string, unknown>): Post {
     showInStream: row.show_in_stream !== false,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+    reactions: toPostReactionRows(row.post_reactions),
   };
 }
 
@@ -309,10 +322,142 @@ export function PostListSkeleton({ label }: { label: string }) {
   );
 }
 
-export function PostCard({ post, profile, isOwner, onUpdated, onDeleted }: {
+function PostReactionBar({
+  post,
+  viewerProfileId,
+  onLoginRequested,
+}: {
+  post: Post;
+  viewerProfileId: string | null | undefined;
+  onLoginRequested: () => void;
+}) {
+  const [reactionRows, setReactionRows] = useState<PostReactionRow[]>(post.reactions);
+  const [mutating, setMutating] = useState(false);
+  const [reactionError, setReactionError] = useState<string | null>(null);
+  const mutationGeneration = useRef(0);
+
+  useEffect(() => {
+    mutationGeneration.current += 1;
+    setReactionRows(post.reactions);
+    setMutating(false);
+    setReactionError(null);
+    return () => {
+      mutationGeneration.current += 1;
+    };
+  }, [post.id, post.reactions]);
+
+  const { counts, activeCode } = summarizePostReactions(
+    reactionRows,
+    typeof viewerProfileId === "string" ? viewerProfileId : null,
+  );
+
+  const react = async (code: PostReactionCode) => {
+    if (viewerProfileId === undefined || mutating) return;
+    if (viewerProfileId === null) {
+      onLoginRequested();
+      return;
+    }
+
+    const requestGeneration = ++mutationGeneration.current;
+    const previousRows = reactionRows;
+    const nextCode = activeCode === code ? null : code;
+    setReactionRows(applyOptimisticPostReaction(previousRows, viewerProfileId, nextCode));
+    setReactionError(null);
+    setMutating(true);
+
+    const supabase = createClient();
+    let mutation: { error: unknown };
+    try {
+      mutation = nextCode
+        ? await supabase.rpc("set_post_reaction", {
+            target_post_id: post.id,
+            target_profile_id: viewerProfileId,
+            target_reaction_code: nextCode,
+          })
+        : await supabase.rpc("remove_post_reaction", {
+            target_post_id: post.id,
+            target_profile_id: viewerProfileId,
+          });
+    } catch {
+      if (requestGeneration !== mutationGeneration.current) return;
+      setReactionRows(previousRows);
+      setReactionError("Could not update your reaction. Please try again.");
+      setMutating(false);
+      return;
+    }
+
+    if (requestGeneration !== mutationGeneration.current) return;
+    if (mutation.error) {
+      setReactionRows(previousRows);
+      setReactionError("Could not update your reaction. Please try again.");
+      setMutating(false);
+      return;
+    }
+
+    let data: unknown = null;
+    let error: unknown = null;
+    try {
+      const result = await supabase
+        .from("post_reactions")
+        .select("profile_id, reaction_code")
+        .eq("post_id", post.id);
+      data = result.data;
+      error = result.error;
+    } catch {
+      error = true;
+    }
+    if (requestGeneration !== mutationGeneration.current) return;
+    if (error) {
+      setReactionError("Your reaction was saved, but the counts could not be refreshed.");
+    } else {
+      setReactionRows(toPostReactionRows(data));
+    }
+    setMutating(false);
+  };
+
+  return (
+    <div className="post-reaction-area">
+      <div className="post-reactions" aria-label="Post reactions">
+        {POST_REACTION_OPTIONS.map(({ code, visual, label }) => {
+          const count = counts[code];
+          const active = activeCode === code;
+          return (
+            <button
+              key={code}
+              type="button"
+              className={`post-reaction-button${active ? " active" : ""}${count === 0 ? " zero" : ""}`}
+              data-tooltip={label}
+              aria-label={`${label}: ${count}${active ? ", your reaction" : ""}`}
+              aria-pressed={active}
+              disabled={mutating || viewerProfileId === undefined}
+              onClick={() => void react(code)}
+            >
+              <svg
+                aria-hidden="true"
+                viewBox={POST_REACTION_ICON_VIEWBOX}
+                width="20" height="20"
+                fill="currentColor"
+              >
+                {visual.paths.map((path, index) => (
+                  <path key={index} d={path.d} fillRule={path.fillRule} clipRule={path.fillRule} />
+                ))}
+              </svg>
+              <small>{count}</small>
+            </button>
+          );
+        })}
+      </div>
+      {reactionError && <p className="post-reaction-error" role="alert">{reactionError}</p>}
+    </div>
+  );
+}
+
+export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginRequested, onUpdated, onDeleted }: {
   post: Post;
   profile: PostAuthor;
   isOwner: boolean;
+  viewerProfileId: string | null | undefined;
+  onLoginRequested: () => void;
   onUpdated: (post: Post) => void;
   onDeleted: (id: string) => void;
 }) {
@@ -375,6 +520,7 @@ export function PostCard({ post, profile, isOwner, onUpdated, onDeleted }: {
       </header>
       <PostBody post={post} />
       <PostImages images={post.images} onOpen={(index) => setLightbox({ index })} />
+      <PostReactionBar post={post} viewerProfileId={viewerProfileId} onLoginRequested={onLoginRequested} />
       {!post.showInStream && isOwner && <span className="post-stream-note">Members only</span>}
       {deleteError && <p className="post-form-error" role="alert">{deleteError}</p>}
       {lightbox && (
@@ -390,12 +536,14 @@ export function PostCard({ post, profile, isOwner, onUpdated, onDeleted }: {
 }
 
 export default function ProfileWall({ profile, isOwner }: { profile: Profile; isOwner: boolean }) {
+  const viewerProfileId = useReactionViewerProfileId();
   const [posts, setPosts] = useState<Post[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [reactionLoginOpen, setReactionLoginOpen] = useState(false);
   const requestGeneration = useRef(0);
   const paginationInFlight = useRef<number | null>(null);
   const loadPostsRef = useRef<(
@@ -422,7 +570,7 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
 
     let query = createClient()
       .from("posts")
-      .select("id, profile_id, body, images, show_in_stream, created_at, updated_at")
+      .select("id, profile_id, body, images, show_in_stream, created_at, updated_at, post_reactions(profile_id, reaction_code)")
       .eq("profile_id", profile.id)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
@@ -518,6 +666,8 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
               post={post}
               profile={profile}
               isOwner={isOwner}
+              viewerProfileId={viewerProfileId}
+              onLoginRequested={() => setReactionLoginOpen(true)}
               onUpdated={(updated) => setPosts((current) => current.map((item) => item.id === updated.id ? updated : item))}
               onDeleted={(id) => setPosts((current) => current.filter((item) => item.id !== id))}
             />
@@ -526,6 +676,8 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
           {hasMore && <button type="button" className="post-load-more" onClick={() => void loadPosts(false)} disabled={loadingMore}>Load more</button>}
         </div>
       )}
+
+      {reactionLoginOpen && <AuthModal initial="login" onClose={() => setReactionLoginOpen(false)} />}
 
       <style>{`
         .profile-wall { max-width: 680px; margin: 0 auto; padding: 32px 0 80px; }

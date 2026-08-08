@@ -122,12 +122,18 @@ test("post editor locks every mutable field while saving", () => {
 test("post and listing galleries reuse one keyboard and swipe-capable image lightbox", () => {
   const lightbox = readFileSync("components/ImageLightbox.tsx", "utf8");
   const wall = readFileSync("components/ProfileWall.tsx", "utf8");
+  const stream = readFileSync("components/StreamPageClient.tsx", "utf8");
   const listing = readFileSync("app/listing/[id]/page.tsx", "utf8");
 
   assert.match(lightbox, /export default function ImageLightbox/);
   assert.match(lightbox, /e\.key === "ArrowLeft"/);
   assert.match(lightbox, /e\.key === "ArrowRight"/);
   assert.match(lightbox, /e\.key === "Escape"/);
+  assert.match(lightbox, /import \{ createPortal \} from "react-dom"/);
+  assert.match(lightbox, /setPortalTarget\(document\.body\)/);
+  assert.match(lightbox, /return createPortal\(/);
+  assert.match(lightbox, /onClick=\{onClose\}/);
+  assert.match(lightbox, /onClick=\{\(event\) => event\.stopPropagation\(\)\}/);
   assert.match(lightbox, /onTouchStart=\{handleTouchStart\}/);
   assert.match(lightbox, /onTouchEnd=\{handleTouchEnd\}/);
   assert.match(lightbox, /role="dialog"/);
@@ -149,6 +155,7 @@ test("post and listing galleries reuse one keyboard and swipe-capable image ligh
   assert.match(wall, /import ImageLightbox from "@\/components\/ImageLightbox"/);
   assert.match(wall, /onClick=\{\(\) => onOpen\(index\)\}/);
   assert.match(wall, /<ImageLightbox[\s\S]*?initialIndex=\{lightbox\.index\}/);
+  assert.match(stream, /className="stagger-item"[\s\S]*?<PostCard/);
 });
 
 test("Wall remains a centered constrained reading column", () => {

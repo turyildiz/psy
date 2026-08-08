@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useTransition, type 
 import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
+import AuthModal from "@/components/AuthModal";
 import {
   POST_PAGE_SIZE,
   PostCard,
@@ -14,6 +15,7 @@ import {
 } from "@/components/ProfileWall";
 import { createClient } from "@/lib/supabase/client";
 import { getStreamLocalDateBounds, streamRangeQueryString, type StreamDateRange } from "@/lib/posts/date-range";
+import { useReactionViewerProfileId } from "@/lib/posts/use-reaction-viewer";
 
 type StreamPost = {
   post: Post;
@@ -45,12 +47,14 @@ function toStreamPost(row: Record<string, unknown>): StreamPost | null {
 
 export default function StreamPageClient({ range }: { range: StreamDateRange }) {
   const router = useRouter();
+  const viewerProfileId = useReactionViewerProfileId();
   const rangeKey = `${range.from ?? ""}:${range.to ?? ""}`;
   const [posts, setPosts] = useState<StreamPost[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [resolvedRangeKey, setResolvedRangeKey] = useState<string | null>(null);
   const [rangeNavigationPending, startRangeTransition] = useTransition();
+  const [reactionLoginOpen, setReactionLoginOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rangeOpen, setRangeOpen] = useState(Boolean(range.from || range.to));
@@ -78,7 +82,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
 
     let query = createClient()
       .from("posts")
-      .select("id, profile_id, body, images, show_in_stream, created_at, updated_at, profiles(id, handle, display_name, avatar_url)")
+      .select("id, profile_id, body, images, show_in_stream, created_at, updated_at, profiles(id, handle, display_name, avatar_url), post_reactions(profile_id, reaction_code)")
       .eq("show_in_stream", true)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
@@ -224,6 +228,8 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
                     post={post}
                     profile={profile}
                     isOwner={false}
+                    viewerProfileId={viewerProfileId}
+                    onLoginRequested={() => setReactionLoginOpen(true)}
                     onUpdated={() => {}}
                     onDeleted={() => {}}
                   />
@@ -240,6 +246,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         </div>
       </main>
       <Footer />
+      {reactionLoginOpen && <AuthModal initial="login" onClose={() => setReactionLoginOpen(false)} />}
 
       <style>{`
         .stream-page { min-height: 100vh; background: var(--cream); }

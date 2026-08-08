@@ -55,6 +55,66 @@ body::after {
   animation-delay: calc(var(--i, 0) * 55ms);
 }
 
+@keyframes reactionTap {
+  0% { transform: scale(0.94); }
+  70% { transform: scale(1.05); }
+  100% { transform: scale(1); }
+}
+
+.post-reaction-area { margin-top: 14px; padding-top: 11px; border-top: 1px solid var(--sand); }
+.post-reactions { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; }
+.post-reaction-button {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-width: 40px;
+  min-height: 30px;
+  padding: 4px 8px;
+  border: 1px solid var(--sand);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-light);
+  cursor: pointer;
+  font-family: Manrope, var(--font-manrope);
+}
+.post-reaction-button > svg { display: block; flex-shrink: 0; }
+.post-reaction-button > small { min-width: 7px; font-size: 10px; font-weight: 650; line-height: 1; }
+.post-reaction-button.zero { opacity: .5; }
+.post-reaction-button:hover:not(:disabled), .post-reaction-button:focus-visible { border-color: var(--rust); color: var(--text-mid); }
+.post-reaction-button.active { border-color: oklch(57% 0.168 42 / .55); background: oklch(57% 0.168 42 / .09); color: var(--rust); opacity: 1; animation: reactionTap .2s cubic-bezier(0.22, 1, 0.36, 1); }
+.post-reaction-button:disabled { cursor: wait; }
+.post-reaction-error { margin: 7px 0 0; color: #a52e24; font-size: 11px; line-height: 1.4; }
+
+@media (hover: hover) and (pointer: fine) {
+  .post-reaction-button::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    left: 50%;
+    bottom: calc(100% + 7px);
+    z-index: 20;
+    padding: 4px 7px;
+    border: 1px solid oklch(100% 0 0 / .1);
+    border-radius: 5px;
+    background: var(--dark);
+    box-shadow: 0 3px 10px oklch(0% 0 0 / .16);
+    color: white;
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 1.2;
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    transform: translate(-50%, 3px);
+    transition: opacity .14s ease, transform .14s ease;
+  }
+  .post-reaction-button:hover::after, .post-reaction-button:focus-visible::after {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+}
+
 @keyframes slideInRight {
   from { transform: translateX(100%); }
   to   { transform: translateX(0); }
@@ -864,5 +924,7 @@ input:autofill {
 }
 @media (prefers-reduced-motion: reduce) {
   .stagger-item { animation: none; }
+  .post-reaction-button.active { animation: none; }
+  .post-reaction-button::after { transition: none; }
   .wall-note, .wall-tab { transition: none; }
 }

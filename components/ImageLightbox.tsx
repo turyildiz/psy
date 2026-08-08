@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type CSSProperties, type TouchEvent } from "react";
+import { createPortal } from "react-dom";
 
 type ImageLightboxProps = {
   images: string[];
@@ -25,6 +26,7 @@ export default function ImageLightbox({
 }: ImageLightboxProps) {
   const galleryImages = images.length > 0 ? images : [fallbackSrc];
   const [index, setIndex] = useState(() => clampIndex(initialIndex, galleryImages.length));
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
   const touchStart = useRef<{ x: number; y: number } | null>(null);
   const thumbnailGap = 6;
   const mobileThumbnailWidth = `calc(${100 / galleryImages.length}% - ${((galleryImages.length - 1) * thumbnailGap) / galleryImages.length}px)`;
@@ -43,6 +45,10 @@ export default function ImageLightbox({
     setIndex(clamped);
     onIndexChange?.(clamped);
   };
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+  }, []);
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
@@ -70,7 +76,9 @@ export default function ImageLightbox({
     selectIndex(index + (dx > 0 ? 1 : -1));
   };
 
-  return (
+  if (!portalTarget) return null;
+
+  return createPortal(
     <div
       role="dialog"
       aria-modal="true"
@@ -149,6 +157,7 @@ export default function ImageLightbox({
           .image-lightbox-thumbnail { width: clamp(44px, var(--image-lightbox-mobile-thumbnail-width), 68px) !important; height: auto !important; aspect-ratio: 1; }
         }
       `}</style>
-    </div>
+    </div>,
+    portalTarget,
   );
 }
