@@ -471,7 +471,9 @@ The following current runtime flows use `.eq("user_id", ...).single()`, `.maybeS
 
 Public profile lookups by handle or ID are not one-profile-per-account assumptions, but every `select("*")` must become an explicit safe public column selection once `user_id` is hidden.
 
-`types/marketplace.ts` currently includes `userId` in the general public `Profile` type. That type must be split: the normal public profile contract must not contain an account owner ID, while a separately named private admin/account contract may contain ownership data. The shared `PROFILE_TYPES` list and the duplicated selector arrays in `components/EditProfileModal.tsx` and `app/profile/edit/page.tsx` must add `vendor` with the display label **Shop / Brand**.
+`types/marketplace.ts` currently includes `userId` in the general public `Profile` type, and `lib/db.ts` maps `row.user_id` into that public object. Both must be split: the normal public profile contract/mapping must not contain an account owner ID, while a separately named private admin/account contract may contain ownership data. The shared `PROFILE_TYPES` list and the duplicated selector arrays in `components/EditProfileModal.tsx` and `app/profile/edit/page.tsx` must add `vendor` with the display label **Shop / Brand**.
+
+`lib/auth/ui-transition.ts` currently keys auth/UI transition observations only by auth user ID, so switching profiles under the same account produces no auth transition. Its identity/generation contract must include active profile ID and selection version. `components/MessagesInbox.tsx` must also include active profile/generation in fetch and Realtime dependencies, synchronously clear old conversations/thread/messages/drafts on switch, unsubscribe old channels, and reject late responses.
 
 ## 20. Other identity-bearing application flows
 
@@ -515,9 +517,10 @@ Public profile lookups by handle or ID are not one-profile-per-account assumptio
 
 ### Uploads
 
-- Every upload intent carries active `ownerId = profile.id`.
-- Presign and finalization independently verify account ownership, account ban, active-profile equality, purpose, resource ownership, index, MIME, size, and expiry.
+- Every browser upload intent carries active `ownerId = profile.id` plus the active session/selection version needed to detect a later switch.
+- Presign and finalization independently verify account ownership, account ban, active-profile equality, selection version, purpose, resource ownership, index, MIME, size, and expiry.
 - Switching invalidates pending UI intents. Finalization repeats current authorization and cannot rely on authorization performed before the switch.
+- Trusted event/flyer CLI imports are not interactive browser sessions: they require an explicit approved owner profile and ordinary ownership/resource verification, but must not pretend to use a browser's active-session selector.
 - Account-level rate limiting remains shared.
 
 ### Profile editing and creation
@@ -560,11 +563,14 @@ Required safeguards:
 - payloads never add `user_id` or sibling-profile lists;
 - the private active-session table is not added to public Realtime publication;
 - profile deletion retains default/minimal delete-event exposure and does not switch to `REPLICA IDENTITY FULL` without a separate privacy review;
+- current Supabase Realtime cannot apply subscriber RLS to PostgreSQL `DELETE` events; with default replica identity, cascaded private-table deletes can still expose row primary keys to subscribers that were on the channel. The messaging design must explicitly accept that identifier-only exposure or move private delete signaling to an authorized Broadcast/server channel;
 - tests verify no old-profile event mutates the new-profile inbox after a switch.
 
 ## 23. New-message email
 
 Keep `public.users.email_notifications` as the single account-level switch.
+
+This is not a small extension of a finished notifier. The current app has no new-message email sender. Message insertion and unread mutation are separate client operations, and the current message deep-link chain does not reliably preserve/open the requested conversation after resolving the inbox profile. The implementation therefore needs one transactional message/outbox boundary keyed by accepted `message_id`, plus an exact recipient-profile/thread deep link; it must not send from an unchecked client-side `Promise.all` sequence.
 
 A server-side new-message notifier must:
 
@@ -783,9 +789,13 @@ The claim transaction must instead:
 
 The proposal for reservations remains separately approval-gated and unimplemented. Its one-profile assumptions must be revised before use.
 
+A live read-only route/handle comparison also found that `art`, `stream`, and `vintage` are current top-level routes but are absent from `blocked_handles`. None is currently occupied. These must be added through a separately reviewed exact database package before additional-profile creation is enabled, and the launch preflight must compare all top-level routes against blocked/reserved/current profile handles rather than rely on a static remembered list.
+
 ## 34. Hidden or soft-deleted Auth identity finding
 
-The captured Auth schema includes `auth.users.deleted_at`, and Supabase administration supports deletion paths whose treatment of identities must be explicit. Application-row absence is not sufficient proof that the Auth login identity is gone.
+The read-only live audit found **six Auth Admin API-visible accounts but seven `public.users` rows and seven profiles**. Exactly one public user is absent from the Auth Admin listing and still owns one profile. Valid foreign keys establish that an `auth.users` parent row physically exists; the available audit role could not read `auth.users.deleted_at`, so soft-deleted status remains unproven, but the shape is consistent with an API-hidden/soft-deleted Auth identity.
+
+The captured Auth schema includes `auth.users.deleted_at`, and Supabase administration supports deletion paths whose treatment of identities must be explicit. Auth Admin API listings or application-row absence alone are therefore not sufficient proof that the physical Auth login identity is gone.
 
 Before account-deletion implementation, perform a read-only inventory of:
 
@@ -939,7 +949,8 @@ The owner-applied read-only preflight must report at least:
 - all child FKs and delete actions from profiles;
 - current events grouped by `created_by`;
 - current shared conversations/messages by profile;
-- existing hidden/soft-deleted Auth users and identities;
+- Auth Admin API-visible account IDs compared with physical/application `public.users` and `profiles` roots, explicitly classifying the observed one-account mismatch rather than assuming an omitted API row is deleted;
+- current top-level app routes compared against `blocked_handles`, reserved handles, and occupied profile handles, including the observed missing `art`, `stream`, and `vintage` entries;
 - every referenced public R2 URL grouped by purpose, namespace UUID, and owning profile;
 - zero/mismatch checks proving each media reference can be mapped to exactly one profile;
 - suitable fixtures for account ban across multiple profiles, profile switching, and deletion; if unavailable, mark verification branches `UNPROVEN`, not passed.
@@ -1229,6 +1240,8 @@ Verify profile deletion independently for:
 6. **Rollback boundary:** after a second profile exists, restoring one-profile uniqueness is destructive and not an acceptable automatic rollback.
 7. **Auth/database partial deletion:** account deletion spans PostgreSQL and Supabase Auth and needs idempotent failure recovery.
 8. **Admin leak:** existing moderation may rely on public `user_id`; replacing it incorrectly can embed sibling ownership in public responses.
+9. **Hidden Auth root:** one live public user/profile owner is absent from Auth Admin API listings, so API-list counts alone can produce an unsafe migration/deletion verdict.
+10. **Route takeover:** `art`, `stream`, and `vintage` are live routes but are not currently blocked as profile handles.
 
 ## 51. Non-goals
 
@@ -1265,6 +1278,9 @@ The fixed decisions answer the core architecture. These remaining product decisi
 13. **Email reuse after account deletion:** May the same email register immediately after verified hard deletion? Recommendation: yes unless a legally required private abuse tombstone blocks it without retaining a usable Auth identity.
 14. **New-profile onboarding:** Which fields are mandatory beyond handle, display name, and type, and should the new profile become active immediately? Recommendation: those three only; switch to it after successful creation.
 15. **Admin presentation:** Should admins see sibling profiles inline on every moderation card, or only in a dedicated private account panel? Recommendation: dedicated panel to reduce accidental exposure and UI confusion.
+16. **Message-email cadence:** Send immediately for every message, wait until unread for a short delay, or throttle per conversation? Recommendation: an unread-aware delayed/throttled outbox, with no email for approved same-account conversations.
+17. **Realtime private deletes:** Is identifier-only primary-key exposure on private table `DELETE` events acceptable, or must messaging deletion/switch signals use authorized Broadcast? Recommendation: use authorized Broadcast if direct testing confirms an unauthorized/stale subscriber can observe private identifiers.
+18. **Privileged account deletion:** May admins delete their own accounts, and what happens if the sole super-admin requests deletion? Recommendation: block the final super-admin until ownership is transferred and verified.
 
 ---
 
