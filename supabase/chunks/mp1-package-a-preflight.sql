@@ -2081,19 +2081,19 @@ section_14 as (
   select case when entry_count = 41 and direct_read_count = 21
       and nested_read_count = 14 and generic_read_count = 3
       and mutation_count = 3
-      and computed_md5 = 'dcaea87c018d282ed4877edc1a9ea2b5'
+      and m.computed_md5 = 'dcaea87c018d282ed4877edc1a9ea2b5'
       and source_file_count = 28
       and b.computed_md5 = '20ab83d8d6bbdbe02bbf0efecf19286d'
     then 'GO' else 'STOP' end as status,
     case when entry_count <> 41 or direct_read_count <> 21
       or nested_read_count <> 14 or generic_read_count <> 3
       or mutation_count <> 3
-      or computed_md5 <> 'dcaea87c018d282ed4877edc1a9ea2b5'
+      or m.computed_md5 <> 'dcaea87c018d282ed4877edc1a9ea2b5'
       or source_file_count <> 28
       or b.computed_md5 <> '20ab83d8d6bbdbe02bbf0efecf19286d'
       then array['embedded_app_query_or_source_blob_manifest_drift']::text[]
       else array[]::text[] end as findings
-  from app_manifest_state
+  from app_manifest_state m
   cross join app_source_blob_state b
 ),
 all_sections as (
