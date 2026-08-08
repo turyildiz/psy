@@ -2,13 +2,13 @@
 
 ## Document status and authority
 
-**Status:** Product direction decided; implementation proposal only.
+**Status:** Product decisions finalized; implementation proposal only.
 **Date:** 2026-08-08
 **Implementation state:** Not implemented. No database or application change is authorized by this document alone.
 
 This document proposes the coordinated database, authorization, privacy, application, migration, deletion, and verification work required to move Multi-Profile from V2 into V1. Launch delay is accepted.
 
-The fixed product decisions in **Resolved decisions** are binding for this proposal. The implementation details, migration SQL, rollback SQL, deletion mechanics, and open questions still require review before code or database work begins.
+The fixed product decisions in **Resolved decisions** are binding for this proposal. Detailed migration SQL, rollback SQL, implementation packages, and verification evidence still require review before code or database work begins.
 
 This proposal treats the owner-applied and verified database state through Chunk 11D as the baseline. New work must be delivered in separately guarded chunks and application slices; historical applied chunks must not be rewritten as if Multi-Profile existed when they were first applied.
 
@@ -26,7 +26,7 @@ Adopt the original Umbrella Model with these boundaries:
 - every identity-bearing read or write is scoped to that active profile;
 - the database remains the final authority for profile ownership, bans, the five-profile cap, handle rules, and mutation authorization;
 - account-wide concerns—login, ban state, email preference, upload/post burst limits, recovery, and account deletion—remain on the auth/application account;
-- profile-scoped concerns—public identity, listings, posts, messages, follows, RSVPs, and reactions—remain on the profile, subject to the unresolved anti-inflation questions listed at the end;
+- profile-scoped concerns—public identity, listings, posts, messages, follows, RSVPs, and reactions—remain on the profile under the finalized per-profile interaction rules;
 - public database/API surfaces must stop exposing `profiles.user_id`;
 - public R2 object keys must stop embedding auth user IDs before a second profile can be created;
 - profile deletion must not hard-delete another participant's conversation history; current conversation foreign keys must therefore be redesigned before profile deletion is enabled.
@@ -50,6 +50,24 @@ The following product decisions are fixed.
 9. **One email-notification switch per account.** V1 retains one account-level new-message email preference. The email identifies which profile was contacted.
 10. **Profile deletion is real deletion.** It requires a removal summary and type-the-handle confirmation. Listings and posts are physically removed under established Wall deletion/orphan rules. Public images become report-only orphans; no public-object deletion path is introduced. Conversations retain the existing per-participant soft-delete principle and must not be hard-deleted for the other participant. Handles return to the ordinary free pool. The last profile cannot be deleted through profile deletion.
 11. **Account deletion is V1 scope.** Attempting to delete the last profile redirects to account deletion. Account deletion removes the account and all remaining profiles while preserving shared-conversation semantics for other participants. A detailed account-deletion specification may follow, but implementation cannot launch without it.
+12. **Wall reactions are per profile.** Existing one-reaction-per-`(post_id, profile_id)` mechanics stay. Multiple profiles owned by one account may each react. Account-level uniqueness is rejected because profiles may be maintained by different people sharing one login and a visible reaction moving between sibling profiles would reveal co-ownership.
+13. **Notice Board reactions are per profile.** Existing mechanics remain unchanged, including the current `(post_id, profile_id, emoji)` behavior.
+14. **Festival RSVPs are per profile.** Sibling profiles may RSVP differently to the same festival, including a personal profile as `attending` and a vendor profile as `selling`. Public RSVP counts remain profile counts.
+15. **Following is per profile.** Each profile has its own Following feed. Sibling profiles may follow each other, multiple sibling profiles may each count as followers of one target, and follower counts are not deduplicated by account. Exact self-profile following remains blocked.
+16. **Same-account contact is blocked.** One owned profile may not direct-message or use listing contact against another profile owned by the same account. The owner receives neutral private feedback—**you can't contact your own profile**—and no email is sent.
+17. **Duplicate profile types are allowed.** An account may own multiple profiles of the same type, including multiple `personal` or `vendor` profiles. Only the total hard cap of five applies.
+18. **Inactive owned profile pages offer an explicit switch.** The owner sees a private **Switch to @handle to manage** action. Visiting the page never switches automatically.
+19. **Unsaved work requires explicit resolution.** Switching while a listing, post, or profile form is dirty opens a **Stay** / **Discard and switch** confirmation. No form may publish under either identity without that resolution.
+20. **Created events block profile deletion pending admin transfer.** Events are never silently deleted or reassigned. The owner must obtain a reviewed admin transfer before deleting the creator profile. V1 users do not create events directly: the planned direction is festival-page flyer/link submission, admin review, then Telegram-agent creation, while the exact submission workflow remains intentionally undesigned. In practice this blocker primarily affects admin-owned profiles.
+21. **Deleted conversation identity is neutral.** Surviving conversations render **Deleted profile** with no handle, avatar, or link, preventing confusion after handle reuse.
+22. **Banned users retain whole-account deletion only.** A banned user may self-service delete the entire account for privacy/GDPR purposes. Every other mutation remains blocked, including deletion of a single profile.
+23. **Account-deletion retention is minimal and temporary.** Only a private moderation tombstone survives: hashed email, ban date/reason, and deletion date; no content, messages, or images. It expires automatically after 12 months. **This retention wording must be lawyer-verified before production launch.**
+24. **Email reuse is normally immediate.** A deleted account's email may register again immediately unless a ban tombstone for that hashed email exists; that tombstone blocks registration until its 12-month expiry.
+25. **New-profile onboarding is minimal and activates the profile.** Required fields are handle, display name, and type only. The newly created profile becomes active immediately after successful creation.
+26. **Sibling visibility for admins uses a dedicated private panel.** Linked profiles appear only in an admin-only account panel, never inline on public-adjacent moderation surfaces.
+27. **New-message email is unread-aware and throttled.** Delivery is delayed until unread and throttled per conversation rather than sent for every message. Blocked same-account contact attempts never create an email.
+28. **Realtime private-delete exposure is an implementation verification gate.** During the messaging slice, direct tests must determine whether an unauthorized or stale subscriber can observe private identifiers. Authorized Broadcast is required only if that exposure is confirmed. This is a verification/cutover rule, not a preselected schema change.
+29. **The final super-admin cannot self-delete.** Account deletion is blocked until the super-admin role has been transferred to another account and the transfer is verified.
 
 ---
 
@@ -214,6 +232,8 @@ Use a dedicated trusted mutation rather than unrestricted client table inserts, 
 create_additional_profile(handle, display_name, profile_type)
 ```
 
+Those are the only onboarding fields. Multiple profiles may use the same allowed type; there is no per-type cap.
+
 It must:
 
 - derive the account from `auth.uid()`;
@@ -227,7 +247,7 @@ It must:
 - set safe defaults;
 - return only the new profile's public fields;
 - never return sibling owner identifiers;
-- optionally make the new profile active through the separate session-scoped operation.
+- make the new profile active immediately through the same trusted/session-scoped workflow after successful creation.
 
 Normal signup remains unchanged and continues using the trigger-created personal profile. The signup completion route must update the exact trigger-created profile ID, not every row matching `user_id`.
 
@@ -334,11 +354,11 @@ Public reads remain profile-based and do not need active-profile state. Owner/ad
 |---|---|---|
 | Chunk 0 captured profiles | Public profiles expose all readable columns; policies often accept any caller-owned profile | Hide `user_id` from public APIs; retain owner relation internally; active-scope identity writes |
 | Chunk 0 conversations/messages | Participant policies resolve any profile owned by `auth.uid()` | Reads/writes become active-profile-only; retained deleted-participant history requires FK redesign |
-| Chunk 0 favorites | Unique `(profile_id, listing_id)` and own-profile RLS | Active-profile identity; verify whether favorites remain V1/out-of-scope, but do not leak sibling ownership |
-| Chunk 0 festival RSVP (`vendor_events`) | Unique `(profile_id, event_id)` and own-profile RLS | Active-profile RSVP; account-vs-profile attendance inflation remains an open question |
-| Chunk 0 Notice Board | Post/reaction ownership uses caller-owned profiles | Require active profile; preserve event/public visibility; resolve account-level duplicate reactions question |
+| Chunk 0 favorites | Unique `(profile_id, listing_id)` and own-profile RLS | Preserve private per-profile rows while the feature remains outside V1; do not expose or expand it |
+| Chunk 0 festival RSVP (`vendor_events`) | Unique `(profile_id, event_id)` and own-profile RLS | Require active profile; preserve per-profile uniqueness/counts and allow sibling profiles to hold different roles |
+| Chunk 0 Notice Board | Post/reaction ownership uses caller-owned profiles | Require active profile; preserve current per-profile/per-emoji reaction mechanics and event/public visibility |
 | Chunk 0 event notifications | Unique `(profile_id, event_id)` | If retained, active-profile operation; email delivery still resolves one owning account |
-| Chunk 0 follows | Profile-to-profile graph | Active-profile follower; sibling/count-abuse rules require explicit decision |
+| Chunk 0 follows | Profile-to-profile graph | Require active follower; preserve per-profile feeds/counts, allow sibling follows, and keep exact self-profile blocking |
 | Chunk 1 roles/bans | Ban state is on `public.users`; admin ban updates every profile by `user_id` | Fundamentally compatible; wrappers/UI must target profile without exposing `user_id`; verify all profiles suspend/unsuspend |
 | Chunk 2 handles/profiles | Unique `profiles(user_id)`; signup creates one profile | Replace unique index with locked five-cap; keep signup; add additional-profile RPC and immutable owner guard |
 | Chunk 2 handle trigger | Normalizes and blocks route handles | Reuse for every additional profile; integrate reserved-profile exceptions only through trusted claim logic |
@@ -355,7 +375,7 @@ Public reads remain profile-based and do not need active-profile state. Owner/ad
 | Chunk 11A image helper | Accepts public URLs under auth-user-ID namespace | Replace with profile-scoped namespace; migrate existing references first |
 | Chunk 11B posts | RPC accepts owned target profile | Require target equals active profile; edits/deletes also protect resource's author profile |
 | Chunk 11B ban trigger | Clears Hero for all profiles where `profile.user_id = banned user` | Already correctly account-wide; verifier must include multiple-profile fixture |
-| Chunk 11C reactions | One row per `(post_id, profile_id)` | Active-profile actor; whether one account may react through multiple profiles is open |
+| Chunk 11C reactions | One row per `(post_id, profile_id)` | Preserve verified per-profile uniqueness; require active-profile actor; add no account-level deduplication or owner-linking machinery |
 | Chunk 11C moderation audit | Stores author profile and deleting auth user | Compatible; admin-only output may retain both identity levels where required |
 | Chunk 11D visibility | Post/reaction visibility is profile/parent based | Compatible; public visibility must never require or return profile owner ID |
 
@@ -498,7 +518,7 @@ Public profile lookups by handle or ID are not one-profile-per-account assumptio
 - Optimistic rows reset/recompute on switch.
 - Trusted RPCs verify active profile and ownership.
 - Public reaction rows continue to expose reacting profile IDs, not account IDs.
-- Account-versus-profile uniqueness is an open decision.
+- Wall and Notice reactions remain per profile; no account-level deduplication or reaction-moving logic is added.
 
 ### Follows
 
@@ -506,14 +526,14 @@ Public profile lookups by handle or ID are not one-profile-per-account assumptio
 - Following tab/feed belongs to active profile.
 - Switching changes the graph and feed.
 - Public follow rows remain profile-to-profile and reveal no owner ID.
-- Sibling/self-account and count-inflation behavior requires a decision.
+- Sibling follows are allowed, exact self-profile follows remain blocked, and public counts are per profile without account deduplication.
 
 ### Festival RSVPs and Notice Board
 
 - RSVP, Notice post, and Notice reaction act as active profile.
 - Switch resets `myRsvp`, current reaction state, composer ownership, and any in-flight request.
 - Public attendees and posts show only public profile data.
-- Account-versus-profile attendance/reaction multiplicity requires a decision.
+- RSVPs and Notice reactions remain per profile; sibling profiles may hold different event roles and each counts publicly.
 
 ### Uploads
 
@@ -526,7 +546,11 @@ Public profile lookups by handle or ID are not one-profile-per-account assumptio
 ### Profile editing and creation
 
 - Profile edit operates on the active profile.
+- An owned inactive profile page shows **Switch to @handle to manage** privately and never auto-switches.
+- Dirty profile forms use **Stay** / **Discard and switch** confirmation.
 - Additional-profile creation appears in the private Header/profile-management surface, with current count and five-profile cap.
+- Onboarding requires only handle, display name, and type; duplicate types are allowed.
+- Successful creation makes the new profile active immediately.
 - Type remains editable among exactly five values.
 - A profile may not change `user_id`.
 - Public profile pages never show “other profiles by this owner.”
@@ -546,6 +570,8 @@ For ordinary authenticated clients:
 - message `INSERT` requires `sender_profile_id = active_profile_id` and active participation;
 - unread add/remove functions operate on the active participant only;
 - hide/unhide/find-or-create functions use the active profile deterministically;
+- conversation/contact creation privately resolves both participant owners and rejects a shared owner before any conversation/message row is created;
+- blocked same-account attempts return only **you can't contact your own profile** to that owner and generate no email;
 - switching profiles closes the current thread, removes old subscriptions, clears prior rows/counts, and loads the new inbox;
 - a direct URL to another owned profile's conversation does not open until the user explicitly switches.
 
@@ -563,7 +589,7 @@ Required safeguards:
 - payloads never add `user_id` or sibling-profile lists;
 - the private active-session table is not added to public Realtime publication;
 - profile deletion retains default/minimal delete-event exposure and does not switch to `REPLICA IDENTITY FULL` without a separate privacy review;
-- current Supabase Realtime cannot apply subscriber RLS to PostgreSQL `DELETE` events; with default replica identity, cascaded private-table deletes can still expose row primary keys to subscribers that were on the channel. The messaging design must explicitly accept that identifier-only exposure or move private delete signaling to an authorized Broadcast/server channel;
+- current Supabase Realtime cannot apply subscriber RLS to PostgreSQL `DELETE` events; with default replica identity, cascaded private-table deletes may expose row primary keys to subscribers that were on the channel. The messaging slice must test unauthorized and stale subscribers directly. Keep the current mechanism if no private identifier is observable; switch private delete signaling to authorized Broadcast only if exposure is confirmed;
 - tests verify no old-profile event mutates the new-profile inbox after a switch.
 
 ## 23. New-message email
@@ -581,8 +607,9 @@ A server-side new-message notifier must:
 5. include the contacted public profile's `@handle` in the subject/body;
 6. link to the conversation with an authenticated post-login flow that prompts/switches to the recipient profile only after owner verification;
 7. never include sibling profiles or owner IDs;
-8. avoid duplicate email on trigger retries;
-9. suppress or define email for same-account sibling conversations according to the open decision below.
+8. enqueue idempotently and send only after the conversation remains unread for the approved delay;
+9. throttle per conversation so a message burst does not produce one email per message;
+10. suppress email entirely for blocked same-account contact attempts.
 
 No per-profile email preference is added in V1.
 
@@ -630,7 +657,7 @@ Do not rely on UI omission. Use one reviewed database boundary:
 
 Because current code contains `select("*")` and nested `profiles(...)` relations, the selected mechanism must be tested across every public profile, listing, conversation, post, reaction, RSVP, Notice Board, and homepage query.
 
-Owners obtain their complete profile list through a dedicated owner-only RPC that returns public/editable profile fields but still need not return `user_id`. Admins use a separate admin-only response that may reveal account grouping.
+Owners obtain their complete profile list through a dedicated owner-only RPC that returns public/editable profile fields but still need not return `user_id`. Admins use a separate admin-only response and dedicated account panel that may reveal account grouping. Linked profiles must never be embedded inline in public-adjacent moderation cards, hydration data, or ordinary resource responses.
 
 ## 25. RLS and helper oracles
 
@@ -700,70 +727,50 @@ Behavioral inference—similar writing, shared external social links, or profile
 
 # Part VIII — Reactions, follows, RSVPs, and adjacent edge cases
 
-## 28. Post reactions
+## 28. Wall and Notice Board reactions
 
-Current database semantics are one row per `(post_id, profile_id)`, while product wording historically said one reaction per profile per post and colloquially “one reaction per person.” With up to five profiles, those are no longer equivalent.
+Both systems remain **per profile**.
 
-Two coherent models exist:
+Wall reactions keep the verified one-row-per-`(post_id, profile_id)` uniqueness and existing trusted set/remove mechanics. No account-owner column, account-level deduplication, cross-sibling lookup, reaction-moving behavior, or new uniqueness machinery is added. Each active profile may maintain its own reaction to the same post.
 
-### Profile-level model
+Notice Board reactions also keep current mechanics unchanged, including `(post_id, profile_id, emoji)`. A profile may therefore retain the currently supported separate rows for different emojis on one Notice post.
 
-- every profile may react once;
-- switching profiles shows that profile's reaction;
-- one account can contribute up to five public reactions to one post;
-- simplest schema, but enables count inflation.
-
-### Account-level model
-
-- one auth account contributes one reaction per post;
-- the active profile is the public reactor identity;
-- reacting through another owned profile replaces/moves the account's prior reaction;
-- requires atomic account-level enforcement through trusted RPCs and locking because the owner is reached through `profiles`;
-- preserves “one real person, one reaction” but switching can change the public identity attached to the reaction.
-
-This is an open product decision. Direct post-reaction DML is already revoked, so either model can be enforced in the trusted RPC/trigger package.
-
-Festival Notice Board reactions need the same decision; their current unique key includes `(post_id, profile_id, emoji)` and can allow more than one emoji per profile.
+This is intentional rather than an unresolved inflation risk: profiles under one login may be maintained by different people, and account-level reaction movement would visibly reveal co-ownership. Verification must prove that switching profiles changes only the viewer's active reaction state and never rewrites a sibling profile's reaction.
 
 ## 29. Follows
 
-The active profile is the follower identity. Existing `(follower_profile_id, following_profile_id)` uniqueness remains valid for profile-level follows.
+Following is profile-scoped:
 
-Still to decide:
-
-- whether sibling profiles may follow one another;
-- whether several profiles from one account may all follow the same target and increase public follower counts;
-- whether Following feeds are independent for each profile (recommended by the active-profile model) or account-shared.
-
-Regardless, no public follow row includes account ownership.
+- the active profile is the follower identity;
+- each profile has its own Following feed;
+- existing `(follower_profile_id, following_profile_id)` uniqueness remains;
+- exact self-profile following remains blocked;
+- sibling profiles may follow each other;
+- multiple profiles from one account may each follow and count toward one target's follower total;
+- follower/following counts are per profile and are not account-deduplicated;
+- no public follow row or count API may expose the common owner.
 
 ## 30. RSVPs and event notifications
 
-Current `vendor_events` uniqueness is `(profile_id, event_id)`. Therefore five profiles could create five attendance entries for one human.
+Festival RSVP identity and public counts are per profile. Existing `(profile_id, event_id)` uniqueness remains. Sibling profiles may represent different roles at one event—for example, a personal profile as `attending` and a vendor profile as `selling`—and each row appears in the public profile count.
 
-Still to decide:
-
-- RSVP is a persona presence (profile-level), or physical attendance by one person (account-level);
-- whether one account may mark different profiles as `attending` and `selling` for the same event;
-- whether public attendee counts deduplicate by account without revealing ownership (deduplicated counts would need a trusted aggregate and could diverge from visible profile rows).
-
-Event-notification subscriptions are similarly profile-keyed while email is account-owned. If retained, delivery must deduplicate per account and not reveal sibling subscriptions.
+Event-notification subscriptions remain profile-keyed while email delivery is account-owned. If retained, delivery may consolidate duplicate emails operationally, but the subscription rows and public profile identities are not account-deduplicated and no email may reveal sibling subscriptions.
 
 ## 31. Favorites
 
-Favorites are outside the current frozen V1 scope but remain in the live schema. Do not accidentally expose or expand them while changing generic ownership helpers. If later reactivated, decide whether favorites are active-profile-private or account-private; they must never become an ownership-link oracle.
+Favorites are outside the current frozen V1 scope but remain in the live schema. Multi-Profile work must preserve their private per-profile rows and must not expose or expand the feature. Any later product change to favorites requires its own decision and must not become an ownership-link oracle.
 
 ## 32. Same-account interactions
 
-A user could discover and interact with another profile they own. The system must decide whether to allow:
+The finalized behavior is feature-specific:
 
-- sibling-profile direct messages;
-- sibling-profile reactions;
-- sibling follows;
-- buying/contacting a sibling's listing;
-- multiple RSVPs.
-
-Blocking these can reduce abuse, but error copy must be private/neutral and must not create a public API that reveals co-ownership.
+- sibling Wall/Notice reactions are allowed under the per-profile rules;
+- sibling follows are allowed;
+- multiple sibling RSVPs are allowed;
+- direct messaging or listing contact between profiles owned by the same account is blocked;
+- the private owner receives neutral feedback: **you can't contact your own profile**;
+- the blocked attempt creates no conversation/message and sends no email;
+- the server resolves both profile owners privately and returns no public/common-owner metadata.
 
 ---
 
@@ -784,7 +791,7 @@ The claim transaction must instead:
 - preserve global handle normalization/uniqueness;
 - mark reservation and invitation atomically;
 - return only safe profile data;
-- optionally switch the current session to the claimed profile after success;
+- switch the current session to the claimed profile immediately after success;
 - never expose the claimant's sibling profiles to the inviter or public claim page.
 
 The proposal for reservations remains separately approval-gated and unimplemented. Its one-profile assumptions must be revised before use.
@@ -845,7 +852,7 @@ It must:
 3. verify ownership and exact typed handle;
 4. count current profiles under the lock;
 5. if count is one, return a typed result requiring account deletion without deleting anything;
-6. resolve blockers such as created events according to the open decision;
+6. fail without deletion when the profile owns events; return an admin-transfer-required result and never reassign/delete those events automatically;
 7. prepare retained-conversation participant semantics;
 8. physically delete profile listings and posts so image references disappear;
 9. delete/cascade profile-local follows, reactions, RSVPs, notices, and participant state according to approved rules;
@@ -854,7 +861,7 @@ It must:
 12. return the replacement active profile and exact deletion result;
 13. commit atomically for database state.
 
-Banned-account access to deletion is an open policy question. Privacy/legal deletion may need to remain available even when ordinary mutations are banned.
+A banned account cannot use this single-profile operation. It retains only the separately protected whole-account deletion flow; all other mutations remain blocked.
 
 ## 37. Shared-conversation redesign
 
@@ -867,7 +874,7 @@ Recommended concept:
 - remove the deleted profile's unread identifier and participant-state row;
 - keep the conversation/messages visible to the surviving participant under existing hide semantics;
 - prohibit new messages when the other participant no longer exists;
-- render a neutral, non-linkable **Deleted profile** participant rather than reusing a freed handle;
+- render a neutral **Deleted profile** participant with no handle, avatar, or link rather than reusing a freed handle;
 - ensure a later profile that claims the freed handle is not linked to the old conversation;
 - update unique constraints, triggers, RLS, Realtime, and TypeScript null handling;
 - preserve the existing rule that one participant hiding/deleting does not remove the other participant's history.
@@ -890,7 +897,7 @@ A detailed messaging-deletion specification is required before SQL because nulla
 | Conversation participant state | Remove deleted participant state; preserve survivor state |
 | Shared conversations/messages | Preserve for surviving participant using redesigned nullable/tombstone semantics |
 | Moderation audit | Preserve metadata-only audit according to current design; do not retain public content/image references |
-| Events created by profile | Current non-cascading FK blocks deletion; requires product decision |
+| Events created by profile | Block profile deletion until a reviewed admin transfer has completed; never delete or auto-reassign the events |
 
 ## 39. Public media after deletion
 
@@ -904,25 +911,33 @@ The account-deletion flow is not “delete the final profile.” It is a distinc
 
 - every profile owned by the account;
 - all profile-local content under the rules above;
-- retained shared conversations for other participants;
+- retained shared conversations for other participants, with the deleted account represented only as **Deleted profile**;
+- removal/anonymization of account-linked moderation/audit identity so the separately defined tombstone is the only retained private account record;
 - `public.users` account state and notification preference;
 - active-profile session state;
 - Supabase Auth user and identities;
 - session/token revocation;
 - report-only public media orphaning;
-- idempotent retry and support recovery if Auth deletion fails after database cleanup.
+- idempotent retry and support recovery if Auth deletion fails after database cleanup;
+- one private 12-month moderation tombstone containing only hashed email, ban date/reason, and deletion date—never content, messages, or images.
+
+Banned users may invoke this whole-account operation even though every other mutation, including single-profile deletion, remains blocked. The final super-admin may not invoke it until the role has been transferred to another account and that transfer is verified.
 
 Recommended conceptual orchestration:
 
 1. require a fresh authenticated/re-authenticated session and explicit account confirmation;
-2. show a summary across all profiles;
-3. set a private `deletion_requested_at`/equivalent idempotency marker on `public.users` and make every account mutation helper fail closed while it is set;
-4. execute the guarded database cleanup transaction while retaining the marked `public.users` row so an Auth-API failure cannot restore ordinary account access;
-5. call the server-only Auth Admin API for explicit hard deletion; successful Auth deletion then cascades/removes the application-user marker;
-6. verify Auth user/identity removal and session invalidation;
-7. if the Auth call fails, keep the marked account fail-closed and retry safely rather than restoring partial public content or leaving a usable hidden identity.
+2. reject the final super-admin until a verified transfer exists;
+3. show a summary across all profiles;
+4. set a private `deletion_requested_at`/equivalent idempotency marker on `public.users` and make every account mutation helper fail closed while it is set;
+5. create/update the minimal moderation tombstone without retaining public content or a usable Auth identity;
+6. execute the guarded database cleanup transaction while retaining the marked `public.users` row so an Auth-API failure cannot restore ordinary account access;
+7. call the server-only Auth Admin API for explicit hard deletion; successful Auth deletion then cascades/removes the application-user marker;
+8. verify Auth user/identity removal and session invalidation;
+9. if the Auth call fails, keep the marked account fail-closed and retry safely rather than restoring partial public content or leaving a usable hidden identity.
 
-No browser receives the service-role credential. The detailed account-deletion spec must define reauthentication, legal retention, retries, email reuse, and support recovery before implementation.
+The tombstone expires automatically after 12 months. Immediate email re-registration is allowed after verified deletion unless an unexpired **ban** tombstone matches the hashed email; that match blocks registration only until expiry. No browser receives the service-role credential.
+
+**Legal gate:** the exact tombstone fields, hashing approach, 12-month period, registration block, and user-facing wording must be lawyer-verified before production launch. Implementation packages may be prepared earlier, but production account deletion cannot be approved without that review.
 
 ---
 
@@ -994,7 +1009,7 @@ Each slice gets its own scope, preflight, apply/rollback/verify package where ap
 
 ## Slice MP-0 — Decision/document reconciliation
 
-- Approve this proposal and answer open questions.
+- Record the finalized 29 resolved decisions and remove the obsolete open-question list.
 - Amend `V1_DECISIONS.md`, `REFINED_PRD.md`, `USER_ROLES.md`, `RESERVED_PROFILE_CLAIM_WORKFLOW.md`, punch list, and launch checklist.
 - Mark prior one-profile V1 statements superseded without erasing historical context.
 - Define detailed account/profile deletion and messaging tombstone behavior.
@@ -1052,6 +1067,8 @@ Each slice gets its own scope, preflight, apply/rollback/verify package where ap
 - Add owner-only up-to-five profile menu and switch action in the Header.
 - Add auth-transition, cross-tab, stale-request, and deleted-profile handling.
 - Convert Header counts/navigation.
+- Add the private **Switch to @handle to manage** action on inactive owned profile pages; never auto-switch.
+- Add the dedicated admin-only account/profile linkage panel and keep sibling ownership out of public-adjacent moderation cards.
 - Activate the pre-reviewed MP-2 public owner-column revocation only after the compatible client is staged.
 - Keep additional-profile creation unavailable.
 
@@ -1066,7 +1083,7 @@ Each slice gets its own scope, preflight, apply/rollback/verify package where ap
 - Convert listing create/edit/manage/delete and profile editing to active profile.
 - Add **Posting as @handle (switch)** to listing creation.
 - Bind upload presign/finalize to active profile and resource.
-- Implement switch-with-unsaved-work behavior.
+- Implement the required **Stay** / **Discard and switch** confirmation for dirty listing/profile forms; never publish without explicit resolution.
 
 **Verification:** byte/type/size parity, exact reference counts, no auth-user UUID in new public keys, all upload purposes pass, stale/cross-profile writes fail, active writes pass, orphan report remains correct.
 
@@ -1074,7 +1091,9 @@ Each slice gets its own scope, preflight, apply/rollback/verify package where ap
 
 - Convert composer/edit/delete/reactions to active profile.
 - Add fixed post actor hint.
-- Implement the resolved account-vs-profile reaction model in the pre-reviewed RPC package.
+- Apply the required **Stay** / **Discard and switch** confirmation to dirty post forms.
+- Preserve the verified per-profile Wall reaction uniqueness and existing trusted set/remove mechanics; add no account-level reaction uniqueness, owner column, deduplication, or reaction-moving work.
+- Preserve current per-profile Notice Board reaction mechanics unchanged.
 - Activate active-profile post/reaction authorization.
 - Preserve 11D visibility, account ban, Hero, rate-limit, and orphan rules.
 
@@ -1083,16 +1102,19 @@ Each slice gets its own scope, preflight, apply/rollback/verify package where ap
 ## Slice MP-8 — Messaging and notification email
 
 - Activate active-profile-only conversation/inbox/read/send/hide/unhide contracts.
+- Block direct messages and listing contact between profiles owned by the same account with neutral owner-only feedback and no conversation/email side effect.
 - Reset Realtime and thread state on switch.
-- Implement one account-level email preference with contacted-profile handle.
-- Verify nullable/deleted-participant handling in normal inbox code.
+- Implement one account-level email preference with contacted-profile handle, unread-aware delay, idempotent outbox, and per-conversation throttling.
+- Render deleted participants as **Deleted profile** with no handle, avatar, or link.
+- Empirically test unauthorized/stale subscriber visibility of private `DELETE` identifiers; use authorized Broadcast only if exposure is confirmed.
 - Do not enable profile deletion yet.
 
 **Verification:** identity-isolated inboxes under database RLS, stale subscriptions cannot leak, notification targets the correct account/profile without duplicates, and retained conversation fixtures render safely.
 
 ## Slice MP-9 — Follows, Following, festivals, RSVPs, and notices
 
-- Implement resolved actor/count semantics.
+- Keep Following feeds, follower counts, RSVPs, and Notice reactions per profile.
+- Allow sibling follows and multiple sibling RSVPs; preserve exact self-profile follow blocking and add no account deduplication.
 - Activate the pre-reviewed active-profile policies/RPCs for every mutation and private feed.
 - Preserve public profile-only presentation and account bans.
 
@@ -1105,6 +1127,7 @@ This is the irreversible cardinality gate and requires explicit owner approval.
 - Confirm MP-2 through MP-9 are staging-verified.
 - Drop `profiles_one_per_user_key` under exact guards while retaining the locked five-cap trigger and non-unique owner index.
 - Grant/enable trusted additional-profile creation and UI.
+- Require handle, display name, and type only; allow duplicate profile types and make the new/claimed profile active immediately after success.
 - Replace reserved-claim one-profile eligibility with below-five eligibility.
 - Make claim atomic with account/profile cap locks.
 - Preserve invitation privacy and handle protections.
@@ -1116,6 +1139,7 @@ This is the irreversible cardinality gate and requires explicit owner approval.
 
 - Complete the reviewed nullable/tombstone participant model in UI and database.
 - Update RLS, triggers, unique constraints, Realtime, unread state, and null rendering.
+- Enforce the neutral **Deleted profile** presentation with no handle, avatar, or link.
 - Verify surviving participant history before enabling deletion.
 
 **Verification:** deleting a controlled test profile preserves survivor conversation/messages and removes deleted participant access; no freed-handle relinking; no public owner leak.
@@ -1125,6 +1149,8 @@ This is the irreversible cardinality gate and requires explicit owner approval.
 - Add fresh summary and typed-handle confirmation.
 - Add trusted real-deletion operation.
 - Redirect last-profile attempt to account deletion.
+- Block deletion while the profile owns events, returning the reviewed-admin-transfer requirement.
+- Keep single-profile deletion unavailable to banned accounts.
 - Preserve report-only media orphan policy.
 
 **Verification:** exact cascade matrix, last-profile guard, concurrent delete/create behavior, active-session fallback, orphan report, and created-event blockers.
@@ -1133,6 +1159,9 @@ This is the irreversible cardinality gate and requires explicit owner approval.
 
 - Implement the separately approved detailed account-deletion specification.
 - Add reauthentication, fail-closed/idempotent database/Auth orchestration, retry state, session revocation, and hard Auth identity verification.
+- Permit banned users to delete the whole account while keeping every other mutation blocked.
+- Create only the 12-month private moderation tombstone; enforce immediate email reuse except for an unexpired matching ban tombstone.
+- Block final-super-admin deletion until a verified role transfer.
 - Preserve counterpart conversation history.
 
 **Verification:** successful deletion, Auth failure/retry, hidden/soft-deleted identity probe, re-registration policy, multi-session revocation, and orphan report.
@@ -1143,13 +1172,14 @@ This is the irreversible cardinality gate and requires explicit owner approval.
 - Run direct PostgREST RLS/privacy matrix for anon, each profile/session, banned account, admin, and service role.
 - Run browser matrix across two accounts, five profiles, two sessions, and multiple tabs.
 - Inspect DOM, network, Realtime, emails, public R2 URLs, logs, sitemap/SEO output, and error text for co-ownership leaks.
+- Obtain lawyer verification of the moderation-tombstone fields, hashing, retention period, registration block, and user-facing wording before production approval.
 - Complete the standing manual launch checklist.
 
 **Verification:** owner acceptance on staging before commit/push of each coordinated app slice and before production cutover.
 
 ---
 
-
+# Part XIII — Required verification matrices
 
 ## 45. Profile cap matrix
 
@@ -1178,6 +1208,21 @@ For two profiles A and B owned by one account:
 | Any | Any | Banned account | Rejected |
 
 Public reads remain governed by existing content visibility and ban rules, not active-profile state.
+
+## 46A. Finalized interaction matrix
+
+For sibling profiles A and B owned by one account:
+
+| Action | Expected |
+|---|---|
+| A and B react to the same Wall post | Both independent per-profile reactions are allowed; neither moves/changes the other |
+| A applies multiple different Notice emojis | Current per-profile/per-emoji mechanics remain allowed |
+| A follows B | Allowed |
+| A follows A | Rejected by exact self-profile guard |
+| A and B follow target C | Both rows count; no account deduplication |
+| A RSVPs `attending`, B RSVPs `selling` | Both rows and roles are allowed/count publicly |
+| A messages or contacts B's listing | Rejected with neutral private feedback; no conversation, message, or email |
+| Switch while listing/post/profile form is dirty | No switch or publish until **Stay** or **Discard and switch** is chosen |
 
 ## 47. Unlinkability matrix
 
@@ -1222,9 +1267,14 @@ Verify profile deletion independently for:
 - Notice Board posts/reactions;
 - surviving-party conversations and messages;
 - active sessions on deleted profile;
-- created events;
+- created events block profile deletion until reviewed admin transfer;
 - freed handle reuse by another account without historical conversation relinking;
-- banned account and admin-owned profile cases.
+- banned account: single-profile deletion rejected, whole-account deletion allowed;
+- final super-admin account deletion rejected until verified role transfer;
+- account deletion creates only the expiring private moderation tombstone and removes/anonymizes other account-linked private audit identity;
+- immediate email reuse after deletion when no unexpired matching ban tombstone exists;
+- matching ban tombstone blocks registration until automatic 12-month expiry;
+- lawyer verification recorded before production approval.
 
 ---
 
@@ -1236,7 +1286,7 @@ Verify profile deletion independently for:
 2. **Media correlation:** current public R2 paths embed auth-user IDs.
 3. **Shared-message loss:** current profile FKs cascade-delete conversations/messages.
 4. **Stale identity writes:** a switch during an upload/form/RPC can publish under the wrong profile without generation and server-active checks.
-5. **Count inflation:** reactions, follows, and RSVPs currently key uniqueness by profile, not real account/person.
+5. **Per-profile semantics drift:** reactions, follows, and RSVPs intentionally count profiles; accidental account deduplication or cross-sibling rewriting would contradict product behavior and may reveal co-ownership.
 6. **Rollback boundary:** after a second profile exists, restoring one-profile uniqueness is destructive and not an acceptable automatic rollback.
 7. **Auth/database partial deletion:** account deletion spans PostgreSQL and Supabase Auth and needs idempotent failure recovery.
 8. **Admin leak:** existing moderation may rely on public `user_id`; replacing it incorrectly can embed sibling ownership in public responses.
@@ -1249,8 +1299,10 @@ This proposal does not add:
 
 - more than five profiles;
 - profile types beyond `vendor`;
+- account-level reaction/follow/RSVP deduplication;
 - public links between sibling profiles;
 - team/shared management of one profile by multiple auth accounts;
+- the exact festival flyer/link submission and admin-review workflow;
 - per-profile email preferences;
 - public-object automatic deletion;
 - a status-only soft-delete for listings/posts/profile content;
@@ -1259,28 +1311,9 @@ This proposal does not add:
 
 ---
 
-# Part XV — Open questions for Turgay
+# Final decision status
 
-The fixed decisions answer the core architecture. These remaining product decisions are required before the relevant slices:
-
-1. **Post reactions:** Is “one reaction per person per post” one per auth account, or may each of up to five profiles react separately? Recommendation: one per account, displayed through the active profile; switching identity moves/replaces the account's reaction.
-2. **Festival Notice Board reactions:** Should they follow the same account-level rule as Wall reactions, and should one profile still be limited to one emoji rather than the current per-emoji uniqueness?
-3. **RSVPs:** Is attendance one per real account/person, one per public profile, or may one account use one attending profile plus one selling/vendor profile at the same festival?
-4. **Follows:** May sibling profiles follow each other, and may several profiles from one account all count as followers of the same target? Recommendation: feeds are per profile; block sibling follows and decide whether follower counts deduplicate accounts.
-5. **Same-account messaging/listing contact:** May one owned profile message or contact another owned profile? Recommendation: block it with neutral owner-only feedback and send no email.
-6. **Profile types:** May one account create multiple profiles of the same type, including multiple `personal` profiles? The fixed decisions set the total cap but not per-type limits. Recommendation: allow duplicates; identity names/handles are the distinction.
-7. **Own inactive profile pages:** When an owner visits a sibling profile that is not active, should the page show a private **Switch to @handle to manage** action automatically, or require switching only from the Header? Recommendation: show the private action but never auto-switch.
-8. **Unsaved work:** Should switching profiles be blocked while a listing/post/profile form has unsaved changes, or allowed after confirmation? Recommendation: confirmation with “Stay” and “Discard and switch.”
-9. **Created events on profile deletion:** Current `events.created_by` blocks profile deletion. Should events transfer to the hidden technical `@turgay` owner, remain with a non-public tombstone, or block deletion pending admin handling? Recommendation: block and require reviewed admin transfer; never delete public festival data silently.
-10. **Deleted conversation identity:** Should surviving participants see only **Deleted profile**, or retain a historical display name/avatar? Recommendation: neutral **Deleted profile**, no handle link or avatar, so freed handles cannot be confused with history.
-11. **Banned-account deletion:** May a banned user delete profiles/account through self-service, or must support/admin process it? Recommendation: allow high-assurance account deletion for privacy while keeping all ordinary mutations blocked; profile-only deletion may remain support-gated while banned.
-12. **Account-deletion retention:** What minimal private moderation/legal audit, if any, survives account deletion, and for how long? Public content and Auth identity behavior are fixed by the deletion decision, but legal retention needs owner/legal confirmation.
-13. **Email reuse after account deletion:** May the same email register immediately after verified hard deletion? Recommendation: yes unless a legally required private abuse tombstone blocks it without retaining a usable Auth identity.
-14. **New-profile onboarding:** Which fields are mandatory beyond handle, display name, and type, and should the new profile become active immediately? Recommendation: those three only; switch to it after successful creation.
-15. **Admin presentation:** Should admins see sibling profiles inline on every moderation card, or only in a dedicated private account panel? Recommendation: dedicated panel to reduce accidental exposure and UI confusion.
-16. **Message-email cadence:** Send immediately for every message, wait until unread for a short delay, or throttle per conversation? Recommendation: an unread-aware delayed/throttled outbox, with no email for approved same-account conversations.
-17. **Realtime private deletes:** Is identifier-only primary-key exposure on private table `DELETE` events acceptable, or must messaging deletion/switch signals use authorized Broadcast? Recommendation: use authorized Broadcast if direct testing confirms an unauthorized/stale subscriber can observe private identifiers.
-18. **Privileged account deletion:** May admins delete their own accounts, and what happens if the sole super-admin requests deletion? Recommendation: block the final super-admin until ownership is transferred and verified.
+All product questions raised by this proposal are resolved in **Part I — Resolved decisions**. No Multi-Profile product question remains open in this document. Implementation packages may still surface technical evidence or legal wording that requires review, but they must not silently reopen or contradict the finalized product rules.
 
 ---
 
