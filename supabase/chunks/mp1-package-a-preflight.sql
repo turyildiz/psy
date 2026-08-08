@@ -562,7 +562,7 @@ select
     order by fk.ord
   ) as parent_columns,
   con.convalidated as validated,
-  con.condeferrable as deferrable,
+  con.condeferrable as is_deferrable,
   con.condeferred as initially_deferred,
   con.confmatchtype as match_type_code,
   con.confupdtype as update_action_code,
@@ -974,11 +974,11 @@ profile_constraints as (
   select conname::text as object_name,
     pg_get_constraintdef(oid, true)::text as definition,
     convalidated as validated,
-    condeferrable as deferrable,
+    condeferrable as is_deferrable,
     condeferred as initially_deferred
   from pg_constraint where conrelid = to_regclass('public.profiles')
 ),
-expected_constraints(object_name, definition, validated, deferrable,
+expected_constraints(object_name, definition, validated, is_deferrable,
   initially_deferred) as (
   values
     ('bio_length', 'CHECK (bio IS NULL OR char_length(bio) <= 500)', true, false, false),
