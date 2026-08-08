@@ -9,7 +9,7 @@ The binding product requirements come from the **Wall, Stream & Posts (V1)** sec
 - Every profile has a **Wall** containing its own posts.
 - **Stream** is the site-wide page for posts whose authors allow Stream inclusion.
 - The festival tab currently called **The Wall** becomes **Notice Board** as a label-only change; its existing data remains unchanged.
-- Every profile type may post: personal, artist, label, and festival.
+- Every finalized profile type may post: personal, artist, label, festival, and vendor (**Shop / Brand**).
 - A post contains up to 2,000 characters of text, inline auto-linked URLs, and up to five images. It contains no videos.
 - There is no daily post limit, but short-window burst protection applies.
 - V1 supports one reaction per profile per post and no comments. Reactions store fixed allowlisted codes rather than Unicode characters; the app maps codes to visuals so custom psytrance artwork can replace them later without a database change. Festival Notice Board reactions remain unchanged.
@@ -493,7 +493,7 @@ General post reactions store stable short codes, not Unicode emoji characters. T
 | Constraint | Proposed rule |
 |---|---|
 | Primary key | `id` |
-| One reaction per person per post | Unique `(post_id, profile_id)` |
+| One reaction per profile per post | Unique `(post_id, profile_id)`; sibling profiles remain independent and no account-level deduplication applies |
 | Reaction code | Must be a short normalized code in the fixed V1 allowlist; Unicode reaction characters are not stored |
 
 Changing a reaction updates `reaction_code` on the existing row. It does not insert a second reaction. No comments table is created.

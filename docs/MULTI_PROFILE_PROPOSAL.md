@@ -12,7 +12,7 @@ The fixed product decisions in **Resolved decisions** are binding for this propo
 
 This proposal treats the owner-applied and verified database state through Chunk 11D as the baseline. New work must be delivered in separately guarded chunks and application slices; historical applied chunks must not be rewritten as if Multi-Profile existed when they were first applied.
 
-The research basis is `docs/research/MULTI_IDENTITY_RESEARCH.md`. Existing frozen V1 documents that still say “one profile per user” become superseded on this topic only after the eventual coordinated decision-document amendment; this proposal does not edit them.
+The research basis is `docs/research/MULTI_IDENTITY_RESEARCH.md`. MP-0 reconciles current decision/checklist documents and adds explicit supersession notes to historical planning records; their original text remains historical evidence rather than current Multi-Profile scope.
 
 ---
 

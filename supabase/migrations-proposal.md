@@ -1,5 +1,7 @@
 # Supabase migration plan — CHUNKS 0–7 AND 10 LIVE; CHUNKS 8–9 DEFERRED
 
+> **MULTI-PROFILE SCOPE NOTE (2026-08-08):** Applied Chunk descriptions below, including Chunk 2's one-profile constraint, are preserved as historical execution records. They describe the current pre-Multi-Profile database baseline, not the finalized V1 target. Future cardinality/active-profile work must follow [`docs/MULTI_PROFILE_PROPOSAL.md`](../docs/MULTI_PROFILE_PROPOSAL.md) in new guarded slices; do not rewrite or reapply historical chunks as if they implemented Multi-Profile. Deferred Chunk 9 is withdrawn because it would drop V1 `follows` and other identity-sensitive structures before the MP slices redesign/verify them.
+
 **Prepared:** 2026-07-12  
 **Binding scope:** `docs/V1_DECISIONS.md`  
 **Status:** Chunks 0–7 were owner-applied and read-only reconfirmed live on 2026-07-26. Chunk 10 was owner-applied and independently verified live on 2026-07-27. Chunks 8–9 remain deferred proposal-only work and require separate review and explicit approval before execution.
@@ -551,7 +553,9 @@ The actual deletion of `avatars`, `listings`, `messages`, `events`, and `headers
 
 ## CHUNK 9 — Remove superseded feature schema after code cleanup
 
-**Purpose:** Remove dead/out-of-V1 structures only after all application and reporting references have been eliminated.
+> **WITHDRAWN / DO NOT APPLY (2026-08-08):** Following is binding V1 scope, and the finalized Multi-Profile plan requires fresh classification of follows, event notifications, favorites, and every other identity-sensitive object. The SQL block below is retained only as the historical deferred proposal; no statement in it is authorized. Any replacement requires a new exact preflight/apply/rollback/verify package under the MP slice plan.
+
+**Historical purpose (superseded):** Remove structures then classified as dead/out-of-V1 after all application and reporting references had been eliminated.
 
 **Risk:** High and destructive.
 
@@ -600,4 +604,4 @@ Keep `pending` and `rejected` enum labels until a later maintenance window; Post
 | 7 | Realtime publication alignment | Medium | Chunks 5–6; RLS and DELETE caveat reviewed |
 | 10 | Harden view-count and conversation-trigger `SECURITY DEFINER` functions — LIVE | Low/Medium | Live Chunks 0–7; owner apply + read-only verification |
 | 8 | Retire Supabase Storage policies/buckets | High | R2 code migration, URL migration, backup, Storage API cleanup |
-| 9 | Remove dead/out-of-V1 schema | High | Code cleanup, data export, explicit destructive approval |
+| 9 | **WITHDRAWN:** historical cleanup proposal; replacement must retain V1 follows and freshly classify every object under the MP plan | High | New reviewed MP-compatible package, data classification/export, explicit destructive approval |

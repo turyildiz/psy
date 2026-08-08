@@ -72,6 +72,26 @@
 
 **Evidence required:** date, environment, demo handle/Auth user ID, before/ban/unban state summaries without secrets, screenshots of login and write-error experiences, relevant network status/error codes, and final restored-login result.
 
+## 4. Multi-Profile V1 launch gate
+
+**Dependencies:** Complete the ordered MP-0 through MP-14 slices in [`MULTI_PROFILE_PROPOSAL.md`](./MULTI_PROFILE_PROPOSAL.md). Use that proposal's detailed matrices; this checklist records only the browser-level launch areas.
+
+- [ ] Verify signup still creates exactly one personal profile; additional creation supports the finalized types (including **Shop / Brand**), duplicate types, and a hard maximum of five profiles.
+- [ ] Verify the Header switcher, active-profile persistence, cross-tab/session behavior, and immediate activation after create/claim across mobile and desktop.
+- [ ] Verify an inactive owned profile offers the private **Switch to @handle to manage** action and never switches automatically.
+- [ ] Verify dirty listing, post, and profile forms require **Stay** / **Discard and switch** and never publish under an unresolved identity.
+- [ ] Verify every identity-bearing surface uses the active profile, including listings/uploads, Wall posts/reactions, messages, follows/Following, festival RSVPs, and Notice Board actions.
+- [ ] Verify sibling profiles can follow, react, and RSVP independently; counts/feeds remain per profile; exact self-follow remains blocked.
+- [ ] Verify direct message and listing contact between sibling profiles are blocked with neutral private feedback and no conversation, message, or email side effect.
+- [ ] Verify switching profiles clears/reloads private inbox, unread, optimistic, upload-intent, modal, and Realtime state without stale identity flashes or writes.
+- [ ] Verify sibling ownership is absent from public UI, DOM, network/API responses, URLs, metadata, logs, Realtime payloads, public R2 keys, counts, and error text; verify only owner switcher and the dedicated admin-only account panel reveal the link.
+- [ ] Verify profile deletion protects the final profile, blocks profiles with created events pending reviewed admin transfer, removes the specified profile content, preserves report-only public-media handling, and renders surviving conversations as **Deleted profile** without handle/avatar/link.
+- [ ] Verify banned accounts cannot delete one profile or perform other writes but can complete the approved whole-account deletion flow.
+- [ ] Verify whole-account deletion, immediate normal email reuse, ban-tombstone registration blocking/expiry, final-super-admin transfer guard, session revocation, retry/idempotency, and counterpart conversation retention.
+- [ ] Confirm lawyer approval is recorded for moderation-tombstone fields, hashing, 12-month retention, registration blocking, and user-facing wording before production approval.
+
+**Evidence required:** date/environment, test account/profile matrix without credentials, screenshots, DOM/network/Realtime/email observations, active-profile transitions, sibling interaction results, deletion/account-deletion outcomes, public unlinkability findings, and legal approval reference.
+
 ## Execution records
 
 Add dated execution records below. Do not replace the checklist above.

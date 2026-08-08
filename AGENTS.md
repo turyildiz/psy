@@ -119,7 +119,8 @@ Use these docs only when relevant; do not read all of them for every small task:
 - `.agent-context/NEXT_STEPS.md`
 - `.agent-context/CHANGELOG.md`
 - `.agent-context/DECISIONS.md`
-- `docs/V1_DECISIONS.md` — binding single source of truth for frozen V1 scope; overrides the PRD, PDF, and SPEC wherever they conflict
+- `docs/V1_DECISIONS.md` — binding single source of truth for frozen/amended V1 scope; overrides the PRD, PDF, and SPEC wherever they conflict
+- `docs/MULTI_PROFILE_PROPOSAL.md` — binding detailed source for the finalized 29 Multi-Profile decisions and ordered MP-0 through MP-14 implementation/verification plan
 - `docs/V1_PUNCHLIST.md` — ordered implementation plan derived from the frozen V1 decisions
 - `docs/PRE_LAUNCH_TEST_LIST.md` — standing manual browser launch-gate checklist; append new items as discovered and never remove an item without Turgay's explicit approval
 - `docs/ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md` — owner-apply Supabase URL/template, All-Inkl Custom SMTP, mail-DNS, and Vercel-cutover checklist

@@ -1,6 +1,8 @@
 # Multi-Identity / Multi-Profile Research
 
 > **Status: read-only research note. No product, schema, scope, or implementation decisions have been made by this document.**
+>
+> **Finalization note (2026-08-08):** This file preserves the pre-decision evidence and therefore quotes superseded one-profile/V2 statements. Current V1 rules are the 29 decisions in [`../MULTI_PROFILE_PROPOSAL.md`](../MULTI_PROFILE_PROPOSAL.md); do not treat the historical findings below as current scope.
 
 **Research date:** 2026-08-08
 **Scope:** All 33 files under `docs/` (including both PDFs), relevant project-context records, current application code, captured schema/audit artifacts, and the repository's database migration packages.

@@ -28,19 +28,24 @@ Before working on this repo, read:
 
 1. `/home/repos/AGENTS.md`
 2. `AGENTS.md`
-3. `../.agent-context/CURRENT_STATE.md`
-4. `../.agent-context/NEXT_STEPS.md`
-5. `../.agent-context/DECISIONS.md`
-6. `../.agent-context/CHANGELOG.md`
+3. `docs/V1_DECISIONS.md`
+4. `docs/MULTI_PROFILE_PROPOSAL.md`
+5. `../.agent-context/CURRENT_STATE.md`
+6. `../.agent-context/NEXT_STEPS.md`
+7. `../.agent-context/DECISIONS.md`
+8. `../.agent-context/CHANGELOG.md`
 
-The older product docs remain useful but are partly stale:
+The older product docs remain useful but are partly stale. Their Multi-Profile assumptions are superseded by `MULTI_PROFILE_PROPOSAL.md`:
 
 - `REFINED_PRD.md`
 - `SPEC.md`
 - `USER_ROLES.md`
+- `psy-market-refined-prd-v3.pdf` and `psy-market-v1-status-report-2026-07-12.pdf` (immutable historical exports; use their Markdown source/supersession notes)
 
 Focused docs live in `docs/`:
 
+- `docs/V1_DECISIONS.md` — binding concise V1 decisions.
+- `docs/MULTI_PROFILE_PROPOSAL.md` — binding detailed Multi-Profile decisions, architecture, slices, and verification model.
 - `docs/STAGING_AUTO_DEPLOY_PRD.md` — proposed GitHub Actions → VPS staging auto-deploy plan for `psy.heyturgay.com`.
 
 ## Main implemented routes

@@ -1,5 +1,7 @@
 # Supabase Phase A audit report
 
+> **Historical capture note (2026-08-08):** This report records the 2026-07-12 database/application state. Its one-profile findings are baseline evidence, not current V1 product policy. The finalized target and ordered future work are in [`docs/MULTI_PROFILE_PROPOSAL.md`](../../docs/MULTI_PROFILE_PROPOSAL.md).
+
 **Capture date:** 2026-07-12  
 **Scope source:** `docs/V1_DECISIONS.md`  
 **Method:** catalog queries using a SELECT-only PostgreSQL role, plus aggregate service-API checks for rows hidden from that role by RLS. No DDL or database mutation was executed.

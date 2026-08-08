@@ -1,5 +1,7 @@
 # Multi-Profile Proposal Finalization Report
 
+> **MP-0 completion note (2026-08-08):** The downstream decision/checklist reconciliation listed as follow-up item 1 was completed by the documentation-only MP-0 package recorded in [`MP0_RECONCILIATION_REPORT.md`](./MP0_RECONCILIATION_REPORT.md). This report otherwise preserves the earlier finalization record.
+
 **Date:** 2026-08-08
 **Scope:** Documentation-only reconciliation of the 18 decisions that previously appeared as open questions in Part XV of `docs/MULTI_PROFILE_PROPOSAL.md`.
 **Compared states:** pre-finalization proposal at `43c9fa9` and finalized proposal at `2e13d7d`.

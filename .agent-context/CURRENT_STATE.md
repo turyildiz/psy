@@ -1,6 +1,6 @@
 # psy.market — Current State
 
-**Last updated:** 2026-07-27 by Psy after the accepted read-only reconciliation
+**Last updated:** 2026-08-08 by Psy after MP-0 decision/document reconciliation
 
 **Status:** Active development — pre-launch V1
 **Primary agent:** Psy. Turgay is the owner and approval authority. Claude has handed over the project and is available for historical reasoning or service actions that still belong to the `claude` account.
@@ -9,11 +9,12 @@
 
 ## Source-of-truth order
 
-1. `docs/V1_DECISIONS.md` — frozen binding V1 scope; overrides conflicting PRD/SPEC text.
-2. Newest versioned execution/acceptance records, especially `docs/R2_MIGRATION_STEP_*.md`.
-3. Current application code and committed Git history.
-4. `docs/V1_PUNCHLIST.md` — ordered work list, but completion boundaries must be checked against newer execution records.
-5. `.agent-context/*` and older PRD/SPEC documents — context only; several are stale.
+1. `docs/V1_DECISIONS.md` — frozen/amended binding V1 scope; overrides conflicting PRD/SPEC text.
+2. `docs/MULTI_PROFILE_PROPOSAL.md` — binding detailed Multi-Profile decisions and ordered MP-0 through MP-14 plan.
+3. Newest versioned execution/acceptance records, especially `docs/R2_MIGRATION_STEP_*.md`.
+4. Current application code and committed Git history.
+5. `docs/V1_PUNCHLIST.md` — ordered work list, but completion boundaries must be checked against newer execution records.
+6. `.agent-context/*` and older PRD/SPEC documents — context only; several are stale.
 
 There was a substantial committed change set after the previous 2026-06-07 state snapshot. This file replaces that snapshot rather than extending its old assumptions.
 
@@ -22,8 +23,10 @@ There was a substantial committed change set after the previous 2026-06-07 state
 ## Product and launch status
 
 - V1 is a lean, contact-only psytrance marketplace with direct publication: new listings become `active` immediately.
-- No V1 approval queue, payments, reviews, favorites, follows/feed, admin analytics, multi-currency, or mobile app.
-- Festival calendar, festival pages, RSVPs, The Wall, tickets as a normal listing category, minimal reactive moderation, text messaging, one new-message email, account settings/deletion, and legal/safety pages are binding V1 scope.
+- No V1 approval queue, payments, reviews, favorites, admin analytics, multi-currency, or mobile app.
+- Multi-Profile is binding V1 scope: up to five publicly unlinked profiles per account, `vendor` type, one active profile per session, per-profile interactions/feeds/inbox, profile deletion, and whole-account deletion under the finalized safeguards.
+- Multi-Profile is not yet implemented: the current database still enforces the pre-MP one-profile index and the application still has one-row actor lookups/no switcher until the guarded MP slices are applied.
+- Festival calendar, festival pages, per-profile RSVPs, Notice Board, Wall/Stream/Following, tickets as a normal listing category, minimal reactive moderation, text messaging, one new-message email, account settings/deletion, and legal/safety pages are binding V1 scope.
 - `https://psy.heyturgay.com` is the development/staging site.
 - `www.psy.market` is the intended launch site, but launch has not happened. The current `psy.market`/`www.psy.market` 404 is expected and must not be diagnosed as an outage.
 - Production cutover to Vercel Pro and the public domain happens only after Turgay declares the product ready.
@@ -113,7 +116,7 @@ The repo contains:
 
 - A captured read-only Supabase schema/audit baseline.
 - Dependency-ordered SQL packages through Chunk 7 covering critical RLS/RPC fixes, admin/ban foundations, handle/profile constraints, ticket validation, moderation RPCs, conversation hiding, durable ban enforcement, and Realtime publication.
-- Application integration for per-user conversation hiding and restoring hidden direct conversations.
+- Application integration for profile-scoped conversation hiding and restoring hidden direct conversations.
 - Auth UI behavior for banned-account rejection.
 
 Live status verified read-only on 2026-07-26:
@@ -185,7 +188,7 @@ Claude's handover says Posts are intended for V1, but `docs/V1_DECISIONS.md` doe
 - Native browser playback for uploaded clips.
 - Instagram embeds were deliberately rejected as unreliable; users may upload downloaded reel video instead.
 - Longer video may become a premium feature; pricing is undecided.
-- Follows and a feed are deliberately V2 because an early empty feed would harm the experience.
+- Follows and the Following feed are V1 and profile-scoped under the Multi-Profile proposal; the current implementation still requires active-profile conversion and verification.
 
 ---
 

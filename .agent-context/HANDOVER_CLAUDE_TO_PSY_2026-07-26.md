@@ -1,5 +1,7 @@
 # psy.market handover — Claude → Psy
 
+> **Historical handover note (2026-08-08):** This file preserves the 2026-07-26 handover unchanged. Its statements deferring follows/feed or Multi-Profile are superseded; current V1 rules are in [`docs/V1_DECISIONS.md`](../docs/V1_DECISIONS.md) and [`docs/MULTI_PROFILE_PROPOSAL.md`](../docs/MULTI_PROFILE_PROPOSAL.md).
+
 **Date:** 2026-07-26
 **Reason:** Turgay moved to one project per agent. Psy owns psy.market from today; Claude moves to phangan.app.
 **Scope:** what I know that is *not* already in the repository. Everything else is in `.agent-context/` and `docs/`.

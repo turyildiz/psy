@@ -2,6 +2,8 @@
 
 > **SUPERSEDED IN PARTS — see docs/V1_DECISIONS.md (2026-07-12) for binding V1 scope.**
 
+> **MULTI-PROFILE SCOPE SUPERSEDED (2026-08-08):** Statements below that limit V1 to one profile, defer the switcher to V2, or list only the old profile types are preserved as historical decisions. Current V1 Multi-Profile rules are defined by [`MULTI_PROFILE_PROPOSAL.md`](./MULTI_PROFILE_PROPOSAL.md) and summarized in [`V1_DECISIONS.md`](./V1_DECISIONS.md).
+
 > **Implementation note (2026-06-04):** This PRD is still useful as the product target/history, but it is no longer a fully accurate description of the current repository. The current app includes Cloudflare R2 upload infrastructure, `conversations`-based messaging, profile/shop route `/{handle}`, and no implemented `/admin` route tree yet. Read `AGENTS.md` and `../.agent-context/CURRENT_STATE.md` before using this PRD for implementation work.
 
 **Version:** 3.0

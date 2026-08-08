@@ -1,5 +1,7 @@
 ## 3. User & Profile Architecture (The "Umbrella" Model)
 
+> **Status update (2026-08-08):** This original Umbrella design is now binding V1 direction within the boundaries in [`MULTI_PROFILE_PROPOSAL.md`](./MULTI_PROFILE_PROPOSAL.md): at most five profiles per account, one session-scoped active-profile selection, public sibling unlinkability, and no team access/multiple-account management of one profile. The finalized types are `personal`, `artist`, `label`, `festival`, and `vendor` (**Shop / Brand**); the historical Buyer/Vendor naming and unlimited-cardinality statements below are retained only as design history.
+
 ### 3.1 Overview
 Psy.market utilizes a **One-to-Many (Parent-Child)** relationship between Accounts and Public Profiles. This architecture separates the *Legal Entity* (User) from the *Public Persona* (Profile), allowing a single user to manage multiple distinct identities (e.g., a "Personal Buyer" profile, a "DJ Artist" profile, and a "Record Label" profile) without multiple logins.
 

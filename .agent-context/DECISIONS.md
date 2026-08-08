@@ -1,6 +1,6 @@
 # psy.market — Decisions
 
-Last updated: 2026-06-07 by Claude
+Last updated: 2026-08-08 by Psy for MP-0 reconciliation
 
 ---
 
@@ -17,9 +17,11 @@ Last updated: 2026-06-07 by Claude
 | Listing status on create | `active` (no pending) | No admin review in V1 |
 | Ratings | Removed from V1 | No meaningful data at launch |
 | Payments | Deferred to V2 | V1 = validate demand first, no Stripe |
-| User architecture | Umbrella model | `User` (auth) + `Profile` (public) separate |
-| Profile per user (V1) | One profile only | Multi-profile is V2 |
-| Follows/feed | V2 | Too early without user base |
+| User architecture | Umbrella model in V1 | `User` (auth) + up to five publicly unlinked `Profile` identities; details in `docs/MULTI_PROFILE_PROPOSAL.md` |
+| Profile types | `personal`, `artist`, `label`, `festival`, `vendor` | `vendor` displays as Shop / Brand; duplicate types allowed |
+| Acting identity | One active profile per session | Every identity-bearing action verifies active-profile ownership server-side |
+| Follows/feed | V1, per profile | Sibling follows allowed; exact self-profile follow blocked; no account deduplication |
+| Team access | Deferred | Multiple auth accounts managing one profile is not part of V1 Multi-Profile |
 | Festival data | Admin-curated | No public festival creation |
 | Video posts | ≤2min free tier | Longer = future premium feature |
 

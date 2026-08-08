@@ -6,6 +6,8 @@
 **Created:** 2026-07-12  
 **Owner:** Turgay Yildiz
 
+> **Multi-Profile amendment (2026-08-08):** Claim eligibility, profile types, onboarding, and activation follow [`MULTI_PROFILE_PROPOSAL.md`](./MULTI_PROFILE_PROPOSAL.md). A claim consumes one of the account's five profile slots and the claimed profile becomes active immediately after a successful atomic claim.
+
 ---
 
 ## 1. Purpose
@@ -36,7 +38,7 @@ The admin must never need to create or know the recipient’s password.
 4. **Invitation links are temporary and revocable.** A leaked or outdated link can be cancelled without releasing the handle.
 5. **Invitation links are one-time use.** A successfully claimed invitation cannot be reused.
 6. **The recipient owns their authentication credentials.** They enter their own email and password and complete Supabase email verification.
-7. **Claiming must be atomic.** The system must not create an account but fail to attach the reserved handle, or attach one handle to two accounts.
+7. **Claiming must be atomic.** The system must not create an account but fail to attach the reserved handle, attach one handle to two accounts, exceed the account's five-profile cap, or complete without activating the claimed profile.
 8. **Administrative actions must be auditable.** The system should record who created, sent, revoked, and completed a claim.
 9. **The reserved handle takes precedence.** The claim flow must not allow the recipient to substitute a different handle during registration.
 
@@ -70,7 +72,7 @@ In the future admin section, the admin selects **Create reserved profile** and e
 
 - Display name, for example `Samsara Collection`
 - Reserved handle, for example `samsara`
-- Profile type, for example `shop`, `creator`, `artist`, `label`, or the closest supported Psy profile type
+- Profile type: `personal`, `artist`, `label`, `festival`, or `vendor` (displayed as **Shop / Brand**)
 - Known public information, if available
 - Contact method, for example Instagram
 - Contact username or URL, if known
@@ -142,7 +144,7 @@ The recipient does not choose a handle in this flow. The reserved handle is alre
 
 #### Existing Psy.market user
 
-If policy allows an existing user to claim a reserved profile, they sign in first. Because V1 currently intends one profile per user, the system must stop the claim if that account already owns a profile. Supporting multiple profiles per user is a separate V2 decision and must not be introduced accidentally through this feature.
+An existing user signs in first. The claim is eligible while the account owns fewer than five profiles. An account already at the hard five-profile cap must receive a neutral ineligible/cap-reached result and cannot complete the claim unless it first becomes eligible under the separately reviewed profile-deletion rules.
 
 ### Stage 6: Complete the claim
 
@@ -152,19 +154,21 @@ After successful authentication and verified email, the server completes the cla
 2. Confirm it is active, unused, unrevoked, and unexpired.
 3. Lock and re-check the reservation.
 4. Confirm the reserved handle is still available and the reservation is not already claimed.
-5. Confirm the authenticated user is eligible to own a profile under current V1 rules.
+5. Lock the authenticated account's stable parent row and confirm it currently owns fewer than five profiles.
 6. Create or attach the profile to the authenticated user.
 7. Assign the exact reserved handle.
-8. Mark the reservation as `claimed`.
-9. Mark the invitation as used.
-10. Record the claiming user and completion time.
-11. Commit all changes together.
+8. Validate that the reserved profile already has the required onboarding fields: handle, display name, and one finalized profile type.
+9. Make the claimed profile the session's active profile.
+10. Mark the reservation as `claimed`.
+11. Mark the invitation as used.
+12. Record the claiming user and completion time.
+13. Commit all changes together.
 
 If any check fails, the whole transaction must roll back.
 
 ### Stage 7: After claiming
 
-The recipient is redirected to an onboarding or profile-editing page where they can complete approved fields such as:
+The claimed profile is already active. The recipient is redirected to that profile or its edit page, where they may complete optional fields such as:
 
 - Avatar and header image
 - Bio
@@ -313,9 +317,11 @@ It must:
 - Lock the invitation and reservation rows
 - Validate invitation state and expiry
 - Validate email verification
-- Enforce one profile per user for V1
+- Lock the account and enforce the hard five-profile cap on every claim path
 - Assign the reserved handle
+- Validate handle, display name, and finalized profile type
 - Copy approved prefilled profile data
+- Make the claimed profile active immediately
 - Mark invitation and reservation as completed
 - Return the claimed profile ID/handle
 - Roll back on any failure
@@ -414,7 +420,7 @@ Do not put a reusable raw claim token into user metadata, permanent URLs after c
 9. Do not include raw tokens in application logs or analytics.
 10. Require verified email before final ownership transfer.
 11. Re-check all conditions inside the final transaction to prevent race conditions.
-12. Prevent the same user from claiming multiple profiles while V1 enforces one profile per user.
+12. Enforce the hard five-profile account cap under the same account lock used by ordinary additional-profile creation, including concurrent claim/create attempts.
 13. Require explicit confirmation before releasing a reserved handle.
 14. Consider an optional admin-review step for sensitive or high-value identities.
 
@@ -442,7 +448,7 @@ Before final claim, allow them to restart with the correct email. After a comple
 
 ### Recipient already has a Psy profile
 
-Under the V1 one-profile-per-user decision, the claim must stop and instruct them to contact the admin or use a different eligible account. Multi-profile support is out of scope.
+The existing profile is not a blocker. The claim may complete while the account owns fewer than five profiles, and the claimed profile becomes active immediately. If the account already owns five profiles, the claim stops with a neutral cap-reached message; it must not consume the invitation or reservation.
 
 ### Two people open the same link
 
@@ -497,7 +503,7 @@ The admin may retain the reservation, cancel it, or deliberately release it acco
 - Token leakage review
 - Race-condition tests
 - RLS and privilege tests
-- Existing-user and one-profile-per-user tests
+- Existing-user, fifth-profile, cap-rejection, and concurrent claim/create tests
 - Full staging walkthrough
 - Admin audit verification
 - Documentation and support procedure
@@ -517,6 +523,9 @@ The feature is complete only when all of the following are true:
 - [ ] Recipient must verify their email before ownership is finalized.
 - [ ] Recipient cannot replace `samsara` with another handle during the claim.
 - [ ] Successful claim connects exactly one eligible user to the reserved profile.
+- [ ] A successful claim consumes one profile slot and makes the claimed profile active immediately.
+- [ ] An account with four profiles can claim a fifth; an account with five cannot claim a sixth.
+- [ ] Concurrent claim/create attempts cannot exceed the five-profile cap.
 - [ ] Invitation and reservation updates happen atomically.
 - [ ] Reusing, guessing, forwarding after use, or racing the same token cannot produce a second owner.
 - [ ] Normal users cannot read reservation contact details, invitation hashes, or admin notes.
@@ -529,7 +538,7 @@ The feature is complete only when all of the following are true:
 ## 13. Explicit non-goals for the first version
 
 - Automatic proof that the claimant legally owns a brand
-- Multiple profiles per Psy user
+- Team access or multiple auth accounts managing one claimed profile
 - Public self-service requests for arbitrary reserved names
 - Buying or selling reserved handles
 - Permanent reusable invitation links
@@ -546,7 +555,7 @@ The feature is complete only when all of the following are true:
 4. If they agree, Turgay generates a private 14-day claim link.
 5. Samsara opens the link and sees the exact profile they were invited to claim.
 6. They create their own account and verify their email.
-7. Psy.market atomically connects their account to `psy.market/samsara`.
-8. The link becomes unusable, the reservation becomes claimed, and Samsara completes its profile.
+7. Psy.market atomically connects their account to `psy.market/samsara` without exceeding the five-profile cap and makes that profile active.
+8. The link becomes unusable, the reservation becomes claimed, and Samsara may complete optional profile fields.
 
 This approach supports pre-launch handle protection without requiring email addresses and provides a controlled onboarding path for organisations contacted through Instagram or other social channels.

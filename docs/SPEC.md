@@ -2,6 +2,8 @@
 
 > **SUPERSEDED IN PARTS — see docs/V1_DECISIONS.md (2026-07-12) for binding V1 scope.**
 
+> **MULTI-PROFILE SCOPE SUPERSEDED (2026-08-08):** One-profile/V2-switcher assumptions in this historical specification are not current V1 requirements. Use [`MULTI_PROFILE_PROPOSAL.md`](./MULTI_PROFILE_PROPOSAL.md) for the binding Multi-Profile model and slice plan; do not implement the historical cardinality assumptions below.
+
 > **Implementation note (2026-06-04):** This engineering spec is partially stale. It documents the original intended Supabase Storage/admin-review/message-thread architecture, but the current repository has diverged in storage, messaging, routing, and admin implementation. Read `AGENTS.md` and `../.agent-context/CURRENT_STATE.md` before using this file as an implementation source of truth.
 
 **Version:** 1.1

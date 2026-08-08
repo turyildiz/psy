@@ -2,10 +2,12 @@
 
 > Updated 2026-08-01 from the frozen scope in [`V1_DECISIONS.md`](./V1_DECISIONS.md), the accepted read-only reconciliation, and the owner-approved Step 11 architecture decision. Do not implement items from superseded PRD or SPEC sections where they conflict with the frozen decisions.
 
+> **Multi-Profile amendment (2026-08-08):** Multi-Profile is binding V1 scope. Execute the dependency-ordered MP-0 through MP-14 plan in [`MULTI_PROFILE_PROPOSAL.md`](./MULTI_PROFILE_PROPOSAL.md); this punch list summarizes launch obligations and does not replace that proposal's detailed slices or matrices.
+
 ## Ordered launch punch list
 
 1. **Version and secure the Supabase data layer — L**  
-   Capture the live schema as migrations; define constraints, triggers, RPCs, Realtime publication, and RLS for profiles, listings, conversations/messages, events, RSVPs, notice posts/reactions, user roles, bans, and per-user conversation hiding.
+   Capture the live schema as migrations; define constraints, triggers, RPCs, Realtime publication, and RLS for the five-profile cap, active-profile authorization/privacy, profiles, listings, conversations/messages, events, RSVPs, notice posts/reactions, user roles, account bans, and per-profile conversation hiding.
    - Database Chunks 0–7 are live and were read-only reconfirmed on 2026-07-26. Chunk 10 was owner-applied, independently verified read-only, and functionally smoke-tested through authenticated RLS on 2026-07-27. Chunks 8–9 remain separately review- and approval-gated.
    - Chunk 10 hardened `increment_view_count` and `update_conversation_last_message` with empty fixed search paths, schema-qualified references, explicit `PUBLIC`/`anon`/`authenticated` revocation, and reviewed `service_role` grants. See `CHUNK_10_SECURITY_DEFINER_HARDENING_VERIFICATION.md` and `CHUNK_10_SECURITY_DEFINER_HARDENING_SMOKE.md`.
 
@@ -24,7 +26,7 @@
    - Current demo profiles and listings must remain available during development. Any pre-launch demo-data purge requires a separate exact reviewed scope and must retain the `@turgay` profile.
 
 4. **Harden the direct-publish listing flow — M**  
-   Keep immediate `active` publication, add shared server-side validation and ownership checks, remove dead draft/review controls, add owner unpublish/mark-sold management, and ensure failed uploads cannot create invalid listings.
+   Keep immediate `active` publication, add shared server-side validation and active-profile ownership checks, show **Posting as @handle (switch)**, remove dead draft/review controls, add owner unpublish/mark-sold management, and ensure failed uploads cannot create invalid listings or publish after an unresolved profile switch.
    - Keep this V1 work within the accepted current upload lifecycle. Do not pull the deferred Step 11 ledger/reservation architecture into pre-launch scope.
    - **Browser-test bug — price preview:** entering `19,99` shows `20 €` in the Step 3 review preview, while the published listing correctly shows `19,99 €`. The preview appears to round prices to whole euros. Fix the preview for V1 and keep an open check that comma-decimal input is handled reliably throughout listing creation, review, editing, and publication, since German sellers will enter `19,99` rather than `19.99`.
    - **V1 missing feature — listing cover selection:** when a listing has multiple images, the seller cannot choose its cover; the first uploaded image is used on category pages, in search results, and on the listing detail page. Implement image reordering/cover selection for V1 by changing the order of the existing `images` array, with the chosen cover first. This requires no schema change.
@@ -34,22 +36,22 @@
    Extend schema/types/forms/search to support tickets, display the face-value guideline and ticket-specific safety messaging, and remove the hard-coded homepage ticket section. Do not add verification or affiliate links.
 
 6. **Build minimal reactive moderation — L**  
-   Implement exactly one `super_admin` plus appointed admins; both can unpublish listings, ban/unban users, and delete notice-wall posts, while only the super_admin can appoint/remove admins. Enforce bans in auth and write paths. The moderation UI must synchronize account bans with Supabase Auth: Ban sets Auth `banned_until`, Unban clears it, and rejected login attempts display a clear banned-account message. No approval queue or analytics dashboard.
+   Implement exactly one `super_admin` plus appointed admins; both can unpublish listings, ban/unban users, and delete notice-wall posts, while only the super_admin can appoint/remove admins. Enforce account bans across every sibling profile and write path while preserving the narrow whole-account deletion exception. The moderation UI must synchronize account bans with Supabase Auth: Ban sets Auth `banned_until`, Unban clears it, and rejected login attempts display a clear banned-account message. Sibling linkage appears only in a dedicated admin-only account panel. No approval queue or analytics dashboard.
 
 7. **Finish database-backed browse and discovery — M**  
    Implement title search, category and price filters, stable pagination, URL-backed state, and clear empty/error states across normal listings including tickets. Remove or defer controls not supported by the frozen lean scope.
 
 8. **Repair V1 messaging and soft-delete semantics — M**  
-   Fix contact-to-thread navigation, unread state, text-message validation, and Realtime behavior. Replace shared-row deletion with per-user hidden state. Defer message images, automatic link rendering, and full read receipts to V1.1.
+   Fix active-profile contact-to-thread navigation, inbox/unread state, text-message validation, and Realtime behavior. Replace shared-row deletion with per-profile hidden state; block same-account profile contact with no row/email side effect; preserve surviving history under neutral **Deleted profile** presentation. Defer message images, automatic link rendering, and full read receipts to V1.1.
 
 9. **Implement the single V1 application-email flow — M**
-   Send only new-message notifications through server-side All-Inkl SMTP, default enabled, with an opt-out toggle in settings. Use `no-reply@psy.market` as the binding sender identity unless Turgay separately changes it; keep credentials in environment-scoped Vercel server secrets. Verify sender-domain authentication, delivery failure handling, and links to the correct conversation. Do not add approval, marketing, or other notification emails.
+   Send only unread-aware, delayed, per-conversation-throttled new-message notifications through server-side All-Inkl SMTP, default enabled, with one account-level opt-out toggle. Identify the contacted profile, use `no-reply@psy.market` unless Turgay separately changes it, and keep credentials in environment-scoped Vercel server secrets. Verify sender-domain authentication, idempotency/delivery failure handling, and links to the correct profile conversation. Do not email blocked same-account attempts or add approval, marketing, or other notification emails.
 
 10. **Complete and seed the festival layer — M**  
-    Verify calendar, detail pages, RSVPs, notice posting/reactions, permissions, and moderation end-to-end; seed the current festival season before launch.
+    Verify calendar, detail pages, per-profile RSVPs, Notice Board per-profile reactions, sibling independence, permissions, and moderation end-to-end; seed the current festival season before launch.
 
 11. **Add account settings and safe deletion — M**  
-    Provide the new-message email opt-out, password management links, and self-service account deletion with defined treatment of marketplace and festival/community records.
+    Provide the new-message email opt-out, password management links, up-to-five profile creation/switching/management, profile deletion, and self-service account deletion. Enforce created-event transfer blockers, banned-account rules, neutral deleted identities, final-super-admin transfer protection, the approved temporary moderation tombstone/email-reuse rules, and the lawyer-verification gate.
 
 12. **Add legal and safety pages — M**  
     Implement Impressum, Datenschutzerklärung, AGB, and safety-tips routes; include marketplace and ticket-specific safety guidance; centralize operator name/address/contact as a config placeholder and block launch until real details are supplied.
@@ -63,6 +65,7 @@
 
 15. **Production-domain cutover and launch verification — M**  
     Deploy on Vercel Pro, point `psy.market`, verify TLS and Supabase redirects, complete browser/auth/upload/listing/search/messaging/email/moderation/festival/legal/SEO/mobile smoke tests, then retire the VPS staging-service path.
+    - Complete the checklist-level Multi-Profile gate in `PRE_LAUNCH_TEST_LIST.md`: five-cap/vendor onboarding, switcher and dirty-form safety, sibling interaction semantics, same-account message blocking, per-profile state isolation, profile/account deletion, and public unlinkability across UI/DOM/network/Realtime/email/R2/error surfaces.
     - Before cutover, re-run state-free Step 11 Gate A exactly from `recovered-step11/approval-gated-database-object-storage-migrations.md`; capture and version canonical before/after hashes, test totals, rejection-probe results, static public-deletion-path proof, and final private/public inventories.
 
 ## Obsolete items from the previous punch list

@@ -1,6 +1,8 @@
 # psy.market — Next Steps
 
-Last updated: 2026-06-07 by Claude
+Last updated: 2026-08-08 by Psy for MP-0 reconciliation
+
+> Historical sprint detail below is retained for context. Current ordered V1 work is in `docs/V1_PUNCHLIST.md`; binding Multi-Profile work follows `docs/MULTI_PROFILE_PROPOSAL.md` MP-0 through MP-14.
 
 ---
 
@@ -91,6 +93,7 @@ CREATE TABLE notice_posts (
 
 ### High priority
 
+- Execute the separately reviewed Multi-Profile V1 slices in dependency order; do not remove the current one-profile database constraint or enable a second profile before the privacy, authorization, and compatibility gates pass.
 - Edit profile page (`/profile/edit`) — button exists, page not built
 - Edit listing page (`/listing/[id]/edit`) — icon exists, page not built
 - Fix browse page search (`?q=` param currently ignored)
@@ -106,5 +109,4 @@ CREATE TABLE notice_posts (
 - Admin approval queue (listings currently go live immediately)
 - Music download sales (V1.5) — signed R2 download URLs, Bandcamp-style pricing
 - Ticket sales system (V2) — Stripe + QR codes for festival door staff
-- Multi-profile per user (V2)
-- Follows + feed (V2)
+- Team access: multiple auth accounts managing one profile (post-V1)
