@@ -12,7 +12,8 @@
 -- exactly one compact summary row. Copy that final row back to the project agent.
 -- GO means the repository-backed pre-change baseline is exact; it does not mean
 -- that profiles.user_id is already private. STOP means drift or an unknown object.
--- UNPROVEN means owner review or required fixture evidence is still unavailable.
+-- UNPROVEN means required fixture evidence is still unavailable. Owner-confirmation
+-- notes are listed separately and do not change section or overall status.
 
 -- 01. Database/project identity. No project URL, key, or credential is selected.
 select
@@ -1142,6 +1143,7 @@ section_02 as (
   select
     case when to_regclass('public.profiles') is not null
       and coalesce((select c.relkind = 'r'
+                    and c.relowner = 'postgres'::regrole
                     and c.relrowsecurity and not c.relforcerowsecurity
                     from pg_class c
                     where c.oid = to_regclass('public.profiles')), false)
@@ -1204,7 +1206,7 @@ section_02 as (
         and all_indexes_ready and handle_trigger_exact
         and timestamp_trigger_exact
         from profile_definition_checks)
-    then 'UNPROVEN' else 'STOP' end as status,
+    then 'GO' else 'STOP' end as status,
     array_remove(array[
       case when to_regclass('public.profiles') is null then 'profiles_missing' end,
       case when (select count(*) from actual_columns) <> 15
@@ -1236,7 +1238,10 @@ section_02 as (
         and timestamp_trigger_exact
         from profile_definition_checks)
       then 'profiles_object_definition_drift' end,
-      'profiles_owner_requires_owner_review'::text
+      case when coalesce((select c.relowner <> 'postgres'::regrole
+                           from pg_class c
+                           where c.oid = to_regclass('public.profiles')), true)
+        then 'profiles_owner_drift' end
     ], null) as findings
 ),
 actual_table_acl as (
@@ -1250,25 +1255,29 @@ actual_table_acl as (
   cross join lateral aclexplode(coalesce(c.relacl, acldefault('r', c.relowner))) acl
   where c.oid = to_regclass('public.profiles')
 ),
+expected_table_acl as (
+  select 'postgres'::text as grantor, r.grantee, p.privilege_type,
+    false as is_grantable
+  from (values ('postgres'::text), ('anon'), ('authenticated'),
+               ('service_role')) r(grantee)
+  cross join (values ('DELETE'::text), ('INSERT'), ('MAINTAIN'),
+                     ('REFERENCES'), ('SELECT'), ('TRIGGER'),
+                     ('TRUNCATE'), ('UPDATE')) p(privilege_type)
+  union all
+  select 'postgres', 'audit_readonly', 'SELECT', false
+),
 section_03 as (
-  select case when exists (
-    select 1 from actual_table_acl
-    where grantee not in (
-      'postgres', 'anon', 'authenticated', 'service_role', 'audit_readonly'
-    )
-       or grantor <> 'postgres'
-       or is_grantable
-       or grantee = 'PUBLIC'
-  ) then 'STOP' else 'UNPROVEN' end as status,
-  array_remove(array[
-    case when exists (
-      select 1 from actual_table_acl
-      where grantee not in (
-        'postgres', 'anon', 'authenticated', 'service_role', 'audit_readonly'
-      ) or grantor <> 'postgres' or is_grantable or grantee = 'PUBLIC'
-    ) then 'unsafe_or_unknown_profiles_table_acl' end,
-    'profiles_table_acl_requires_owner_review'::text
-  ], null) as findings
+  select case when not exists (
+    (select * from actual_table_acl except select * from expected_table_acl)
+    union all
+    (select * from expected_table_acl except select * from actual_table_acl)
+  ) then 'GO' else 'STOP' end as status,
+  case when exists (
+    (select * from actual_table_acl except select * from expected_table_acl)
+    union all
+    (select * from expected_table_acl except select * from actual_table_acl)
+  ) then array['profiles_table_acl_drift']::text[]
+    else array[]::text[] end as findings
 ),
 direct_column_acl as (
   select a.attname, acl.grantor, acl.grantee, acl.privilege_type,
@@ -1277,6 +1286,29 @@ direct_column_acl as (
   cross join lateral aclexplode(a.attacl) acl
   where a.attrelid = to_regclass('public.profiles')
     and a.attnum > 0 and not a.attisdropped
+),
+actual_relevant_role_memberships as (
+  select granted.rolname::text as granted_role,
+    member.rolname::text as member_role,
+    grantor.rolname::text as grantor_role,
+    m.admin_option
+  from pg_auth_members m
+  join pg_roles granted on granted.oid = m.roleid
+  join pg_roles member on member.oid = m.member
+  join pg_roles grantor on grantor.oid = m.grantor
+  where granted.rolname in ('anon', 'authenticated', 'service_role')
+     or member.rolname in ('anon', 'authenticated', 'service_role')
+),
+expected_relevant_role_memberships(
+  granted_role, member_role, grantor_role, admin_option
+) as (
+  values
+    ('anon', 'authenticator', 'supabase_admin', false),
+    ('authenticated', 'authenticator', 'supabase_admin', false),
+    ('service_role', 'authenticator', 'supabase_admin', false),
+    ('anon', 'postgres', 'supabase_admin', true),
+    ('authenticated', 'postgres', 'supabase_admin', true),
+    ('service_role', 'postgres', 'supabase_admin', true)
 ),
 api_role_inherits_privilege_role as (
   select 1
@@ -1290,6 +1322,13 @@ section_04 as (
   select case when not exists (select 1 from direct_column_acl)
       and not exists (select 1 from api_role_inherits_privilege_role)
       and not exists (
+        (select * from actual_relevant_role_memberships
+         except select * from expected_relevant_role_memberships)
+        union all
+        (select * from expected_relevant_role_memberships
+         except select * from actual_relevant_role_memberships)
+      )
+      and not exists (
         select 1 from actual_columns a
         cross join (values ('anon'), ('authenticated'), ('service_role')) r(role_name)
         where not has_table_privilege(r.role_name, 'public.profiles', 'SELECT')
@@ -1301,12 +1340,19 @@ section_04 as (
         select 1 from actual_table_acl
         where grantee = 'PUBLIC' and privilege_type = 'SELECT'
       )
-    then 'UNPROVEN' else 'STOP' end as status,
+    then 'GO' else 'STOP' end as status,
     array_remove(array[
       case when exists (select 1 from direct_column_acl)
         then 'unexpected_direct_column_acl' end,
       case when exists (select 1 from api_role_inherits_privilege_role)
         then 'api_role_inherits_unexpected_role' end,
+      case when exists (
+        (select * from actual_relevant_role_memberships
+         except select * from expected_relevant_role_memberships)
+        union all
+        (select * from expected_relevant_role_memberships
+         except select * from actual_relevant_role_memberships)
+      ) then 'api_role_membership_manifest_drift' end,
       case when exists (select 1 from actual_table_acl
                         where grantee = 'PUBLIC' and privilege_type = 'SELECT')
         then 'public_pseudo_role_has_select' end,
@@ -1316,8 +1362,7 @@ section_04 as (
         where not has_column_privilege(
           r.role_name, 'public.profiles', a.column_name, 'SELECT'
         )
-      ) then 'prechange_effective_column_select_drift' end,
-      'effective_privilege_and_membership_manifest_requires_owner_review'::text
+      ) then 'prechange_effective_column_select_drift' end
     ], null) as findings
 ),
 relevant_default_acl as (
@@ -1348,52 +1393,54 @@ public_schema_acl as (
   cross join lateral aclexplode(coalesce(n.nspacl, acldefault('n', n.nspowner))) acl
   where n.nspname = 'public'
 ),
+expected_default_acl as (
+  select c.object_creator, 'public'::text as target_schema,
+    op.defaclobjtype, g.grantee, op.privilege_type,
+    false as is_grantable, c.object_creator as grantor
+  from (values ('postgres'::text), ('supabase_admin')) c(object_creator)
+  cross join (values ('postgres'::text), ('anon'), ('authenticated'),
+                     ('service_role')) g(grantee)
+  cross join (values
+    ('r'::"char", 'DELETE'::text), ('r'::"char", 'INSERT'),
+    ('r'::"char", 'MAINTAIN'), ('r'::"char", 'REFERENCES'),
+    ('r'::"char", 'SELECT'), ('r'::"char", 'TRIGGER'),
+    ('r'::"char", 'TRUNCATE'), ('r'::"char", 'UPDATE'),
+    ('S'::"char", 'SELECT'), ('S'::"char", 'UPDATE'),
+    ('S'::"char", 'USAGE'), ('f'::"char", 'EXECUTE')
+  ) op(defaclobjtype, privilege_type)
+),
+expected_public_schema_acl as (
+  select 'pg_database_owner'::text as schema_owner, g.grantee,
+    'USAGE'::text as privilege_type, false as is_grantable,
+    'pg_database_owner'::text as grantor
+  from (values ('PUBLIC'::text), ('anon'), ('audit_readonly'),
+               ('authenticated'), ('pg_database_owner'), ('postgres'),
+               ('service_role')) g(grantee)
+  union all
+  select 'pg_database_owner', 'pg_database_owner', 'CREATE', false,
+    'pg_database_owner'
+),
 section_05 as (
   select case when not exists (
-    select 1 from relevant_default_acl
-    where grantee not in (
-      'PUBLIC', 'postgres', 'anon', 'authenticated', 'service_role',
-      'audit_readonly', 'authenticator', 'dashboard_user', 'supabase_admin',
-      'pg_database_owner',
-      'supabase_auth_admin', 'supabase_storage_admin'
-    )
-      or grantor not in ('postgres', 'supabase_admin', 'pg_database_owner')
-      or is_grantable
-  ) and not exists (
-    select 1 from public_schema_acl
-    where grantee not in (
-      'PUBLIC', 'postgres', 'anon', 'authenticated', 'service_role',
-      'audit_readonly', 'authenticator', 'dashboard_user', 'supabase_admin',
-      'pg_database_owner'
-    )
-       or grantor not in ('postgres', 'supabase_admin', 'pg_database_owner')
-       or is_grantable
-       or (privilege_type = 'CREATE' and grantee <> schema_owner)
-  ) then 'UNPROVEN' else 'STOP' end as status,
+      (select * from relevant_default_acl except select * from expected_default_acl)
+      union all
+      (select * from expected_default_acl except select * from relevant_default_acl)
+    ) and not exists (
+      (select * from public_schema_acl except select * from expected_public_schema_acl)
+      union all
+      (select * from expected_public_schema_acl except select * from public_schema_acl)
+    ) then 'GO' else 'STOP' end as status,
   array_remove(array[
     case when exists (
-      select 1 from relevant_default_acl
-      where grantee not in (
-        'PUBLIC', 'postgres', 'anon', 'authenticated', 'service_role',
-        'audit_readonly', 'authenticator', 'dashboard_user', 'supabase_admin',
-      'pg_database_owner',
-        'supabase_auth_admin', 'supabase_storage_admin'
-      )
-        or grantor not in ('postgres', 'supabase_admin', 'pg_database_owner')
-        or is_grantable
-    ) then 'unknown_or_grantable_default_acl' end,
+      (select * from relevant_default_acl except select * from expected_default_acl)
+      union all
+      (select * from expected_default_acl except select * from relevant_default_acl)
+    ) then 'default_acl_manifest_drift' end,
     case when exists (
-      select 1 from public_schema_acl
-      where grantee not in (
-        'PUBLIC', 'postgres', 'anon', 'authenticated', 'service_role',
-        'audit_readonly', 'authenticator', 'dashboard_user', 'supabase_admin',
-      'pg_database_owner'
-      )
-         or grantor not in ('postgres', 'supabase_admin', 'pg_database_owner')
-         or is_grantable
-         or (privilege_type = 'CREATE' and grantee <> schema_owner)
-    ) then 'unsafe_or_unknown_public_schema_acl' end,
-    'default_acl_manifest_requires_owner_review'::text
+      (select * from public_schema_acl except select * from expected_public_schema_acl)
+      union all
+      (select * from expected_public_schema_acl except select * from public_schema_acl)
+    ) then 'public_schema_acl_manifest_drift' end
   ], null) as findings
 ),
 actual_profile_policies as (

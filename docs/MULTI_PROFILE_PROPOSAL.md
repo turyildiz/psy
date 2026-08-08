@@ -1070,6 +1070,8 @@ Each slice gets its own scope, preflight, apply/rollback/verify package where ap
 - Add the private **Switch to @handle to manage** action on inactive owned profile pages; never auto-switch.
 - Add the dedicated admin-only account/profile linkage panel and keep sibling ownership out of public-adjacent moderation cards.
 - Activate the pre-reviewed MP-2 public owner-column revocation only after the compatible client is staged.
+- At that cutover review, explicitly decide whether the unused pre-cutover `TRUNCATE`, `TRIGGER`, `REFERENCES`, and `MAINTAIN` table privileges for `anon`/`authenticated` are removed or preserved; this remains deferred and must not be changed by the read-only baseline package.
+- Carry the current `profiles_user_id_fkey` `ON DELETE CASCADE` behavior into the later profile/account-deletion slice reviews; MP-5 does not change it.
 - Keep additional-profile creation unavailable.
 
 **Verification:** switch is session-scoped, separate sessions remain independent, stale data never crosses identities, public DOM/network has no sibling list or owner ID, and all public pages work after grant cutover.

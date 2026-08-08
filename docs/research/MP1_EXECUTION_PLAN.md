@@ -622,6 +622,11 @@ A second four-artifact database package:
 3. **verify** — catalog/ACL plus complete anon/auth REST/RPC/nested/Realtime behavior matrix;
 4. **rollback** — restore the exact captured pre-cutover ACL only after verifying the complete expected new state.
 
+**Deferred review notes — no action in Package A:**
+
+- Package D review must decide whether to normalize the currently unused `TRUNCATE`, `TRIGGER`, `REFERENCES`, and `MAINTAIN` table privileges for `anon` and `authenticated` at cutover. The pre-cutover baseline records them exactly; removal or preservation is deliberately undecided until Package D.
+- `public.profiles_user_id_fkey` is currently `ON DELETE CASCADE` from `auth.users(id)` to `public.profiles(user_id)`. Package D does not change it; carry this dependency into the later profile/account-deletion slice reviews.
+
 Turgay applies Package D only during the coordinated cutover. Run the post-cutover click-round and unlinkability probes immediately.
 
 ### Rollback order
