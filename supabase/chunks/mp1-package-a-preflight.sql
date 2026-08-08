@@ -588,6 +588,7 @@ select
   pub.pubupdate,
   pub.pubdelete,
   pub.pubtruncate,
+  pub.pubviaroot,
   n.nspname as schema_name,
   c.relname as table_name,
   case c.relreplident
@@ -599,23 +600,38 @@ select
   coalesce(to_jsonb(pr)->'prqual', 'null'::jsonb)
     as publication_row_filter_raw,
   md5(concat_ws('|', pub.pubname, pub.puballtables, pub.pubinsert,
-    pub.pubupdate, pub.pubdelete, pub.pubtruncate, n.nspname, c.relname,
-    c.relreplident, coalesce((to_jsonb(pr)->'prattrs')::text, '*'),
+    pub.pubupdate, pub.pubdelete, pub.pubtruncate, pub.pubviaroot,
+    n.nspname, c.relname, c.relreplident,
+    coalesce((to_jsonb(pr)->'prattrs')::text, '*'),
     coalesce((to_jsonb(pr)->'prqual')::text, '*'))) as publication_fingerprint
 from pg_publication pub
 left join pg_publication_rel pr on pr.prpubid = pub.oid
 left join pg_class c on c.oid = pr.prrelid
 left join pg_namespace n on n.oid = c.relnamespace
-where pub.pubname = 'supabase_realtime'
-order by schema_name nulls first, table_name nulls first;
+where pub.pubname in ('supabase_realtime',
+                      'supabase_realtime_messages_publication')
+order by pub.pubname, schema_name nulls first, table_name nulls first;
 
 select
   'DETAIL_11_ALL_PUBLICATIONS'::text as result_set,
   pubname, puballtables, pubinsert, pubupdate, pubdelete, pubtruncate,
+  pubviaroot,
   md5(concat_ws('|', pubname, puballtables, pubinsert, pubupdate,
-    pubdelete, pubtruncate)) as publication_fingerprint
+    pubdelete, pubtruncate, pubviaroot)) as publication_fingerprint
 from pg_publication
 order by pubname;
+
+select
+  'DETAIL_11_EXPANDED_PUBLICATION_MEMBERS'::text as result_set,
+  pubname,
+  schemaname as schema_name,
+  tablename as table_name,
+  attnames as published_columns,
+  rowfilter as row_filter,
+  md5(concat_ws('|', pubname, schemaname, tablename,
+    attnames::text, rowfilter)) as membership_fingerprint
+from pg_publication_tables
+order by pubname, schemaname, tablename;
 
 select
   'DETAIL_11_SCHEMA_PUBLICATIONS'::text as result_set,
@@ -1105,21 +1121,22 @@ section_01 as (
       or session_user <> 'postgres'
       or not coalesce((select not rolsuper and rolbypassrls
                        from pg_roles where rolname = 'postgres'), false)
-      or (select count(*) from auth.instances) <> 1
+      or (select count(*) from auth.instances) <> 0
       or (select count(*) from pg_roles
           where rolname in ('anon', 'authenticated', 'service_role')) <> 3
-    then 'STOP' else 'UNPROVEN' end as status,
+    then 'STOP' else 'GO' end as status,
     array_remove(array[
       case when current_database() <> 'postgres' then 'unexpected_database' end,
       case when current_user <> 'postgres' or session_user <> 'postgres'
         then 'not_owner_context' end,
-      case when (select count(*) from auth.instances) <> 1
+      case when (select count(*) from auth.instances) <> 0
         then 'auth_project_instance_count_drift' end,
       case when (select count(*) from pg_roles
                  where rolname in ('anon','authenticated','service_role')) <> 3
-        then 'missing_api_role' end,
-      'project_identity_requires_owner_confirmation'::text
-    ], null) as findings
+        then 'missing_api_role' end
+    ], null) as findings,
+    array['project_identity_requires_owner_confirmation'::text]
+      as owner_confirmation_items
 ),
 section_02 as (
   select
@@ -1811,32 +1828,79 @@ actual_realtime_tables as (
   join pg_namespace n on n.oid = c.relnamespace
   where p.pubname = 'supabase_realtime'
 ),
+expected_publications(pubname) as (
+  values ('supabase_realtime'),
+    ('supabase_realtime_messages_publication')
+),
+actual_publications as (
+  select pubname::text from pg_publication
+),
+expected_managed_realtime_direct_tables(schema_name, table_name) as (
+  values ('realtime', 'messages')
+),
+actual_managed_realtime_direct_tables as (
+  select n.nspname::text as schema_name, c.relname::text as table_name
+  from pg_publication_rel pr
+  join pg_publication p on p.oid = pr.prpubid
+  join pg_class c on c.oid = pr.prrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  where p.pubname = 'supabase_realtime_messages_publication'
+),
+expected_managed_realtime_expanded_tables as (
+  select pt.relid
+  from pg_partition_tree(to_regclass('realtime.messages')) pt
+  where pt.isleaf
+),
+actual_managed_realtime_expanded_tables as (
+  select c.oid as relid
+  from pg_publication_tables pt
+  join pg_namespace n on n.nspname = pt.schemaname
+  join pg_class c on c.relnamespace = n.oid and c.relname = pt.tablename
+  where pt.pubname = 'supabase_realtime_messages_publication'
+),
 section_11 as (
-  select case when coalesce((select not puballtables and pubinsert and pubupdate
-      and pubdelete and pubtruncate from pg_publication
-      where pubname = 'supabase_realtime'), false)
+  select case when not exists (
+      (select * from actual_publications except select * from expected_publications)
+      union all
+      (select * from expected_publications except select * from actual_publications)
+    )
+    and not exists (
+      select 1 from pg_publication
+      where pubname in ('supabase_realtime',
+                        'supabase_realtime_messages_publication')
+        and (puballtables or not pubinsert or not pubupdate or not pubdelete
+             or not pubtruncate or pubviaroot)
+    )
     and not exists (
       (select * from actual_realtime_tables except select * from expected_realtime_tables)
       union all
       (select * from expected_realtime_tables except select * from actual_realtime_tables)
     )
     and not exists (
+      (select * from actual_managed_realtime_direct_tables
+       except select * from expected_managed_realtime_direct_tables)
+      union all
+      (select * from expected_managed_realtime_direct_tables
+       except select * from actual_managed_realtime_direct_tables)
+    )
+    and not exists (
+      (select * from actual_managed_realtime_expanded_tables
+       except select * from expected_managed_realtime_expanded_tables)
+      union all
+      (select * from expected_managed_realtime_expanded_tables
+       except select * from actual_managed_realtime_expanded_tables)
+    )
+    and not exists (
       select 1 from pg_publication_rel pr
       join pg_publication p on p.oid = pr.prpubid
-      where p.pubname = 'supabase_realtime'
+      where p.pubname in ('supabase_realtime',
+                          'supabase_realtime_messages_publication')
         and (
           coalesce(to_jsonb(pr)->'prattrs', 'null'::jsonb) <> 'null'::jsonb
           or coalesce(to_jsonb(pr)->'prqual', 'null'::jsonb) <> 'null'::jsonb
         )
     )
-    and (select count(*) = 1 from pg_publication)
-    and not exists (select 1 from pg_publication where puballtables)
-    and not exists (
-      select 1
-      from pg_publication_namespace pn
-      join pg_namespace n on n.oid = pn.pnnspid
-      where n.nspname = 'public'
-    )
+    and not exists (select 1 from pg_publication_namespace)
     and coalesce((select relreplident = 'd'
                   from pg_class where oid = to_regclass('public.profiles')), false)
     and not exists (
@@ -1853,21 +1917,44 @@ section_11 as (
       union all
       (select * from expected_realtime_tables except select * from actual_realtime_tables)
     ) then 'realtime_membership_drift' end,
+    case when not exists (select 1 from pg_publication
+                          where pubname = 'supabase_realtime_messages_publication')
+      or exists (
+        (select * from actual_managed_realtime_direct_tables
+         except select * from expected_managed_realtime_direct_tables)
+        union all
+        (select * from expected_managed_realtime_direct_tables
+         except select * from actual_managed_realtime_direct_tables)
+      )
+      or exists (
+        (select * from actual_managed_realtime_expanded_tables
+         except select * from expected_managed_realtime_expanded_tables)
+        union all
+        (select * from expected_managed_realtime_expanded_tables
+         except select * from actual_managed_realtime_expanded_tables)
+      ) then 'managed_realtime_messages_publication_drift' end,
     case when exists (
       select 1 from pg_publication_rel pr
       where pr.prrelid = to_regclass('public.profiles')
     ) then 'profiles_published_to_any_publication' end,
-    case when (select count(*) from pg_publication) <> 1
-      or exists (select 1 from pg_publication where puballtables)
+    case when exists (
+      (select * from actual_publications except select * from expected_publications)
+      union all
+      (select * from expected_publications except select * from actual_publications)
+    ) or exists (select 1 from pg_publication where puballtables)
+      or exists (select 1 from pg_publication_namespace)
       or exists (
-        select 1 from pg_publication_namespace pn
-        join pg_namespace n on n.oid = pn.pnnspid
-        where n.nspname = 'public'
+        select 1 from pg_publication
+        where pubname in ('supabase_realtime',
+                          'supabase_realtime_messages_publication')
+          and (not pubinsert or not pubupdate or not pubdelete
+               or not pubtruncate or pubviaroot)
       ) then 'unexpected_publication_or_schema_wide_membership' end,
     case when exists (
       select 1 from pg_publication_rel pr
       join pg_publication p on p.oid = pr.prpubid
-      where p.pubname = 'supabase_realtime'
+      where p.pubname in ('supabase_realtime',
+                          'supabase_realtime_messages_publication')
         and (
           coalesce(to_jsonb(pr)->'prattrs', 'null'::jsonb) <> 'null'::jsonb
           or coalesce(to_jsonb(pr)->'prqual', 'null'::jsonb) <> 'null'::jsonb
@@ -2158,6 +2245,7 @@ select
   fs.stop_findings,
   fs.unproven_findings,
   fs.unavailable_fixtures,
+  s01.owner_confirmation_items,
   '83d35c728031ce2836246d9677aead37ad93fde0'::text
     as app_source_revision,
   '42a8f28024eb0ec3eb15814fe9327aabd80a8bd693d88d87fe3694bbb3dee2e6'::text
