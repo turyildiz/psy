@@ -517,6 +517,16 @@ actual_functions as (
     pg_get_function_identity_arguments(p.oid) as identity_arguments,
     l.lanname::text as language_name, p.proowner::regrole::text as owner_name,
     p.provolatile as volatility, p.prosecdef as security_definer,
+    pg_get_function_result(p.oid) as result_type,
+    p.proretset as returns_set, p.proisstrict as is_strict,
+    p.proleakproof as is_leakproof, p.proparallel::text as parallel_safety,
+    p.pronargdefaults as argument_default_count,
+    coalesce(pg_get_expr(p.proargdefaults,0),'') as argument_defaults,
+    array(select case when cfg in ('search_path=', 'search_path=""') then 'search_path=' else cfg end
+          from unnest(coalesce(p.proconfig,'{}'::text[])) cfg order by 1) as all_config,
+    array(select (case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end)
+                 ||':'||a.privilege_type||':'||a.is_grantable::text
+          from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a order by 1) as complete_acl,
     coalesce((select cfg from unnest(coalesce(p.proconfig,'{}'::text[])) cfg where cfg like 'search_path=%' limit 1),'') as search_path_config,
     array(select case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end
           from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
@@ -1039,6 +1049,16 @@ actual_functions as (
     pg_get_function_identity_arguments(p.oid) as identity_arguments,
     l.lanname::text as language_name, p.proowner::regrole::text as owner_name,
     p.provolatile as volatility, p.prosecdef as security_definer,
+    pg_get_function_result(p.oid) as result_type,
+    p.proretset as returns_set, p.proisstrict as is_strict,
+    p.proleakproof as is_leakproof, p.proparallel::text as parallel_safety,
+    p.pronargdefaults as argument_default_count,
+    coalesce(pg_get_expr(p.proargdefaults,0),'') as argument_defaults,
+    array(select case when cfg in ('search_path=', 'search_path=""') then 'search_path=' else cfg end
+          from unnest(coalesce(p.proconfig,'{}'::text[])) cfg order by 1) as all_config,
+    array(select (case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end)
+                 ||':'||a.privilege_type||':'||a.is_grantable::text
+          from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a order by 1) as complete_acl,
     coalesce((select cfg from unnest(coalesce(p.proconfig,'{}'::text[])) cfg where cfg like 'search_path=%' limit 1),'') as search_path_config,
     array(select case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end
           from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a
@@ -1049,13 +1069,27 @@ actual_functions as (
   where n.nspname='public'
 )
   select exists ((select function_name,identity_arguments,language_name,owner_name,volatility,security_definer,
+      result_type,returns_set,is_strict,is_leakproof,parallel_safety,argument_default_count,argument_defaults,all_config,complete_acl,
       case when search_path_config in ('search_path=', 'search_path=""') then 'search_path=' else search_path_config end,
       execute_grantees, normalized_body from actual_functions
       where function_name in (select function_name from expected_functions) except select function_name,identity_arguments,language_name,owner_name,volatility,security_definer,
+      case when function_name in ('find_and_unhide_conversation','create_post','set_post_reaction') then 'uuid' else 'void' end,
+      false,false,false,'u',
+      case when function_name='create_post' then 2 when function_name='find_and_unhide_conversation' then 1 else 0 end,
+      case when function_name='create_post' then '''{}''::text[], true' when function_name='find_and_unhide_conversation' then 'NULL::uuid' else '' end,
+      array[case when search_path_config in ('search_path=', 'search_path=""') then 'search_path=' else search_path_config end]::text[],
+      array(select grantee||':EXECUTE:false' from unnest(execute_grantees) grantee order by 1),
       case when search_path_config in ('search_path=', 'search_path=""') then 'search_path=' else search_path_config end,
       execute_grantees, pg_catalog.btrim(pg_catalog.regexp_replace(expected_body,E'\\s+',' ','g')) from expected_functions) union all (select function_name,identity_arguments,language_name,owner_name,volatility,security_definer,
+      case when function_name in ('find_and_unhide_conversation','create_post','set_post_reaction') then 'uuid' else 'void' end,
+      false,false,false,'u',
+      case when function_name='create_post' then 2 when function_name='find_and_unhide_conversation' then 1 else 0 end,
+      case when function_name='create_post' then '''{}''::text[], true' when function_name='find_and_unhide_conversation' then 'NULL::uuid' else '' end,
+      array[case when search_path_config in ('search_path=', 'search_path=""') then 'search_path=' else search_path_config end]::text[],
+      array(select grantee||':EXECUTE:false' from unnest(execute_grantees) grantee order by 1),
       case when search_path_config in ('search_path=', 'search_path=""') then 'search_path=' else search_path_config end,
       execute_grantees, pg_catalog.btrim(pg_catalog.regexp_replace(expected_body,E'\\s+',' ','g')) from expected_functions except select function_name,identity_arguments,language_name,owner_name,volatility,security_definer,
+      result_type,returns_set,is_strict,is_leakproof,parallel_safety,argument_default_count,argument_defaults,all_config,complete_acl,
       case when search_path_config in ('search_path=', 'search_path=""') then 'search_path=' else search_path_config end,
       execute_grantees, normalized_body from actual_functions
       where function_name in (select function_name from expected_functions))) into drift;
@@ -1063,14 +1097,80 @@ actual_functions as (
 end;
 $guard$;
 
-do $helper_shape$
+do $package_b_helper_guard$
 begin
-  if to_regprocedure('public.current_user_owns_unsuspended_profile(uuid)') is null
-     or not has_function_privilege('authenticated','public.current_user_owns_unsuspended_profile(uuid)','EXECUTE')
-     or has_function_privilege('anon','public.current_user_owns_unsuspended_profile(uuid)','EXECUTE')
-  then raise exception 'MP-4 verify failed: helper shape/ACL'; end if;
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    join pg_language l on l.oid=p.prolang
+    where n.nspname='public' and p.proname='current_user_owns_profile'
+      and pg_get_function_identity_arguments(p.oid)='target_profile_id uuid'
+      and pg_get_function_result(p.oid)='boolean'
+      and l.lanname='sql' and p.proowner::regrole::text='postgres'
+      and p.provolatile='s' and p.prosecdef and not p.proretset and not p.proisstrict
+      and not p.proleakproof and p.proparallel='u' and p.pronargdefaults=0
+      and array(select case when cfg in ('search_path=', 'search_path=""') then 'search_path=' else cfg end
+                from unnest(coalesce(p.proconfig,'{}'::text[])) cfg order by 1)=array['search_path=']::text[]
+      and array(select (case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end)
+                       ||':'||a.privilege_type||':'||a.is_grantable::text
+                from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a order by 1)
+          =array['authenticated:EXECUTE:false','postgres:EXECUTE:false']::text[]
+      and pg_catalog.btrim(pg_catalog.regexp_replace(p.prosrc,E'\\s+',' ','g'))
+          =pg_catalog.btrim(pg_catalog.regexp_replace($pb_body$
+  with caller as (
+    select auth.uid() as account_user_id
+  )
+  select coalesce(
+    (
+      select exists (
+        select 1
+        from public.profiles p
+        where p.id = target_profile_id
+          and p.user_id = c.account_user_id
+      )
+      from caller c
+      where c.account_user_id is not null
+    ),
+    false
+  );
+$pb_body$,E'\\s+',' ','g'))
+  ) then raise exception 'MP-4 guard failed: Package B ownership helper definition/ACL drift'; end if;
 end;
-$helper_shape$;
+$package_b_helper_guard$;
+
+do $mp4_helper_guard$
+begin
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid=p.pronamespace
+    join pg_language l on l.oid=p.prolang
+    where n.nspname='public' and p.proname='current_user_owns_unsuspended_profile'
+      and pg_get_function_identity_arguments(p.oid)='target_profile_id uuid'
+      and pg_get_function_result(p.oid)='boolean'
+      and l.lanname='sql' and p.proowner::regrole::text='postgres'
+      and p.provolatile='s' and p.prosecdef and not p.proretset and not p.proisstrict
+      and not p.proleakproof and p.proparallel='u' and p.pronargdefaults=0
+      and array(select case when cfg in ('search_path=', 'search_path=""') then 'search_path=' else cfg end
+                from unnest(coalesce(p.proconfig,'{}'::text[])) cfg order by 1)=array['search_path=']::text[]
+      and array(select (case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end)
+                       ||':'||a.privilege_type||':'||a.is_grantable::text
+                from aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a order by 1)
+          =array['authenticated:EXECUTE:false','postgres:EXECUTE:false']::text[]
+      and pg_catalog.btrim(pg_catalog.regexp_replace(p.prosrc,E'\\s+',' ','g'))
+          =pg_catalog.btrim(pg_catalog.regexp_replace($mp4_body$
+  select
+    public.current_user_owns_profile(target_profile_id)
+    and coalesce((
+      select not p.is_suspended
+      from public.profiles as p
+      where p.id = target_profile_id
+    ), false);
+$mp4_body$,E'\\s+',' ','g'))
+  ) then raise exception 'MP-4 guard failed: unsuspended-owner helper definition/ACL drift'; end if;
+end;
+$mp4_helper_guard$;
 
 create temporary table mp4_verification_results(
   family text primary key,

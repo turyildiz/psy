@@ -21,7 +21,7 @@
 | `supabase/chunks/mp4-policy-conversion-rollback.sql` | Exact new-state guard followed by restoration of every original policy/function definition and ACL. |
 | `supabase/chunks/chunk-11-wall-data-model-verify.sql` | Living-verifier reconciliation for the three follows policy definitions; every other Wall assertion remains unchanged. |
 
-The four MP-4 scripts use no raw `md5(prosrc)` or raw-text function fingerprint. Function bodies are compared as complete whitespace-normalized text plus structural metadata and ACLs. Policy expressions are compared as complete catalog-normalized expressions plus table, name, command, permissiveness, roles, `USING`, and `WITH CHECK`. The Chunk 11 verifier's unrelated pre-existing `clear_hero_on_author_ban()` body check remains unchanged; only its three follows-policy expectations were reconciled.
+The four MP-4 scripts use no raw `md5(prosrc)` or raw-text function fingerprint. Function guards compare complete whitespace-normalized bodies plus identity arguments, result type/set behavior, language, owner, volatility, `SECURITY DEFINER`, strictness, leakproof/parallel flags, argument defaults, complete configuration arrays, and complete ACL/grantability. Package B's ownership helper and MP-4's additive helper receive the same exact fail-closed treatment. Policy expressions are compared as complete catalog-normalized expressions plus table, name, command, permissiveness, roles, `USING`, and `WITH CHECK`. The Chunk 11 verifier's unrelated pre-existing `clear_hero_on_author_ban()` body check remains unchanged; only its three follows-policy expectations were reconciled.
 
 ## 3. Converted policies
 
@@ -111,7 +111,7 @@ Package C evidence is frozen to approved/pushed commit `210941e98839f5320eec8d0e
 
 ### Disposable PostgreSQL 16 smoke actually run
 
-The local fixture used the approved profile enum (`personal`, `artist`, `label`, `festival`), approved listing enums, the current one-profile uniqueness gate, Package B helper signatures/ACLs, 22 old cross-table policies, 10 old function definitions, two unbanned owners, one banned owner, and event/listing/post fixtures.
+The local fixture used the approved profile enum (`personal`, `artist`, `label`, `festival`), approved listing enums, the current one-profile uniqueness gate, Package B's exact ownership-helper body/metadata/ACL, 22 old cross-table policies, 10 old function definitions, two unbanned owners, one banned owner, and event/listing/post fixtures.
 
 Results:
 
@@ -124,6 +124,9 @@ Results:
 | MP-4 verify on post-MP-4 state | `GO`: 16 policy/function families had actual allow+deny checks `GO`; 0 `UNPROVEN`; 0 `STOP`. All five conversation RPCs and all five Wall mutation RPCs were exercised. |
 | Updated Chunk 11 verifier on the same post-MP-4 state | PASS: Chunk 11A, 11B, 11C, and overall all `true`. |
 | Deliberately tampered post-MP-4 follows INSERT policy | Correctly failed: Chunk 11A `false`, overall `false`; unaffected Chunk 11B/11C checks remained `true`. |
+| Package B helper granted to `anon` in scratch | Preflight correctly returned `STOP`; revoking the drift restored `GO`. |
+| MP-4 helper granted to `anon` in scratch | Both verify and rollback guards correctly failed before behavior execution or helper removal. |
+| Converted `create_post` changed to `STRICT` in scratch | Verify's complete function manifest correctly failed; restoring `CALLED ON NULL INPUT` restored verify `GO`. |
 | MP-4 rollback | PASS, including exact new-state guard and exact old-state restoration. |
 | Post-rollback preflight | `GO` again. |
 
@@ -146,4 +149,4 @@ The baseline still enforces `profiles_one_per_user_key`, so a true owned-but-ina
 
 ## 9. Publication state
 
-The package, report, and living-verifier reconciliation are published together as one reviewed change. Git is authoritative for the commit hash.
+The package, report, and living-verifier reconciliation are published together. A post-publication independent review's fail-closed guard findings were corrected and revalidated in a follow-up commit; Git is authoritative for both hashes.
