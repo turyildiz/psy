@@ -106,10 +106,11 @@ begin
           when 'admin_get_profile_account' then 'plpgsql'
           else 'sql'
         end
-        or md5(p.prosrc) <> case p.proname
-          when 'get_my_profiles' then '6ce5439c0ec614c114e7af672013d03f'
-          when 'current_user_owns_profile' then 'd45571437e63816a4e51534166f4cd1a'
-          when 'admin_get_profile_account' then 'c3da6f59154ba5b2220b56b52e37cf1b'
+        or md5(btrim(regexp_replace(p.prosrc, E'\\s+', ' ', 'g'))) <>
+          case p.proname
+          when 'get_my_profiles' then '068d419cf900e4bde1bd36b73433c2b3'
+          when 'current_user_owns_profile' then 'b18b8e4f01df72097d092352423ab8af'
+          when 'admin_get_profile_account' then '1b1617031aa49512a692d706462e4f18'
         end
       )
   ) then

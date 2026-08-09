@@ -457,7 +457,8 @@ with function_state as (
         and p.lanname = 'sql' and p.proowner = 'postgres'::regrole
         and p.prosecdef and p.provolatile = 's'
         and p.proparallel = 'u' and p.prokind = 'f' and p.proretset
-        and md5(p.prosrc) = '6ce5439c0ec614c114e7af672013d03f'
+        and md5(btrim(regexp_replace(p.prosrc, E'\\s+', ' ', 'g'))) =
+          '068d419cf900e4bde1bd36b73433c2b3'
         and not p.proisstrict and not p.proleakproof
         and p.proconfig in (array['search_path=""'], array['search_path='])
         and p.proargnames = array[
@@ -486,7 +487,8 @@ with function_state as (
         and p.lanname = 'sql' and p.proowner = 'postgres'::regrole
         and p.prosecdef and p.provolatile = 's'
         and p.proparallel = 'u' and p.prokind = 'f' and not p.proretset
-        and md5(p.prosrc) = 'd45571437e63816a4e51534166f4cd1a'
+        and md5(btrim(regexp_replace(p.prosrc, E'\\s+', ' ', 'g'))) =
+          'b18b8e4f01df72097d092352423ab8af'
         and p.prorettype = 'boolean'::regtype
         and not p.proisstrict and not p.proleakproof
         and p.proconfig in (array['search_path=""'], array['search_path='])
@@ -498,7 +500,8 @@ with function_state as (
         and p.lanname = 'plpgsql' and p.proowner = 'postgres'::regrole
         and p.prosecdef and p.provolatile = 's'
         and p.proparallel = 'u' and p.prokind = 'f' and p.proretset
-        and md5(p.prosrc) = 'c3da6f59154ba5b2220b56b52e37cf1b'
+        and md5(btrim(regexp_replace(p.prosrc, E'\\s+', ' ', 'g'))) =
+          '1b1617031aa49512a692d706462e4f18'
         and not p.proisstrict and not p.proleakproof
         and p.proconfig in (array['search_path=""'], array['search_path='])
         and p.proargnames = array[

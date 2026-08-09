@@ -283,7 +283,6 @@ begin
       and p.provolatile = 's' and p.proparallel = 'u' and p.prokind = 'f'
       and p.prosecdef and not p.proisstrict and not p.proleakproof
       and p.proretset
-      and md5(p.prosrc) = '6ce5439c0ec614c114e7af672013d03f'
       and p.proconfig in (array['search_path=""'], array['search_path='])
       and p.proargtypes = ''::oidvector
       and p.proargmodes = array[
@@ -319,7 +318,6 @@ begin
       and p.provolatile = 's' and p.proparallel = 'u' and p.prokind = 'f'
       and p.prosecdef and not p.proisstrict and not p.proleakproof
       and not p.proretset and p.prorettype = 'boolean'::regtype
-      and md5(p.prosrc) = 'd45571437e63816a4e51534166f4cd1a'
       and p.proconfig in (array['search_path=""'], array['search_path='])
       and p.proargnames = array['target_profile_id']
   ) then
@@ -336,7 +334,6 @@ begin
       and p.provolatile = 's' and p.proparallel = 'u' and p.prokind = 'f'
       and p.prosecdef and not p.proisstrict and not p.proleakproof
       and p.proretset
-      and md5(p.prosrc) = 'c3da6f59154ba5b2220b56b52e37cf1b'
       and p.proconfig in (array['search_path=""'], array['search_path='])
       and p.proargmodes = array[
         'i'::"char", 't'::"char", 't'::"char", 't'::"char",
@@ -354,6 +351,26 @@ begin
       ]
   ) then
     raise exception 'Package B postcondition failed: admin grouping shape';
+  end if;
+
+  if exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'public'
+      and p.proname in (
+        'get_my_profiles',
+        'current_user_owns_profile',
+        'admin_get_profile_account'
+      )
+      and md5(btrim(regexp_replace(p.prosrc, E'\\s+', ' ', 'g'))) <>
+        case p.proname
+          when 'get_my_profiles' then '068d419cf900e4bde1bd36b73433c2b3'
+          when 'current_user_owns_profile' then 'b18b8e4f01df72097d092352423ab8af'
+          when 'admin_get_profile_account' then '1b1617031aa49512a692d706462e4f18'
+        end
+  ) then
+    raise exception 'Package B postcondition failed: normalized function body drift';
   end if;
 
   if exists (
