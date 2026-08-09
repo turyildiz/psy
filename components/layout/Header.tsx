@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
 import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
 import { assignAtTop } from "@/lib/navigation/scroll-reset";
+import { getMyProfiles, getOnlyProfileForCurrentAccount } from "@/lib/db";
 import AuthModal from "@/components/AuthModal";
 import ProfileAvatar from "@/components/ProfileAvatar";
 
@@ -85,23 +86,18 @@ export default function Header() {
         return;
       }
 
-      const { data: profiles } = await supabase
-        .from("profiles")
-        .select("id, handle, display_name, avatar_url")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1);
+      const { data: profiles } = await getMyProfiles(supabase);
       if (cancelled || generation !== authGeneration) return;
 
-      const profile = profiles?.[0] ?? null;
+      const profile = getOnlyProfileForCurrentAccount(profiles);
       if (!profile) {
         clearAuthenticatedUser();
         return;
       }
 
       const handle = profile.handle;
-      const initial = (profile.display_name || profile.handle).charAt(0).toUpperCase();
-      const avatar = profile.avatar_url ?? null;
+      const initial = (profile.displayName || profile.handle).charAt(0).toUpperCase();
+      const avatar = profile.avatarUrl ?? null;
       try { sessionStorage.setItem("psy_auth", JSON.stringify({ handle, initial, avatar })); } catch {}
       setUserHandle(handle);
       setUserInitial(initial);

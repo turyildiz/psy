@@ -7,8 +7,13 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { createClient } from "@/lib/supabase/client";
-import { toProfile } from "@/lib/db";
-import type { Festival, Profile, NoticePost, NoticeCategory, NoticeEmoji } from "@/types/marketplace";
+import {
+  getMyProfiles,
+  getOnlyProfileForCurrentAccount,
+  PUBLIC_PROFILE_EMBED,
+  toPublicProfile,
+} from "@/lib/db";
+import type { Festival, PublicProfile, NoticePost, NoticeCategory, NoticeEmoji } from "@/types/marketplace";
 
 function toFestival(row: Record<string, unknown>): Festival {
   return {
@@ -144,7 +149,7 @@ function noteRotation(id: string): number {
 const NOTICE_EMOJIS: NoticeEmoji[] = ["❤️", "🙏", "🔥", "😂", "🫂"];
 
 // ---- Who's Going Tab ----
-type RsvpEntry = { id: string; role: "attending" | "selling"; profile: Profile };
+type RsvpEntry = { id: string; role: "attending" | "selling"; profile: PublicProfile };
 
 function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfileId: string | null }) {
   const [rsvps, setRsvps] = useState<RsvpEntry[]>([]);
@@ -159,13 +164,13 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
     const supabase = createClient();
     const { data } = await supabase
       .from("vendor_events")
-      .select("id, role, profile_id, profiles(*)")
+      .select(`id, role, profile_id, ${PUBLIC_PROFILE_EMBED}`)
       .eq("event_id", festivalId)
       .order("created_at", { ascending: true });
     const entries: RsvpEntry[] = (data ?? []).map((row) => ({
       id: row.id as string,
       role: row.role as "attending" | "selling",
-      profile: toProfile(row.profiles as unknown as Record<string, unknown>),
+      profile: toPublicProfile(row.profiles as unknown as Record<string, unknown>),
     }));
     setRsvps(entries);
     if (myProfileId) {
@@ -714,8 +719,9 @@ export default function FestivalPage() {
     ]).then(async ([{ data: fest }, { data: { user } }]) => {
       if (fest) setFestival(toFestival(fest as Record<string, unknown>));
       if (user) {
-        const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
-        setMyProfileId((profile as Record<string, unknown>)?.id as string ?? null);
+        const { data: profiles } = await getMyProfiles(supabase);
+        const profile = getOnlyProfileForCurrentAccount(profiles);
+        setMyProfileId(profile?.id ?? null);
       }
       setLoading(false);
     });

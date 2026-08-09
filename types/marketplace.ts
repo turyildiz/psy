@@ -29,9 +29,9 @@ export type SocialLinks = {
   bandcamp?: string;
 };
 
-export type Profile = {
+/** The complete browser-safe public.profiles contract (12 database columns). */
+export type PublicProfile = {
   id: string;
-  userId: string;
   type: ProfileType;
   handle: string;
   displayName: string;
@@ -44,6 +44,9 @@ export type Profile = {
   socialLinks?: SocialLinks;
   createdAt: string;
 };
+
+/** Backward-compatible name for public UI props; it contains no private fields. */
+export type Profile = PublicProfile;
 
 export type Listing = {
   id: string;

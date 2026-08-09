@@ -1,12 +1,12 @@
-import type { Listing, Profile } from "@/types/marketplace";
+import type { Listing, PublicProfile } from "@/types/marketplace";
 
 const image = (seed: string) => `https://picsum.photos/seed/${seed}/960/1200`;
 const avatar = (seed: string) => `https://picsum.photos/seed/${seed}/320/320`;
 
-export const mockProfiles: Profile[] = [
+export const mockProfiles: PublicProfile[] = [
   {
     id: "profile-yacxilan",
-    userId: "user-yacxilan",
+
     type: "artist",
     handle: "yacxilan",
     displayName: "Ya'cxilan",
@@ -20,7 +20,7 @@ export const mockProfiles: Profile[] = [
   },
   {
     id: "profile-darkmysterytribe",
-    userId: "user-darkmysterytribe",
+
     type: "label",
     handle: "darkmysterytribe",
     displayName: "DarkMysteryTribe",
@@ -34,7 +34,7 @@ export const mockProfiles: Profile[] = [
   },
   {
     id: "profile-frequencylab",
-    userId: "user-frequencylab",
+
     type: "artist",
     handle: "frequencylab",
     displayName: "FrequencyLab",

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
 import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
 import { createClient } from "@/lib/supabase/client";
+import { getMyProfiles, getOnlyProfileForCurrentAccount } from "@/lib/db";
 
 export function useReactionViewerProfileId(): string | null | undefined {
   const [profileId, setProfileId] = useState<string | null | undefined>(undefined);
@@ -24,12 +25,9 @@ export function useReactionViewerProfileId(): string | null | undefined {
 
         let profileId: string | undefined;
         try {
-          const { data, error } = await supabase
-            .from("profiles")
-            .select("id")
-            .eq("user_id", userId)
-            .maybeSingle();
-          profileId = !error && data?.id ? String(data.id) : undefined;
+          const { data, error } = await getMyProfiles(supabase);
+          const profile = !error ? getOnlyProfileForCurrentAccount(data) : null;
+          profileId = profile?.id;
         } catch {
           profileId = undefined;
         }

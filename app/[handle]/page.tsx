@@ -13,11 +13,17 @@ import MessagesInbox from "@/components/MessagesInbox";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ProfileWall from "@/components/ProfileWall";
 import { conditionLabels } from "@/lib/constants";
-import type { Listing, Profile } from "@/types/marketplace";
+import type { Listing, PublicProfile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
 import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
 import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
-import { toListing, toProfile } from "@/lib/db";
+import {
+  getMyProfiles,
+  getOnlyProfileForCurrentAccount,
+  PUBLIC_PROFILE_SELECT,
+  toListing,
+  toPublicProfile,
+} from "@/lib/db";
 
 const PROFILE_TYPE_LABELS: Record<string, string> = {
   personal: "Member",
@@ -136,7 +142,7 @@ function SellerProfilePageInner() {
   const searchParams = useSearchParams();
   const [myHandle, setMyHandle] = useState<string | null>(null);
   const [myProfileId, setMyProfileId] = useState<string | null>(null);
-  const [profile, setProfile] = useState<Profile | null | undefined>(undefined);
+  const [profile, setProfile] = useState<PublicProfile | null | undefined>(undefined);
   const [listings, setListings] = useState<Listing[]>([]);
   const [listingsLoading, setListingsLoading] = useState(true);
   const [editOpen, setEditOpen] = useState(false);
@@ -187,11 +193,8 @@ function SellerProfilePageInner() {
         return;
       }
 
-      const { data: p } = await supabase
-        .from("profiles")
-        .select("id, handle")
-        .eq("user_id", userId)
-        .single();
+      const { data: profiles } = await getMyProfiles(supabase);
+      const p = getOnlyProfileForCurrentAccount(profiles);
       if (cancelled || requestId !== authGeneration) return;
       if (!p) {
         setMyHandle(null);
@@ -236,7 +239,7 @@ function SellerProfilePageInner() {
       setProfile(undefined);
       setListingsLoading(true);
       const supabase = createClient();
-      const { data } = await supabase.from("profiles").select("*").eq("handle", handle).single();
+      const { data } = await supabase.from("profiles").select(PUBLIC_PROFILE_SELECT).eq("handle", handle).single();
       if (cancelled) return;
       if (!data) {
         setProfile(null);
@@ -244,7 +247,7 @@ function SellerProfilePageInner() {
         setListingsLoading(false);
         return;
       }
-      const nextProfile = toProfile(data);
+      const nextProfile = toPublicProfile(data);
       const { data: ls } = await supabase
         .from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("profile_id", data.id).eq("status", "active").order("created_at", { ascending: false });
       if (cancelled) return;
@@ -256,7 +259,7 @@ function SellerProfilePageInner() {
     return () => { cancelled = true; };
   }, [handle]);
 
-  const isOwner = !!myHandle && myHandle === handle;
+  const isOwner = !!myProfileId && myProfileId === profile?.id;
 
   if (profile === undefined) return (
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>

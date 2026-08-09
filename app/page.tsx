@@ -12,7 +12,7 @@ import type { ProductItem } from "@/components/ProductCard";
 import type { SellerItem } from "@/components/SellerCard";
 import type { TicketItem } from "@/components/TicketCard";
 import { createClient } from "@/lib/supabase/client";
-import { toListing, toProfile } from "@/lib/db";
+import { PUBLIC_PROFILE_SELECT, toListing, toPublicProfile } from "@/lib/db";
 import { loadCategorySection } from "@/lib/homepage/categories";
 
 const tickets: TicketItem[] = [
@@ -61,7 +61,7 @@ export default function HomePage() {
     });
 
     const loadSellers = async () => {
-      const { data: p } = await supabase.from("profiles").select("*").order("created_at", { ascending: false }).limit(6);
+      const { data: p } = await supabase.from("profiles").select(PUBLIC_PROFILE_SELECT).order("created_at", { ascending: false }).limit(6);
       if (cancelled) return;
       const profileRows = p ?? [];
       const profileIds = profileRows.map((r) => r.id);
@@ -70,7 +70,7 @@ export default function HomePage() {
       const countMap: Record<string, number> = {};
       (counts ?? []).forEach((r) => { countMap[r.profile_id] = (countMap[r.profile_id] ?? 0) + 1; });
       setSellers(profileRows.map((row, i) => ({
-        ...toProfile(row),
+        ...toPublicProfile(row),
         itemCount: countMap[row.id] ?? 0,
         badge: ["Featured", "Top Rated", "Power Seller"][i] || "Verified",
       })));

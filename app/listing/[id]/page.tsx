@@ -10,11 +10,17 @@ import ProductCard from "@/components/ProductCard";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ImageLightbox from "@/components/ImageLightbox";
 import { categoryLabels, conditionLabels } from "@/lib/constants";
-import type { Listing, Profile } from "@/types/marketplace";
+import type { Listing, PublicProfile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
 import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
 import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
-import { toListing, toProfile } from "@/lib/db";
+import {
+  getMyProfiles,
+  getOnlyProfileForCurrentAccount,
+  PUBLIC_PROFILE_SELECT,
+  toListing,
+  toPublicProfile,
+} from "@/lib/db";
 
 /* ── Helpers ── */
 
@@ -108,7 +114,7 @@ export default function ListingDetailPage() {
   const [contactLoading, setContactLoading] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const [listing, setListing] = useState<Listing | null | undefined>(undefined);
-  const [seller, setSeller] = useState<Profile | null | undefined>(undefined);
+  const [seller, setSeller] = useState<PublicProfile | null | undefined>(undefined);
   const [related, setRelated] = useState<Listing[]>([]);
   const [sellerListingCount, setSellerListingCount] = useState(0);
   const [authModal, setAuthModal] = useState<"login" | "signup" | null>(null);
@@ -131,11 +137,8 @@ export default function ListingDetailPage() {
         return;
       }
 
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("id")
-        .eq("user_id", userId)
-        .single();
+      const { data: profiles } = await getMyProfiles(supabase);
+      const profile = getOnlyProfileForCurrentAccount(profiles);
       if (cancelled || generation !== authGeneration) return;
       setIsLoggedIn(true);
       setMyProfileId(profile?.id ?? null);
@@ -166,11 +169,11 @@ export default function ListingDetailPage() {
       const l = toListing(data);
       setListing(l);
       const [{ data: s }, { count }, { data: r }] = await Promise.all([
-        supabase.from("profiles").select("*").eq("id", data.profile_id).single(),
+        supabase.from("profiles").select(PUBLIC_PROFILE_SELECT).eq("id", data.profile_id).single(),
         supabase.from("listings").select("*", { count: "exact", head: true }).eq("profile_id", data.profile_id).eq("status", "active"),
         supabase.from("listings").select("*, profiles(handle, display_name, avatar_url)").eq("category", data.category).eq("status", "active").neq("id", id).limit(4),
       ]);
-      setSeller(s ? toProfile(s) : null);
+      setSeller(s ? toPublicProfile(s) : null);
       setSellerListingCount(count ?? 0);
       setRelated((r ?? []).map(toListing));
     });

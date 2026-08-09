@@ -1,5 +1,6 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { UploadPurpose } from "./policy";
+import { currentUserOwnsProfile } from "../db.ts";
 
 export type UploadAuthorization = {
   purpose: UploadPurpose;
@@ -9,20 +10,19 @@ export type UploadAuthorization = {
 
 export async function authorizeUpload(
   supabase: SupabaseClient,
-  userId: string,
+  _userId: string,
   authorization: UploadAuthorization
 ) {
   const { data: banned, error: banError } = await supabase.rpc("current_user_is_banned");
   if (banError) return { ok: false as const, status: 500, error: "Could not verify account status." };
   if (banned) return { ok: false as const, status: 403, error: "Banned accounts cannot upload files." };
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, user_id")
-    .eq("id", authorization.ownerId)
-    .maybeSingle();
+  const { data: ownsProfile, error: profileError } = await currentUserOwnsProfile(
+    supabase,
+    authorization.ownerId
+  );
 
-  if (profileError || !profile || profile.user_id !== userId) {
+  if (profileError || !ownsProfile) {
     return { ok: false as const, status: 403, error: "You do not own this upload target." };
   }
 

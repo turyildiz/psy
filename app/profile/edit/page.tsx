@@ -8,6 +8,7 @@ import Footer from "@/components/layout/Footer";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
+import { getMyProfiles, getOnlyProfileForCurrentAccount } from "@/lib/db";
 import type { ProfileType, SocialLinks } from "@/types/marketplace";
 
 const PROFILE_TYPES: { value: ProfileType; label: string }[] = [
@@ -126,16 +127,17 @@ export default function EditProfilePage() {
     const supabase = createClient();
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.replace("/login?next=/profile/edit"); return; }
-      const { data: p } = await supabase.from("profiles").select("*").eq("user_id", data.user.id).single();
+      const { data: profiles } = await getMyProfiles(supabase);
+      const p = getOnlyProfileForCurrentAccount(profiles);
       if (!p) { router.replace("/"); return; }
       setProfileId(p.id);
       setHandle(p.handle);
-      setDisplayName(p.display_name);
+      setDisplayName(p.displayName);
       setBio(p.bio ?? "");
       setLocation(p.location ?? "");
       setType(p.type);
-      setAvatarUrl(p.avatar_url ?? "");
-      setSocial(p.social_links ?? {});
+      setAvatarUrl(p.avatarUrl ?? "");
+      setSocial(p.socialLinks ?? {});
       setLoading(false);
     });
   }, [router]);

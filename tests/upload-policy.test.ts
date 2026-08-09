@@ -63,25 +63,36 @@ test("multi-image purposes require a bounded integer slot", () => {
 
 test("existing post resources must belong to the upload owner", async () => {
   function client(postProfileId: string) {
+    const rpcCalls: Array<{ name: string; args?: Record<string, unknown> }> = [];
     return {
-      rpc: async () => ({ data: false, error: null }),
+      rpcCalls,
+      rpc: async (name: string, args?: Record<string, unknown>) => {
+        rpcCalls.push({ name, args });
+        return {
+          data: name === "current_user_owns_profile",
+          error: null,
+        };
+      },
       from: (table: string) => ({
         select: () => ({
           eq: () => ({
-            maybeSingle: async () => table === "profiles"
-              ? { data: { id: "profile-1", user_id: "user-1" }, error: null }
-              : { data: { id: "post-1", profile_id: postProfileId }, error: null },
+            maybeSingle: async () => ({ data: { id: "post-1", profile_id: postProfileId }, error: null }),
           }),
         }),
       }),
     };
   }
 
-  assert.deepEqual(await authorizeUpload(client("profile-1") as never, "user-1", {
+  const allowedClient = client("profile-1");
+  assert.deepEqual(await authorizeUpload(allowedClient as never, "user-1", {
     purpose: "post-image",
     ownerId: "profile-1",
     resourceId: "post-1",
   }), { ok: true });
+  assert.deepEqual(allowedClient.rpcCalls, [
+    { name: "current_user_is_banned", args: undefined },
+    { name: "current_user_owns_profile", args: { target_profile_id: "profile-1" } },
+  ]);
   assert.deepEqual(await authorizeUpload(client("profile-2") as never, "user-1", {
     purpose: "post-image",
     ownerId: "profile-1",

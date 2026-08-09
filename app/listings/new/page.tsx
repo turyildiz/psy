@@ -9,6 +9,7 @@ import { conditionLabels, categoryLabels } from "@/lib/constants";
 import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
+import { getMyProfiles, getOnlyProfileForCurrentAccount } from "@/lib/db";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -246,7 +247,8 @@ export default function NewListingPage() {
     const supabase = createClient();
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { router.push("/login"); return; }
-    const { data: profile } = await supabase.from("profiles").select("id").eq("user_id", user.id).single();
+    const { data: profiles } = await getMyProfiles(supabase);
+    const profile = getOnlyProfileForCurrentAccount(profiles);
     if (!profile) { setPublishError("Profile not found."); setPublishing(false); return; }
 
     const uploadedUrls: string[] = [];

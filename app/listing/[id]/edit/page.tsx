@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
+import { getMyProfiles, getOnlyProfileForCurrentAccount } from "@/lib/db";
 
 const CONDITIONS = [
   { value: "new",      label: "New",       hint: "Never used, original tags/packaging" },
@@ -177,7 +178,8 @@ export default function EditListingPage() {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.replace(`/login?next=/listing/${id}/edit`); return; }
 
-      const { data: profile } = await supabase.from("profiles").select("id, handle").eq("user_id", data.user.id).single();
+      const { data: profiles } = await getMyProfiles(supabase);
+      const profile = getOnlyProfileForCurrentAccount(profiles);
       if (!profile) { router.replace("/"); return; }
 
       const { data: listing } = await supabase.from("listings").select("*").eq("id", id).single();
