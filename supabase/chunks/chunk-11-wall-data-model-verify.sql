@@ -463,7 +463,9 @@ chunk_11a as (
               p.policyname = 'follows_select'
               and p.cmd = 'SELECT'
               and p.roles = array['public'::name]
-              and md5(coalesce(p.qual, '')) = 'b326b5062b2f0e69046810717534cb09'
+              and lower(pg_catalog.regexp_replace(
+                coalesce(p.qual, ''), E'\\s+', '', 'g'
+              )) = 'true'
               and p.with_check is null
             )
             or (
@@ -471,13 +473,19 @@ chunk_11a as (
               and p.cmd = 'INSERT'
               and p.roles = array['authenticated'::name]
               and p.qual is null
-              and md5(coalesce(p.with_check, '')) = '5ac7eaf7775c67c6dde36eca809ad58a'
+              and lower(pg_catalog.regexp_replace(
+                coalesce(p.with_check, ''), E'\\s+', '', 'g'
+              )) =
+                '((notcurrent_user_is_banned())andcurrent_user_owns_profile(follower_profile_id))'
             )
             or (
               p.policyname = 'Unbanned users unfollow from own profile'
               and p.cmd = 'DELETE'
               and p.roles = array['authenticated'::name]
-              and md5(coalesce(p.qual, '')) = '5ac7eaf7775c67c6dde36eca809ad58a'
+              and lower(pg_catalog.regexp_replace(
+                coalesce(p.qual, ''), E'\\s+', '', 'g'
+              )) =
+                '((notcurrent_user_is_banned())andcurrent_user_owns_profile(follower_profile_id))'
               and p.with_check is null
             )
           )
