@@ -11,8 +11,8 @@ begin
 expected_policies(table_name,policy_name,command,permissive,roles,using_expression,check_expression) as (
   values
     ('conversation_participant_state', 'Participants read own conversation state', 'r'::"char", true, array['authenticated']::text[], $q01$current_user_owns_profile(profile_id)$q01$, $c01$$c01$),
-    ('conversations', 'Unbanned buyers create conversations', 'a'::"char", true, array['authenticated']::text[], $q02$$q02$, $c02$notcurrent_user_is_banned()andcurrent_user_owns_profile(buyer_profile_id)andbuyer_profile_id<>seller_profile_idand(listing_idisnullorseller_profile_id=((selectl.profile_idfromlistingslwherel.id=conversations.listing_id)))$c02$),
-    ('conversations', 'participants view visible conversations', 'r'::"char", true, array['authenticated']::text[], $q03$(current_user_owns_profile(buyer_profile_id)orcurrent_user_owns_profile(seller_profile_id))andnot(exists(select1fromconversation_participant_stateswheres.conversation_id=conversations.idandcurrent_user_owns_profile(s.profile_id)ands.hidden_atisnotnull))$q03$, $c03$$c03$),
+    ('conversations', 'Unbanned buyers create conversations', 'a'::"char", true, array['authenticated']::text[], $q02$$q02$, $c02$notcurrent_user_is_banned()andcurrent_user_owns_profile(buyer_profile_id)andbuyer_profile_id<>seller_profile_idand(listing_idisnullorseller_profile_id=((selectprofile_idfromlistingswhereid=listing_id)))$c02$),
+    ('conversations', 'participants view visible conversations', 'r'::"char", true, array['authenticated']::text[], $q03$(current_user_owns_profile(buyer_profile_id)orcurrent_user_owns_profile(seller_profile_id))andnot(exists(select1fromconversation_participant_statewhereconversation_id=idandcurrent_user_owns_profile(profile_id)andhidden_atisnotnull))$q03$, $c03$$c03$),
     ('event_notifications', 'Unbanned users subscribe to event notifications', 'a'::"char", true, array['authenticated']::text[], $q04$$q04$, $c04$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$c04$),
     ('event_notifications', 'Unbanned users unsubscribe from event notifications', 'd'::"char", true, array['authenticated']::text[], $q05$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$q05$, $c05$$c05$),
     ('event_notifications', 'Users can manage their own event notifications', 'r'::"char", true, array['authenticated']::text[], $q06$current_user_owns_profile(profile_id)$q06$, $c06$$c06$),
@@ -25,8 +25,8 @@ expected_policies(table_name,policy_name,command,permissive,roles,using_expressi
     ('listings', 'Unbanned owners create active listings', 'a'::"char", true, array['authenticated']::text[], $q13$$q13$, $c13$notcurrent_user_is_banned()andstatus='active'::listing_statusandadmin_unpublished_atisnullandadmin_unpublished_byisnullandcurrent_user_owns_unsuspended_profile(profile_id)$c13$),
     ('listings', 'Unbanned owners delete own draft listings', 'd'::"char", true, array['authenticated']::text[], $q14$notcurrent_user_is_banned()andstatus='draft'::listing_statusandadmin_unpublished_atisnullandcurrent_user_owns_profile(profile_id)$q14$, $c14$$c14$),
     ('listings', 'Unbanned owners update own listings', 'w'::"char", true, array['authenticated']::text[], $q15$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$q15$, $c15$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)and(admin_unpublished_atisnullorstatus='draft'::listing_status)$c15$),
-    ('messages', 'Unbanned participants send messages', 'a'::"char", true, array['authenticated']::text[], $q16$$q16$, $c16$notcurrent_user_is_banned()andcurrent_user_owns_profile(sender_profile_id)and(conversation_idin(selectc.idfromconversationscwheremessages.sender_profile_id=c.buyer_profile_idormessages.sender_profile_id=c.seller_profile_id))$c16$),
-    ('messages', 'participants view messages', 'r'::"char", true, array['authenticated']::text[], $q17$(conversation_idin(selectc.idfromconversationscwherecurrent_user_owns_profile(c.buyer_profile_id)orcurrent_user_owns_profile(c.seller_profile_id)))$q17$, $c17$$c17$),
+    ('messages', 'Unbanned participants send messages', 'a'::"char", true, array['authenticated']::text[], $q16$$q16$, $c16$notcurrent_user_is_banned()andcurrent_user_owns_profile(sender_profile_id)and(conversation_idin(selectidfromconversationswheresender_profile_id=buyer_profile_idorsender_profile_id=seller_profile_id))$c16$),
+    ('messages', 'participants view messages', 'r'::"char", true, array['authenticated']::text[], $q17$(conversation_idin(selectidfromconversationswherecurrent_user_owns_profile(buyer_profile_id)orcurrent_user_owns_profile(seller_profile_id)))$q17$, $c17$$c17$),
     ('notice_posts', 'Unbanned users create own notice posts', 'a'::"char", true, array['authenticated']::text[], $q18$$q18$, $c18$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$c18$),
     ('notice_posts', 'Unbanned users delete own notice posts', 'd'::"char", true, array['authenticated']::text[], $q19$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$q19$, $c19$$c19$),
     ('notice_reactions', 'Unbanned users add own reactions', 'a'::"char", true, array['authenticated']::text[], $q20$$q20$, $c20$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$c20$),
@@ -39,8 +39,24 @@ actual_policies as (
     pol.polcmd as command, pol.polpermissive as permissive,
     array(select case when role_oid = 0 then 'PUBLIC' else role_oid::regrole::text end
           from unnest(pol.polroles) as r(role_oid) order by 1) as roles,
-    lower(pg_catalog.regexp_replace(coalesce(pg_get_expr(pol.polqual, pol.polrelid, true), ''), E'\\s+', '', 'g')) as using_expression,
-    lower(pg_catalog.regexp_replace(coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid, true), ''), E'\\s+', '', 'g')) as check_expression
+    pg_catalog.regexp_replace(
+      pg_catalog.regexp_replace(
+        pg_catalog.regexp_replace(
+          pg_catalog.regexp_replace(
+            lower(coalesce(pg_get_expr(pol.polqual, pol.polrelid, true), '')),
+            '(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]*[.]', '', 'g'),
+          '[[:<:]](p|c|l|s)[[:>:]][[:space:]]*[.]', '', 'g'),
+        '([[:<:]]from|[[:<:]]join)[[:space:]]+(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]+(as[[:space:]]+)?(p|c|l|s)[[:>:]]', '\1 \3', 'g'),
+      '[[:space:]]+', '', 'g') as using_expression,
+    pg_catalog.regexp_replace(
+      pg_catalog.regexp_replace(
+        pg_catalog.regexp_replace(
+          pg_catalog.regexp_replace(
+            lower(coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid, true), '')),
+            '(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]*[.]', '', 'g'),
+          '[[:<:]](p|c|l|s)[[:>:]][[:space:]]*[.]', '', 'g'),
+        '([[:<:]]from|[[:<:]]join)[[:space:]]+(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]+(as[[:space:]]+)?(p|c|l|s)[[:>:]]', '\1 \3', 'g'),
+      '[[:space:]]+', '', 'g') as check_expression
   from pg_policy pol join pg_class c on c.oid=pol.polrelid join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='public'
 ),
@@ -543,8 +559,8 @@ actual_functions as (
 expected_policies(table_name,policy_name,command,permissive,roles,using_expression,check_expression) as (
   values
     ('conversation_participant_state', 'Participants read own conversation state', 'r'::"char", true, array['authenticated']::text[], $q01$current_user_owns_profile(profile_id)$q01$, $c01$$c01$),
-    ('conversations', 'Unbanned buyers create conversations', 'a'::"char", true, array['authenticated']::text[], $q02$$q02$, $c02$notcurrent_user_is_banned()andcurrent_user_owns_profile(buyer_profile_id)andbuyer_profile_id<>seller_profile_idand(listing_idisnullorseller_profile_id=((selectl.profile_idfromlistingslwherel.id=conversations.listing_id)))$c02$),
-    ('conversations', 'participants view visible conversations', 'r'::"char", true, array['authenticated']::text[], $q03$(current_user_owns_profile(buyer_profile_id)orcurrent_user_owns_profile(seller_profile_id))andnot(exists(select1fromconversation_participant_stateswheres.conversation_id=conversations.idandcurrent_user_owns_profile(s.profile_id)ands.hidden_atisnotnull))$q03$, $c03$$c03$),
+    ('conversations', 'Unbanned buyers create conversations', 'a'::"char", true, array['authenticated']::text[], $q02$$q02$, $c02$notcurrent_user_is_banned()andcurrent_user_owns_profile(buyer_profile_id)andbuyer_profile_id<>seller_profile_idand(listing_idisnullorseller_profile_id=((selectprofile_idfromlistingswhereid=listing_id)))$c02$),
+    ('conversations', 'participants view visible conversations', 'r'::"char", true, array['authenticated']::text[], $q03$(current_user_owns_profile(buyer_profile_id)orcurrent_user_owns_profile(seller_profile_id))andnot(exists(select1fromconversation_participant_statewhereconversation_id=idandcurrent_user_owns_profile(profile_id)andhidden_atisnotnull))$q03$, $c03$$c03$),
     ('event_notifications', 'Unbanned users subscribe to event notifications', 'a'::"char", true, array['authenticated']::text[], $q04$$q04$, $c04$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$c04$),
     ('event_notifications', 'Unbanned users unsubscribe from event notifications', 'd'::"char", true, array['authenticated']::text[], $q05$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$q05$, $c05$$c05$),
     ('event_notifications', 'Users can manage their own event notifications', 'r'::"char", true, array['authenticated']::text[], $q06$current_user_owns_profile(profile_id)$q06$, $c06$$c06$),
@@ -557,8 +573,8 @@ expected_policies(table_name,policy_name,command,permissive,roles,using_expressi
     ('listings', 'Unbanned owners create active listings', 'a'::"char", true, array['authenticated']::text[], $q13$$q13$, $c13$notcurrent_user_is_banned()andstatus='active'::listing_statusandadmin_unpublished_atisnullandadmin_unpublished_byisnullandcurrent_user_owns_unsuspended_profile(profile_id)$c13$),
     ('listings', 'Unbanned owners delete own draft listings', 'd'::"char", true, array['authenticated']::text[], $q14$notcurrent_user_is_banned()andstatus='draft'::listing_statusandadmin_unpublished_atisnullandcurrent_user_owns_profile(profile_id)$q14$, $c14$$c14$),
     ('listings', 'Unbanned owners update own listings', 'w'::"char", true, array['authenticated']::text[], $q15$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$q15$, $c15$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)and(admin_unpublished_atisnullorstatus='draft'::listing_status)$c15$),
-    ('messages', 'Unbanned participants send messages', 'a'::"char", true, array['authenticated']::text[], $q16$$q16$, $c16$notcurrent_user_is_banned()andcurrent_user_owns_profile(sender_profile_id)and(conversation_idin(selectc.idfromconversationscwheremessages.sender_profile_id=c.buyer_profile_idormessages.sender_profile_id=c.seller_profile_id))$c16$),
-    ('messages', 'participants view messages', 'r'::"char", true, array['authenticated']::text[], $q17$(conversation_idin(selectc.idfromconversationscwherecurrent_user_owns_profile(c.buyer_profile_id)orcurrent_user_owns_profile(c.seller_profile_id)))$q17$, $c17$$c17$),
+    ('messages', 'Unbanned participants send messages', 'a'::"char", true, array['authenticated']::text[], $q16$$q16$, $c16$notcurrent_user_is_banned()andcurrent_user_owns_profile(sender_profile_id)and(conversation_idin(selectidfromconversationswheresender_profile_id=buyer_profile_idorsender_profile_id=seller_profile_id))$c16$),
+    ('messages', 'participants view messages', 'r'::"char", true, array['authenticated']::text[], $q17$(conversation_idin(selectidfromconversationswherecurrent_user_owns_profile(buyer_profile_id)orcurrent_user_owns_profile(seller_profile_id)))$q17$, $c17$$c17$),
     ('notice_posts', 'Unbanned users create own notice posts', 'a'::"char", true, array['authenticated']::text[], $q18$$q18$, $c18$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$c18$),
     ('notice_posts', 'Unbanned users delete own notice posts', 'd'::"char", true, array['authenticated']::text[], $q19$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$q19$, $c19$$c19$),
     ('notice_reactions', 'Unbanned users add own reactions', 'a'::"char", true, array['authenticated']::text[], $q20$$q20$, $c20$notcurrent_user_is_banned()andcurrent_user_owns_profile(profile_id)$c20$),
@@ -571,8 +587,24 @@ actual_policies as (
     pol.polcmd as command, pol.polpermissive as permissive,
     array(select case when role_oid = 0 then 'PUBLIC' else role_oid::regrole::text end
           from unnest(pol.polroles) as r(role_oid) order by 1) as roles,
-    lower(pg_catalog.regexp_replace(coalesce(pg_get_expr(pol.polqual, pol.polrelid, true), ''), E'\\s+', '', 'g')) as using_expression,
-    lower(pg_catalog.regexp_replace(coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid, true), ''), E'\\s+', '', 'g')) as check_expression
+    pg_catalog.regexp_replace(
+      pg_catalog.regexp_replace(
+        pg_catalog.regexp_replace(
+          pg_catalog.regexp_replace(
+            lower(coalesce(pg_get_expr(pol.polqual, pol.polrelid, true), '')),
+            '(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]*[.]', '', 'g'),
+          '[[:<:]](p|c|l|s)[[:>:]][[:space:]]*[.]', '', 'g'),
+        '([[:<:]]from|[[:<:]]join)[[:space:]]+(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]+(as[[:space:]]+)?(p|c|l|s)[[:>:]]', '\1 \3', 'g'),
+      '[[:space:]]+', '', 'g') as using_expression,
+    pg_catalog.regexp_replace(
+      pg_catalog.regexp_replace(
+        pg_catalog.regexp_replace(
+          pg_catalog.regexp_replace(
+            lower(coalesce(pg_get_expr(pol.polwithcheck, pol.polrelid, true), '')),
+            '(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]*[.]', '', 'g'),
+          '[[:<:]](p|c|l|s)[[:>:]][[:space:]]*[.]', '', 'g'),
+        '([[:<:]]from|[[:<:]]join)[[:space:]]+(public[.])?(conversation_participant_state|event_notifications|notice_reactions|notice_posts|vendor_events|conversations|profiles|listings|favorites|follows|messages)[[:space:]]+(as[[:space:]]+)?(p|c|l|s)[[:>:]]', '\1 \3', 'g'),
+      '[[:space:]]+', '', 'g') as check_expression
   from pg_policy pol join pg_class c on c.oid=pol.polrelid join pg_namespace n on n.oid=c.relnamespace
   where n.nspname='public'
 ),

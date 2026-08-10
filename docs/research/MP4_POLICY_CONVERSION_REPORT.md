@@ -134,6 +134,18 @@ Results:
 
 The baseline still enforces `profiles_one_per_user_key`, so a true owned-but-inactive sibling branch cannot exist in this fixture. That later active-profile behavior is outside this semantics-identical Package-D compatibility conversion. Every branch in the current MP-4 authorization scope is proven.
 
+### Live preflight reconciliation (2026-08-10)
+
+A read-only comparison against the hosted PostgreSQL 17 catalog found exactly three old-policy text mismatches and no authorization drift:
+
+- `event_notifications` / `Users can manage their own event notifications`: the recorded expression rendered the subquery relation as `profiles p` / `p.*`; live rendered it as `profiles` / `profiles.*`.
+- `listings` / `Active and sold listings are publicly readable`: the same `profiles p` versus `profiles` rendering difference.
+- `messages` / `participants view messages`: recorded text used `conversations c` and `profiles p`; live text used the full `conversations.*` and `profiles.*` qualifiers.
+
+Commands, roles, permissiveness, operators, casts, referenced relations/columns, and both predicates were otherwise exact. This was cosmetic relation-alias rendering drift: the scratch reconstruction introduced aliases that the live definitions do not contain. It was not a changed authorization rule. The package now canonicalizes whitespace, case, known relation qualifiers, and semantically irrelevant relation aliases while retaining exact table names, columns, operators, commands, roles, permissiveness, `USING`, and `WITH CHECK`. Rollback recreates the three definitions using their live, non-aliased source form. A final read-only hosted comparison found all 22 expected policies present with zero canonical mismatches.
+
+The same read-only check found zero banned users, zero profiles owned by a banned user, and zero suspended profiles. The current tables retain no ban-history row after a ban is cleared, so they cannot prove whether the expected demo account was unbanned or deleted. The verifier currently uses two unbanned owners plus cross-owner/random-caller deny probes; it does not consume the banned-profile fixture dynamically. Before relying on a banned-path ritual, either add explicit banned-owner probes and temporarily re-ban the designated demo through the normal admin flow (then unban afterward), or separately review removal of the currently unused fixture prerequisite. The preflight must not be bypassed.
+
 ## 8. Exact owner run order
 
 1. Run `supabase/chunks/mp4-policy-conversion-preflight.sql`.
