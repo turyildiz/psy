@@ -7,7 +7,7 @@
 
 ## Executive ground truth
 
-Psy.market is a working, pre-launch, contact-only marketplace plus a festival calendar, profile Walls, a public Stream, reactions, messaging, and festival Notice Boards. The public staging UI renders real database content. Authenticated write paths exist in code for profiles, listings, posts/reactions, messages, RSVPs, and notices, but this audit had no authenticated browser session; those rendered signed-in journeys are therefore **code-present and test-covered, but not browser-reverified here**.
+Psy.market is a working, pre-launch, contact-only marketplace plus a festival calendar, profile Walls, a public Stream, reactions, messaging, and festival Notice Boards. The public staging UI renders real database content. Authenticated write paths exist in code for profiles, listings, posts/reactions, messages, RSVPs, and notices, but this audit had no authenticated browser session. Selected auth, upload, listing-validation, profile-contract, Wall/Stream and reaction logic is test-covered; messaging, RSVP and Notice Board journeys were code-inspected but were not substantively automated or browser-reverified here.
 
 There is **no admin UI** in the application. Moderation is live database machinery only. Multi-Profile is **not enabled**: live still enforces one profile per account, has no `vendor` profile type, no active-profile/session objects, no switcher, and no profile-creation management UI. The recently published MP-4 SQL is **authored and validated but not applied**.
 
@@ -61,7 +61,7 @@ Signed-out users can browse listings/profiles/events/public posts, inspect react
 
 ### 1.3 Signed-in functionality present in executable code
 
-The following is wired to live Supabase tables/RPCs and covered to varying degrees by automated tests:
+The following is wired to live Supabase tables/RPCs. Automated coverage is not uniform: selected auth, upload, listing-validation, profile-contract, Wall/Stream and reaction behavior is covered, while messaging, RSVP and Notice Board journeys are code-inspected rather than substantively automated/end-to-end verified:
 
 - edit a profile and upload avatar/header media;
 - create and edit active listings with up to five images;
@@ -236,11 +236,12 @@ At audit start, local `main`, `origin/main`, and remote `main` all matched `d818
 
 | Date | Commit(s) | Actual change |
 |---|---|---|
-| 2026-07-25–26 | `224237d` through `64a8b29` | VPS/handover and repository baseline reconciliation, Netcup operational records, staging/runtime documentation, decision and context corrections. |
-| 2026-07-27 | `5120107`, `d78f0ea`, `f866315`, `1636737` | Auth/route hardening tests and exact Chunk 10 security-definer hardening package/verification. |
-| 2026-07-30 | `c2bd41f`, `915aafd`, `871a86e`, `a6cf0eb` | Signup/callback hardening, password recovery implementation, SMTP/DNS owner checklist and auth-page copy. |
-| 2026-07-31–08-02 | `492ee02` through `6863495` | Quarantine-first R2 hardening, intent/promotion/reference/cleanup validation, shared server pipeline and expanded tests. |
-| 2026-08-02 | `25ea47e`, `f45097b` | Shared persistent upload rate limiter package, app integration and owner-apply guide. Live objects confirm it was applied. |
+| 2026-07-27 | `19b0fdf`, `89e0c77`, `8eb44cb`, `a316fb1`, `90c6809` | Corrected staging-runtime instructions, recorded Chunks 0–7 as live, preserved Step 11 decisions/handover and reconciled current project context. This is the first repository activity in the audited three-week window; there are no July 25–26 commits. |
+| 2026-07-27 | `1636737` | Added the exact Chunk 10 security-definer hardening package and its review/smoke/verification records. Live catalog independently confirms its hardened state. |
+| 2026-07-27–28 | `cd7d12f`, `b5bc53c`, `e255c62` | Implemented and then simplified/hardened password-recovery session revocation and cleanup. |
+| 2026-07-30 | `c2bd41f` | Hardened server-side signup confirmation/callback behavior and auth-safety tests. |
+| 2026-08-01 | `5e2d4ec`, `ec51d32`, `a21da7d`, `13b57af`, `9274027`, `d083915`, `fd1a034`, `820bf27`, `5b2be7c`, `634302b`, `cb3ad29`, `0d7f64a` | Auth presentation/navigation fixes, validation styling, upload feedback and pre-upload listing-description validation. |
+| 2026-08-02 | `6863495`, `d0da78d`, `25ea47a`, `a2ca01e` | Extracted the shared quarantine pipeline, routed trusted CLI uploads through it, added the shared persistent upload-intent rate limiter, and logged limiter RPC failures. Live objects confirm the shared limiter is applied. |
 | 2026-08-03 | `2158058`, `17c3572` | Applied/verified Wall DB package and deployed profile Wall composer, posts and lightbox. |
 | 2026-08-06 | `1b5c86d`, `8e1b8b9` | Public Stream, active nav, art/tickets/vintage/new-arrivals pages and tests. |
 | 2026-08-07 | `e8e948f`, `7562e94` | Stream date filter; applied 11D public/members-only post visibility and auth-transition polish. |
@@ -264,7 +265,7 @@ Fresh on 2026-08-10:
 | `node --no-warnings --test --experimental-strip-types tests/*.test.ts` | **PASS — 145 tests, 145 pass, 0 fail** |
 | `npx tsc --noEmit` | **PASS** |
 | `npm run build` | **PASS** |
-| Build route generation | **PASS**, 26 page routes plus 4 API routes/middleware as listed above |
+| Build route generation | **PASS**, covering 26 page files and four API route handlers, plus middleware, as listed above |
 
 The successful build proves current tracked source compiles. It does not substitute for authenticated browser acceptance, email delivery, admin UI testing, or the multi-profile launch matrix.
 
