@@ -1226,7 +1226,19 @@ begin
   perform set_config('app.mp4_owner',coalesce(owner_id::text,''),true);
   perform set_config('app.mp4_actor_profile',coalesce(actor_profile::text,''),true);
   perform set_config('app.mp4_other_profile',coalesce(other_profile::text,''),true);
-  perform set_config('app.mp4_event',coalesce((select id::text from public.events order by id limit 1),''),true);
+  perform set_config('app.mp4_event',coalesce((
+    select e.id::text
+    from public.events e
+    where actor_profile is not null
+      and not exists (
+        select 1
+        from public.vendor_events ve
+        where ve.profile_id = actor_profile
+          and ve.event_id = e.id
+      )
+    order by e.id
+    limit 1
+  ),''),true);
   perform set_config('app.mp4_listing_source',coalesce((select id::text from public.listings order by id limit 1),''),true);
   if owner_id is null or other_profile is null then
     insert into mp4_verification_results values ('fixture_owners','UNPROVEN','UNPROVEN','two distinct unbanned owners unavailable');
@@ -1306,13 +1318,13 @@ declare actor uuid:=nullif(current_setting('app.mp4_actor_profile',true),'')::uu
   conv uuid:=nullif(current_setting('app.mp4_conversation',true),'')::uuid;
   np uuid:=gen_random_uuid(); nr uuid:=gen_random_uuid(); ve uuid:=gen_random_uuid(); fav uuid:=gen_random_uuid(); fol uuid:=gen_random_uuid(); en uuid:=gen_random_uuid(); m uuid:=gen_random_uuid();
   newlisting uuid:=gen_random_uuid(); newconv uuid:=gen_random_uuid(); affected bigint;
-  allow_ok boolean; deny_ok boolean;
+  allow_ok boolean; deny_ok boolean; allow_finding text;
 begin
   -- Listings INSERT/UPDATE/DELETE: actual allow plus cross-owner deny.
   if listingid is null then
     insert into mp4_verification_results values ('listings_write','UNPROVEN','UNPROVEN','listing fixture unavailable');
   else
-    allow_ok:=false; deny_ok:=false;
+    allow_ok:=false; deny_ok:=false; allow_finding:=null;
     begin
       insert into public.listings
       select (jsonb_populate_record(null::public.listings,to_jsonb(l)||jsonb_build_object('id',newlisting,'profile_id',actor,'status','active','admin_unpublished_at',null,'admin_unpublished_by',null))).*
@@ -1322,26 +1334,26 @@ begin
       delete from public.listings where id=newlisting;
       get diagnostics affected=row_count;
       allow_ok:=affected=1;
-    exception when others then allow_ok:=false; end;
+    exception when others then allow_ok:=false; allow_finding:='allow SQLSTATE '||sqlstate; end;
     begin
       insert into public.listings
       select (jsonb_populate_record(null::public.listings,to_jsonb(l)||jsonb_build_object('id',gen_random_uuid(),'profile_id',otherp,'status','active','admin_unpublished_at',null,'admin_unpublished_by',null))).*
       from public.listings l where l.id=listingid;
     exception when sqlstate '42501' then deny_ok:=true; end;
-    insert into mp4_verification_results values ('listings_write',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+    insert into mp4_verification_results values ('listings_write',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
   end if;
 
   -- Conversation INSERT allow/deny.
-  allow_ok:=false; deny_ok:=false;
-  begin insert into public.conversations(id,buyer_profile_id,seller_profile_id,listing_id) values(newconv,actor,otherp,null); allow_ok:=true; exception when others then null; end;
+  allow_ok:=false; deny_ok:=false; allow_finding:=null;
+  begin insert into public.conversations(id,buyer_profile_id,seller_profile_id,listing_id) values(newconv,actor,otherp,null); allow_ok:=true; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
   begin insert into public.conversations(id,buyer_profile_id,seller_profile_id,listing_id) values(gen_random_uuid(),otherp,actor,null); exception when sqlstate '42501' then deny_ok:=true; end;
-  insert into mp4_verification_results values ('conversations_write',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+  insert into mp4_verification_results values ('conversations_write',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 
   -- Messaging INSERT allow/deny.
-  allow_ok:=false; deny_ok:=false;
-  begin insert into public.messages(id,conversation_id,sender_profile_id,body) values(m,conv,actor,'MP-4 allow'); allow_ok:=true; exception when others then null; end;
+  allow_ok:=false; deny_ok:=false; allow_finding:=null;
+  begin insert into public.messages(id,conversation_id,sender_profile_id,body) values(m,conv,actor,'MP-4 allow'); allow_ok:=true; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
   begin insert into public.messages(id,conversation_id,sender_profile_id,body) values(gen_random_uuid(),conv,otherp,'MP-4 deny'); exception when sqlstate '42501' then deny_ok:=true; end;
-  insert into mp4_verification_results values ('messages_write',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+  insert into mp4_verification_results values ('messages_write',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 
   if eventid is null then
     insert into mp4_verification_results values ('rsvp','UNPROVEN','UNPROVEN','event fixture unavailable');
@@ -1350,47 +1362,49 @@ begin
     insert into mp4_verification_results values ('event_notifications','UNPROVEN','UNPROVEN','event fixture unavailable');
   else
     -- RSVP INSERT/DELETE allow and cross-owner INSERT deny.
-    allow_ok:=false; deny_ok:=false;
-    begin insert into public.vendor_events(id,profile_id,event_id) values(ve,actor,eventid); delete from public.vendor_events where id=ve; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then null; end;
+    allow_ok:=false; deny_ok:=false; allow_finding:=null;
+    begin insert into public.vendor_events(id,profile_id,event_id) values(ve,actor,eventid); delete from public.vendor_events where id=ve; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
     begin insert into public.vendor_events(id,profile_id,event_id) values(gen_random_uuid(),otherp,eventid); exception when sqlstate '42501' then deny_ok:=true; end;
-    insert into mp4_verification_results values ('rsvp',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+    insert into mp4_verification_results values ('rsvp',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 
     -- Notice post INSERT/DELETE allow and cross-owner deny.
-    allow_ok:=false; deny_ok:=false;
-    begin insert into public.notice_posts(id,event_id,profile_id,category,title,body) values(np,eventid,actor,'other','MP-4','MP-4 transient'); allow_ok:=true; exception when others then null; end;
-    begin insert into public.notice_posts(id,event_id,profile_id,category,title,body) values(gen_random_uuid(),eventid,otherp,'other','MP-4','deny'); exception when sqlstate '42501' then deny_ok:=true; end;
-    insert into mp4_verification_results values ('notice_posts',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+    allow_ok:=false; deny_ok:=false; allow_finding:=null;
+    begin insert into public.notice_posts(id,event_id,profile_id,category,title,body) values(np,eventid,actor,'shoutout','MP-4','MP-4 transient'); allow_ok:=true; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
+    begin insert into public.notice_posts(id,event_id,profile_id,category,title,body) values(gen_random_uuid(),eventid,otherp,'shoutout','MP-4','deny'); exception when sqlstate '42501' then deny_ok:=true; end;
+    insert into mp4_verification_results values ('notice_posts',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 
     -- Notice reaction INSERT/DELETE allow and cross-owner deny.
-    allow_ok:=false; deny_ok:=false;
+    allow_ok:=false; deny_ok:=false; allow_finding:=null;
     if exists(select 1 from public.notice_posts where id=np) then
-      begin insert into public.notice_reactions(id,post_id,profile_id,emoji) values(nr,np,actor,'👍'); delete from public.notice_reactions where id=nr; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then null; end;
-      begin insert into public.notice_reactions(id,post_id,profile_id,emoji) values(gen_random_uuid(),np,otherp,'👍'); exception when sqlstate '42501' then deny_ok:=true; end;
+      begin insert into public.notice_reactions(id,post_id,profile_id,emoji) values(nr,np,actor,'🔥'); delete from public.notice_reactions where id=nr; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
+      begin insert into public.notice_reactions(id,post_id,profile_id,emoji) values(gen_random_uuid(),np,otherp,'🔥'); exception when sqlstate '42501' then deny_ok:=true; end;
       delete from public.notice_posts where id=np;
+    else
+      allow_finding:='notice post allow fixture unavailable';
     end if;
-    insert into mp4_verification_results values ('notice_reactions',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+    insert into mp4_verification_results values ('notice_reactions',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 
     -- Event notification INSERT/SELECT/DELETE allow and cross-owner deny.
-    allow_ok:=false; deny_ok:=false;
-    begin insert into public.event_notifications(id,profile_id,event_id) values(en,actor,eventid); perform 1 from public.event_notifications where id=en; delete from public.event_notifications where id=en; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then null; end;
+    allow_ok:=false; deny_ok:=false; allow_finding:=null;
+    begin insert into public.event_notifications(id,profile_id,event_id) values(en,actor,eventid); perform 1 from public.event_notifications where id=en; delete from public.event_notifications where id=en; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
     begin insert into public.event_notifications(id,profile_id,event_id) values(gen_random_uuid(),otherp,eventid); exception when sqlstate '42501' then deny_ok:=true; end;
-    insert into mp4_verification_results values ('event_notifications',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+    insert into mp4_verification_results values ('event_notifications',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
   end if;
 
   -- Favorites INSERT/SELECT/DELETE allow and cross-owner deny.
   if listingid is null then insert into mp4_verification_results values ('favorites','UNPROVEN','UNPROVEN','listing fixture unavailable');
   else
-    allow_ok:=false; deny_ok:=false;
-    begin insert into public.favorites(id,profile_id,listing_id) values(fav,actor,listingid); perform 1 from public.favorites where id=fav; delete from public.favorites where id=fav; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then null; end;
+    allow_ok:=false; deny_ok:=false; allow_finding:=null;
+    begin insert into public.favorites(id,profile_id,listing_id) values(fav,actor,listingid); perform 1 from public.favorites where id=fav; delete from public.favorites where id=fav; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
     begin insert into public.favorites(id,profile_id,listing_id) values(gen_random_uuid(),otherp,listingid); exception when sqlstate '42501' then deny_ok:=true; end;
-    insert into mp4_verification_results values ('favorites',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+    insert into mp4_verification_results values ('favorites',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
   end if;
 
   -- Follows INSERT/DELETE allow and cross-owner deny.
-  allow_ok:=false; deny_ok:=false;
-  begin insert into public.follows(id,follower_profile_id,following_profile_id) values(fol,actor,otherp); delete from public.follows where id=fol; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then null; end;
+  allow_ok:=false; deny_ok:=false; allow_finding:=null;
+  begin insert into public.follows(id,follower_profile_id,following_profile_id) values(fol,actor,otherp); delete from public.follows where id=fol; get diagnostics affected=row_count; allow_ok:=affected=1; exception when others then allow_finding:='allow SQLSTATE '||sqlstate; end;
   begin insert into public.follows(id,follower_profile_id,following_profile_id) values(gen_random_uuid(),otherp,actor); exception when sqlstate '42501' then deny_ok:=true; end;
-  insert into mp4_verification_results values ('follows',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+  insert into mp4_verification_results values ('follows',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 end;
 $write_matrix$;
 
@@ -1401,9 +1415,11 @@ declare actor uuid:=nullif(current_setting('app.mp4_actor_profile',true),'')::uu
   conv uuid:=nullif(current_setting('app.mp4_conversation',true),'')::uuid;
   created_post uuid;
   allow_ok boolean:=false; deny_ok boolean:=false;
+  allow_finding text;
   denied_count integer:=0;
 begin
   -- All five converted conversation RPCs: owned-participant allow and unrelated-account deny.
+  allow_finding:=null;
   begin
     perform public.append_unread_for(conv,otherp::text);
     perform public.remove_unread_for(conv,actor::text);
@@ -1411,7 +1427,7 @@ begin
     perform public.unhide_conversation(conv);
     perform public.find_and_unhide_conversation(otherp,null);
     allow_ok:=true;
-  exception when others then allow_ok:=false;
+  exception when others then allow_ok:=false; allow_finding:='allow SQLSTATE '||sqlstate;
   end;
   perform set_config('request.jwt.claim.sub',gen_random_uuid()::text,true);
   begin perform public.append_unread_for(conv,otherp::text); exception when others then if sqlstate='P0001' then denied_count:=denied_count+1; end if; end;
@@ -1421,17 +1437,17 @@ begin
   begin perform public.find_and_unhide_conversation(otherp,null); exception when others then if sqlstate='P0001' then denied_count:=denied_count+1; end if; end;
   deny_ok:=denied_count=5;
   perform set_config('request.jwt.claim.sub',current_setting('app.mp4_owner',true),true);
-  insert into mp4_verification_results values ('conversation_rpcs',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+  insert into mp4_verification_results values ('conversation_rpcs',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 
   -- All five converted Wall mutation RPCs: owned-profile allow and cross-account deny.
-  allow_ok:=false; deny_ok:=false; denied_count:=0;
+  allow_ok:=false; deny_ok:=false; allow_finding:=null; denied_count:=0;
   begin
     created_post:=public.create_post(actor,'MP-4 transient post',array[]::text[],true);
     perform public.update_post(created_post,'MP-4 transient post updated',array[]::text[],true);
     perform public.set_post_reaction(created_post,actor,'love');
     perform public.remove_post_reaction(created_post,actor);
     allow_ok:=created_post is not null;
-  exception when others then allow_ok:=false;
+  exception when others then allow_ok:=false; allow_finding:='allow SQLSTATE '||sqlstate;
   end;
 
   begin perform public.create_post(otherp,'MP-4 denied post',array[]::text[],true); exception when sqlstate '42501' then denied_count:=denied_count+1; end;
@@ -1442,8 +1458,8 @@ begin
   begin perform public.remove_post_reaction(created_post,actor); exception when sqlstate '42501' then denied_count:=denied_count+1; end;
   deny_ok:=denied_count=5;
   perform set_config('request.jwt.claim.sub',current_setting('app.mp4_owner',true),true);
-  begin perform public.delete_own_post(created_post); exception when others then allow_ok:=false; end;
-  insert into mp4_verification_results values ('wall_post_reaction_rpcs',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,null);
+  begin perform public.delete_own_post(created_post); exception when others then allow_ok:=false; allow_finding:=coalesce(allow_finding,'allow cleanup SQLSTATE '||sqlstate); end;
+  insert into mp4_verification_results values ('wall_post_reaction_rpcs',case when allow_ok then 'GO' else 'STOP' end,case when deny_ok then 'GO' else 'STOP' end,allow_finding);
 end;
 $rpc_matrix$;
 
