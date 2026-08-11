@@ -309,3 +309,14 @@ The successful build proves current tracked source compiles. It does not substit
 ## Bottom line for planning
 
 Treat the product as a working **single-profile** marketplace/community staging app with real public data and substantial signed-in code, not as a Multi-Profile product. Treat admin/moderation as **database-only**, not UI-complete. Treat MP-4 as **published but unapplied**. Do not enable multiple profiles until anonymous owner-ID access is closed, active-profile/cardinality foundations are live, and the full privacy/authorization matrices pass against real fixtures.
+
+---
+
+## Addendum — 2026-08-11: MP-4 live application
+
+This dated note updates the 2026-08-10 snapshot without rewriting its audit body.
+
+- The full owner-run MP-4 ritual completed on the live database: the reviewed `@darktribo` temporary-ban fixture made `banned_profile_owner` provable, MP-4 preflight returned full GO, and the policy/function conversion apply committed cleanly. See the [dated application and verification record](../MP4_POLICY_CONVERSION_VERIFICATION.md).
+- The first post-apply verify returned STOP 13/16 because of three live-data assumptions in the verify harness, not authorization defects: an invalid Notice category, an invalid Notice reaction emoji and an RSVP pair that already existed under the live unique key. The verify-only correction in `b85b20f` passed independent review; the live rerun returned GO 16/16, including banned-account denial.
+- Fixture unban and unban-verify returned GO. `@darktribo` was restored with zero Hero posts affected; only the accepted `updated_at` timestamp advances remained.
+- Therefore §8.1 item 1 is complete: **MP-4 is live and verified as of 2026-08-11.** Section 8.1 item 2 remains the next open guarded operation: Package D/database-enforced public-profile privacy must remove anonymous owner-ID exposure before additional profiles are enabled.
