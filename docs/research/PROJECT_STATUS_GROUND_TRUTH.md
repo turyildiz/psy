@@ -320,3 +320,16 @@ This dated note updates the 2026-08-10 snapshot without rewriting its audit body
 - The first post-apply verify returned STOP 13/16 because of three live-data assumptions in the verify harness, not authorization defects: an invalid Notice category, an invalid Notice reaction emoji and an RSVP pair that already existed under the live unique key. The verify-only correction in `b85b20f` passed independent review; the live rerun returned GO 16/16, including banned-account denial.
 - Fixture unban and unban-verify returned GO. `@darktribo` was restored with zero Hero posts affected; only the accepted `updated_at` timestamp advances remained.
 - Therefore §8.1 item 1 is complete: **MP-4 is live and verified as of 2026-08-11.** Section 8.1 item 2 remains the next open guarded operation: Package D/database-enforced public-profile privacy must remove anonymous owner-ID exposure before additional profiles are enabled.
+
+---
+
+## Addendum — 2026-08-12: Package D live privacy cutover
+
+This dated note updates the 2026-08-10 snapshot and the 2026-08-11 addendum without rewriting either historical record.
+
+- The full owner-run Package D ritual completed on the live database. Preflight returned GO with no findings and captured the complete 33-entry pre-cutover ACL, matching the package's pinned expectation exactly. Apply committed cleanly on its first live run with no refusal. See the [dated application and verification record](../PACKAGE_D_PRIVACY_CUTOVER_VERIFICATION.md).
+- Live verify returned **GO 33/33**. For both `anon` and `authenticated`, the 12 approved `PUBLIC_PROFILE_SELECT` columns remained readable, while `user_id`, `is_suspended`, `updated_at` and wildcard `select=*` attempts were denied with SQLSTATE `42501`. Embedded profile reads, owner/admin helpers and `service_role` access remained intact.
+- An independent VPS REST probe reconfirmed before apply that `profiles?select=id,user_id` returned HTTP 200 with data. After apply, the same request returned HTTP 401 / SQLSTATE `42501` with `permission denied for table profiles`; safe-column requests continued to return HTTP 200.
+- Turgay's authenticated staging click-round passed across the homepage, listing, profile, Stream, festival, inbox and profile-edit surfaces. Rollback was available but not needed.
+- Therefore the privacy qualification in §3.5 and §8.1 item 2 are resolved: **anonymous/authenticated owner-ID exposure is closed at the database level, and the public `profiles` read surface is exactly the 12 `PUBLIC_PROFILE_SELECT` columns.** The precondition “do not enable multiple profiles until anonymous owner-ID access is closed” is **MET**.
+- Multi-Profile remains disabled. The MP-3 cardinality, `vendor` type and active-profile/session foundations are still open. The next guarded database operation is now the **MP-3 foundation slice**.
