@@ -38,6 +38,7 @@ do $state_guard$
 declare
   enum_ok boolean; base_ok boolean; before_state boolean; after_state boolean;
   table_acl_ok boolean; column_acl_ok boolean; helper_acl_ok boolean;
+  private_table_acl_ok boolean; private_schema_acl_ok boolean;
   profile_constraints text; profile_indexes text; profile_triggers text;
   policy_hash text; helper_hash text; signup_hash text;
   mp3_function_hash text; mp3_function_acl_hash text;
@@ -92,13 +93,13 @@ begin
     into profile_triggers from pg_trigger where tgrelid='public.profiles'::regclass and not tgisinternal;
   select md5(coalesce(string_agg(policyname||'|'||cmd||'|'||permissive||'|'||roles::text||'|'||coalesce(qual,'')||'|'||coalesce(with_check,''),E'\n' order by policyname),''))
     into policy_hash from pg_policies where schemaname='public' and tablename='profiles';
-  select md5(coalesce(string_agg(p.proname||'|'||pg_get_function_identity_arguments(p.oid)||'|'||p.proowner::regrole::text||'|'||p.provolatile::text||'|'||p.prosecdef||'|'||coalesce(p.proconfig::text,'')||'|'||md5(btrim(regexp_replace(p.prosrc,'[[:space:]]+',' ','g'))),E'\n' order by p.proname,pg_get_function_identity_arguments(p.oid)),''))
+  select md5(coalesce(string_agg(p.proname||'|'||pg_get_function_identity_arguments(p.oid)||'|'||p.proowner::regrole::text||'|'||p.provolatile::text||'|'||p.prosecdef||'|'||coalesce((select string_agg(case when cfg in ('search_path=','search_path=""') then 'search_path=<empty>' else cfg end,',' order by case when cfg in ('search_path=','search_path=""') then 'search_path=<empty>' else cfg end) from unnest(coalesce(p.proconfig,array[]::text[])) cfg),'')||'|'||md5(btrim(regexp_replace(p.prosrc,'[[:space:]]+',' ','g'))),E'\n' order by p.proname,pg_get_function_identity_arguments(p.oid)),''))
     into helper_hash from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public'
     and p.proname in ('get_my_profiles','current_user_owns_profile','admin_get_profile_account');
-  select md5(p.proowner::regrole::text||'|'||p.prosecdef||'|'||coalesce(p.proconfig::text,'')||'|'||md5(btrim(regexp_replace(p.prosrc,'[[:space:]]+',' ','g'))))
+  select md5(p.proowner::regrole::text||'|'||p.prosecdef||'|'||coalesce((select string_agg(case when cfg in ('search_path=','search_path=""') then 'search_path=<empty>' else cfg end,',' order by case when cfg in ('search_path=','search_path=""') then 'search_path=<empty>' else cfg end) from unnest(coalesce(p.proconfig,array[]::text[])) cfg),'')||'|'||md5(btrim(regexp_replace(p.prosrc,'[[:space:]]+',' ','g'))))
     into signup_hash from pg_proc p where p.oid=to_regprocedure('public.handle_new_user()');
 
-  select md5(coalesce(string_agg(n.nspname||'|'||p.proname||'|'||pg_get_function_identity_arguments(p.oid)||'|'||p.proowner::regrole::text||'|'||l.lanname||'|'||p.provolatile::text||'|'||p.prosecdef||'|'||coalesce(p.proconfig::text,'')||'|'||md5(btrim(regexp_replace(p.prosrc,E'\s+',' ','g')))||'|'||pg_get_function_result(p.oid),E'\n' order by n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),''))
+  select md5(coalesce(string_agg(n.nspname||'|'||p.proname||'|'||pg_get_function_identity_arguments(p.oid)||'|'||p.proowner::regrole::text||'|'||l.lanname||'|'||p.provolatile::text||'|'||p.prosecdef||'|'||coalesce((select string_agg(case when cfg in ('search_path=','search_path=""') then 'search_path=<empty>' else cfg end,',' order by case when cfg in ('search_path=','search_path=""') then 'search_path=<empty>' else cfg end) from unnest(coalesce(p.proconfig,array[]::text[])) cfg),'')||'|'||md5(btrim(regexp_replace(p.prosrc,E'\s+',' ','g')))||'|'||pg_get_function_result(p.oid),E'\n' order by n.nspname,p.proname,pg_get_function_identity_arguments(p.oid)),''))
     into mp3_function_hash from pg_proc p join pg_namespace n on n.oid=p.pronamespace join pg_language l on l.oid=p.prolang
     where (n.nspname='private' and p.proname='current_auth_session_id') or (n.nspname='public' and p.proname in ('enforce_profile_owner_immutable','enforce_profile_cap','get_active_profile','switch_active_profile','create_additional_profile'));
   select md5(coalesce(string_agg(n.nspname||'|'||p.proname||'|'||pg_get_function_identity_arguments(p.oid)||'|'||(case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end)||'|'||a.privilege_type||'|'||a.is_grantable||'|'||a.grantor::regrole::text,E'\n' order by n.nspname,p.proname,pg_get_function_identity_arguments(p.oid),(case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end)),''))
@@ -109,14 +110,21 @@ begin
     into private_constraint_hash from pg_constraint where conrelid=to_regclass('private.account_session_active_profiles');
   select md5(coalesce(string_agg(c.relname||'|'||pg_get_indexdef(c.oid)||'|'||i.indisunique||'|'||i.indisprimary||'|'||i.indisvalid||'|'||i.indisready,E'\n' order by c.relname),''))
     into private_index_hash from pg_index i join pg_class c on c.oid=i.indexrelid where i.indrelid=to_regclass('private.account_session_active_profiles');
-  select md5(c.relowner::regrole::text||'|'||c.relrowsecurity||'|'||c.relforcerowsecurity||'|'||coalesce(c.relacl::text,''))
+  select md5(c.relowner::regrole::text||'|'||c.relkind::text||'|'||c.relpersistence::text||'|'||c.relrowsecurity||'|'||c.relforcerowsecurity||'|'||c.relreplident::text)
     into private_rel_hash from pg_class c where c.oid=to_regclass('private.account_session_active_profiles');
-  select md5(n.nspowner::regrole::text||'|'||coalesce(n.nspacl::text,'')) into private_schema_hash from pg_namespace n where n.nspname='private';
+  select md5(n.nspowner::regrole::text) into private_schema_hash from pg_namespace n where n.nspname='private';
+  with available(p) as (values ('DELETE'::text),('INSERT'),('REFERENCES'),('SELECT'),('TRIGGER'),('TRUNCATE'),('UPDATE') union all select 'MAINTAIN' where current_setting('server_version_num')::int>=170000),
+  expected(g,r,p,x) as (select 'postgres'::text,'postgres'::text,p,false from available),
+  actual(g,r,p,x) as (select a.grantor::regrole::text,case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end,a.privilege_type::text,a.is_grantable from pg_class c cross join lateral aclexplode(coalesce(c.relacl,acldefault('r',c.relowner))) a where c.oid=to_regclass('private.account_session_active_profiles'))
+  select not exists((select * from actual except select * from expected) union all (select * from expected except select * from actual)) into private_table_acl_ok;
+  with expected(g,r,p,x) as (values ('postgres'::text,'postgres'::text,'CREATE'::text,false),('postgres','postgres','USAGE',false)),
+  actual(g,r,p,x) as (select a.grantor::regrole::text,case when a.grantee=0 then 'PUBLIC' else a.grantee::regrole::text end,a.privilege_type::text,a.is_grantable from pg_namespace n cross join lateral aclexplode(coalesce(n.nspacl,acldefault('n',n.nspowner))) a where n.nspname='private')
+  select not exists((select * from actual except select * from expected) union all (select * from expected except select * from actual)) into private_schema_acl_ok;
 
   base_ok := enum_ok and table_acl_ok and column_acl_ok and helper_acl_ok
     and policy_hash='b33046c229ea730bcf923ad9f8a114cb'
-    and helper_hash='7213a442d3445ac4a461633404ba5555'
-    and signup_hash='3951b9f75f3ee8c54e321eff192bb6a1'
+    and helper_hash='d175baa081926c85004e36268f061f76'
+    and signup_hash='59ab4dce2526438016742af297aadc55'
     and exists(select 1 from pg_class where oid='public.profiles'::regclass and relowner='postgres'::regrole and relrowsecurity and not relforcerowsecurity)
     and not exists(select 1 from public.profiles group by user_id having count(*)<>1)
     and not exists(select 1 from public.profiles p left join public.users u on u.id=p.user_id where u.id is null);
@@ -125,12 +133,13 @@ begin
     and mp3_function_hash='d41d8cd98f00b204e9800998ecf8427e' and to_regnamespace('private') is null;
   after_state := base_ok and profile_constraints='f4ac02be62984924b395f7b701a700f3'
     and profile_indexes='694204eef68f8094274c642e9123ee94' and profile_triggers='56c1252d8625f9a55726e920649de8c3'
-    and mp3_function_hash='7b61fe89e5500b46404adc499a51b176'
+    and mp3_function_hash='2c6104ea691b883d1166531ff2563cdb'
     and mp3_function_acl_hash='278f9ec775ed45028d4d817ab12b0eb7'
     and private_constraint_hash='2890dfa115b3b4d990522a2ba9c49701'
     and private_index_hash='ae9b1f423455163225eaaa07886a845e'
-    and private_rel_hash='44be9e1e66bb700a28e67c743d387326'
-    and private_schema_hash='f87dd710df4f276338840300b34ad313';
+    and private_rel_hash='f9a66a264d09636f09eac24c19eb6b43'
+    and private_schema_hash='e8a48653851e28c69d0506508fb27fc5'
+    and private_table_acl_ok and private_schema_acl_ok;
   if not before_state and not after_state then
     raise exception 'MP-3 APPLY refused: exact before/after catalog manifest not found' using errcode='55000';
   end if;
