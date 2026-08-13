@@ -120,3 +120,20 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 - Weekly plain-language update for the co-founder, compiled from git log (not memory) to avoid stale claims.
 - Ritual for DB changes: preflight → apply → verify chunk packages run by Turgay in the SQL editor, one result at a time.
 - Proposal-first ritual for big features: product decisions in chat → proposal doc → review → build slices.
+
+## 11. Additions — decided 10 Aug 2026 (recorded 13 Aug 2026)
+
+### Staging QA tester — Claude in Chrome
+
+- **Role:** Claude in Chrome (the browser extension in Turgay's Brave browser) is the QA tester for **staging only**. Production remains off-limits under the standing rule.
+- **Capabilities:** On the tab Turgay assigns, it can navigate, click, fill forms, and read DOM and network responses. Proven 09 Aug 2026: it ran the Package C browser privacy audit across profile, Stream, and listing pages and found zero owner-ID leaks in response bodies.
+- **Dedicated test mailbox:** It gets a dedicated All-Inkl mailbox used only for staging test accounts. This enables complete staging journeys: register → activation link through test webmail → login → forgot-password loop → profile edit → listing create/edit (text flows) → contact flows. Mailbox credentials belong in prompts/configuration, never in repository documentation.
+- **Workflow:** The wingman drafts each test script, including goals, staging URL/login, test-mailbox credentials, and the expected report format. Turgay pastes it into the extension. Findings return to the wingman for evaluation. Turgay's own click-round is reduced to spot-checks and judgment calls.
+- **Limits:** OS file-picker drivability for image uploads is unverified and will be tested once. Side-effect actions stay deliberate and minimal. Final approval and every judgment call remain with Turgay. This replaces the previously considered Fiverr site testers; it does **not** replace Turgay's final testing.
+
+### Stream Patrol — future V1.1 reports/moderation design input
+
+- **Status:** Design input for the future V1.1 reports/moderation specification; **not an implementation claim and not built now**.
+- A scheduled VPS job, not a browser-based tool, scans new posts approximately every six hours. It is multimodal: text **and** images. Its review scope includes spam, pornography, and similar suspicious content.
+- **Flag only:** It reports suspicious cases, with a short reason, to Turgay and the co-founder. It never deletes content, bans users, or takes autonomous action. There is no automated "three strikes" rule. Turgay always has the final say on every moderation action.
+- It uses the same machinery and governing principle as the already-decided AI report triage: translate, summarize, and rank — never decide and never silently close.
