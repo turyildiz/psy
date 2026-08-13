@@ -333,3 +333,18 @@ This dated note updates the 2026-08-10 snapshot and the 2026-08-11 addendum with
 - Turgay's authenticated staging click-round passed across the homepage, listing, profile, Stream, festival, inbox and profile-edit surfaces. Rollback was available but not needed.
 - Therefore the privacy qualification in §3.5 and §8.1 item 2 are resolved: **anonymous/authenticated owner-ID exposure is closed at the database level, and the public `profiles` read surface is exactly the 12 `PUBLIC_PROFILE_SELECT` columns.** The precondition “do not enable multiple profiles until anonymous owner-ID access is closed” is **MET**.
 - Multi-Profile remains disabled. The MP-3 cardinality, `vendor` type and active-profile/session foundations are still open. The next guarded database operation is now the **MP-3 foundation slice**.
+
+---
+
+## Addendum — 2026-08-13: MP-3 foundation live application
+
+This dated note updates the 2026-08-10 snapshot and the 2026-08-11/12 addenda without rewriting those historical records.
+
+- The full owner-run MP-3 foundation ritual completed on the live database. Before any live execution, wingman pre-review found two stale reconstructed baseline pins in `d704cdb`: the live one-profile guard is a bare unique index rather than a constraint row, and the reconstructed signup function differed from the live body. `af0b2dd` corrected both from wingman-read live evidence. See the [dated application and verification record](../MP3_FOUNDATION_VERIFICATION.md).
+- Live preflight returned GO with no findings. Apply completed cleanly: the guarded non-transactional `vendor` enum step ran first, followed by the all-or-nothing transaction.
+- The first live verify returned STOP 17/19. All behavior checks passed; the two failures were environment/session-dependent catalog renderings in fingerprints, not state defects. Wingman read-only diagnosis confirmed the applied state was functionally exact, so rollback was not needed. `eadd83b` and `01f8382` normalized settings, ACL privilege sets, schema qualification and function-body whitespace; wingman recomputed every corrected pin against live and all matched before rerun.
+- The corrected live verifier returned **GO 19/19**, including fail-closed session denials and client-role denial of additional-profile creation with SQLSTATE `42501`. Package D privacy was re-verified intact.
+- The first Claude-in-Chrome QA mission under handover §11 passed on the homepage, public profile, profile-edit edit/revert round trip and Stream. Both profile writes saved through the new triggers; `vendor` remained correctly absent from the profile-type UI. The wingman evaluated the findings.
+- Therefore the §3.3 row and §8.1 item 3 statements that MP-3 was not authored/applied or remained future work are superseded: **MP-3 foundations are live and verified as of 2026-08-13.** The dormant `vendor` label, locked five-profile-cap trigger, owner-immutability trigger, private per-session active-profile state and authenticated helpers are live; the trusted additional-profile RPC remains unreachable by client roles.
+- Multi-Profile remains disabled because `profiles_one_per_user_key` is still in force. No profile creation/switching/deletion UI is enabled. The next guarded database operation is the proposal's **Slice MP-4 — Database active-authorization and deletion foundation**.
+- The operational rollback remains available and gates on the exact after-state. It deliberately retains the `vendor` enum label because PostgreSQL has no supported safe in-place enum-value removal.
