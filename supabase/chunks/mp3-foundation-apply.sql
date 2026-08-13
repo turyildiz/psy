@@ -116,14 +116,14 @@ begin
   base_ok := enum_ok and table_acl_ok and column_acl_ok and helper_acl_ok
     and policy_hash='b33046c229ea730bcf923ad9f8a114cb'
     and helper_hash='7213a442d3445ac4a461633404ba5555'
-    and signup_hash='d814d105b6725b18b19394a1cb558477'
+    and signup_hash='3951b9f75f3ee8c54e321eff192bb6a1'
     and exists(select 1 from pg_class where oid='public.profiles'::regclass and relowner='postgres'::regrole and relrowsecurity and not relforcerowsecurity)
     and not exists(select 1 from public.profiles group by user_id having count(*)<>1)
     and not exists(select 1 from public.profiles p left join public.users u on u.id=p.user_id where u.id is null);
-  before_state := base_ok and profile_constraints='77ece998656bdd9f2734038e2f9af94c'
+  before_state := base_ok and profile_constraints='598ae47d30453ad1c903b5be7f602c27'
     and profile_indexes='79c9a17b697a7b73f8eb9525b4d9b2eb' and profile_triggers='1998fb8f45cd9c01e2899e8872a2e976'
     and mp3_function_hash='d41d8cd98f00b204e9800998ecf8427e' and to_regnamespace('private') is null;
-  after_state := base_ok and profile_constraints='4881500f6d558e559b5095d6c454e854'
+  after_state := base_ok and profile_constraints='f4ac02be62984924b395f7b701a700f3'
     and profile_indexes='694204eef68f8094274c642e9123ee94' and profile_triggers='56c1252d8625f9a55726e920649de8c3'
     and mp3_function_hash='7b61fe89e5500b46404adc499a51b176'
     and mp3_function_acl_hash='278f9ec775ed45028d4d817ab12b0eb7'

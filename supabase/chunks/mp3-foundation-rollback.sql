@@ -53,17 +53,17 @@ begin
 
  exact_after := table_acl_ok and column_acl_ok and helper_acl_ok
    and exists(select 1 from pg_class where oid='public.profiles'::regclass and relowner='postgres'::regrole and relrowsecurity and not relforcerowsecurity)
-   and profile_constraints='4881500f6d558e559b5095d6c454e854' and profile_indexes='694204eef68f8094274c642e9123ee94'
+   and profile_constraints='f4ac02be62984924b395f7b701a700f3' and profile_indexes='694204eef68f8094274c642e9123ee94'
    and profile_triggers='56c1252d8625f9a55726e920649de8c3' and policy_hash='b33046c229ea730bcf923ad9f8a114cb'
-   and helper_hash='7213a442d3445ac4a461633404ba5555' and signup_hash='d814d105b6725b18b19394a1cb558477'
+   and helper_hash='7213a442d3445ac4a461633404ba5555' and signup_hash='3951b9f75f3ee8c54e321eff192bb6a1'
    and mp3_function_hash='7b61fe89e5500b46404adc499a51b176' and mp3_acl_hash='278f9ec775ed45028d4d817ab12b0eb7'
    and private_constraints='2890dfa115b3b4d990522a2ba9c49701' and private_indexes='ae9b1f423455163225eaaa07886a845e'
    and private_rel='44be9e1e66bb700a28e67c743d387326' and private_schema='f87dd710df4f276338840300b34ad313';
  exact_restored := table_acl_ok and column_acl_ok and helper_acl_ok
    and exists(select 1 from pg_class where oid='public.profiles'::regclass and relowner='postgres'::regrole and relrowsecurity and not relforcerowsecurity)
-   and profile_constraints='77ece998656bdd9f2734038e2f9af94c' and profile_indexes='79c9a17b697a7b73f8eb9525b4d9b2eb'
+   and profile_constraints='598ae47d30453ad1c903b5be7f602c27' and profile_indexes='79c9a17b697a7b73f8eb9525b4d9b2eb'
    and profile_triggers='1998fb8f45cd9c01e2899e8872a2e976' and policy_hash='b33046c229ea730bcf923ad9f8a114cb'
-   and helper_hash='7213a442d3445ac4a461633404ba5555' and signup_hash='d814d105b6725b18b19394a1cb558477'
+   and helper_hash='7213a442d3445ac4a461633404ba5555' and signup_hash='3951b9f75f3ee8c54e321eff192bb6a1'
    and mp3_function_hash='d41d8cd98f00b204e9800998ecf8427e' and to_regnamespace('private') is null;
  if not exact_after and not exact_restored then
    raise exception 'MP-3 ROLLBACK refused: exact after/restored catalog manifest not found' using errcode='55000';
@@ -92,7 +92,7 @@ begin
  select md5(coalesce(string_agg(conname||'|'||pg_get_constraintdef(oid,true)||'|'||convalidated||'|'||condeferrable||'|'||condeferred,E'\n' order by conname),'')) into c from pg_constraint where conrelid='public.profiles'::regclass;
  select md5(coalesce(string_agg(x.relname||'|'||pg_get_indexdef(x.oid)||'|'||p.indisunique||'|'||p.indisprimary||'|'||p.indisvalid||'|'||p.indisready,E'\n' order by x.relname),'')) into i from pg_index p join pg_class x on x.oid=p.indexrelid where p.indrelid='public.profiles'::regclass;
  select md5(coalesce(string_agg(tgname||'|'||pg_get_triggerdef(oid,true)||'|'||tgenabled::text,E'\n' order by tgname),'')) into t from pg_trigger where tgrelid='public.profiles'::regclass and not tgisinternal;
- if c<>'77ece998656bdd9f2734038e2f9af94c' or i<>'79c9a17b697a7b73f8eb9525b4d9b2eb' or t<>'1998fb8f45cd9c01e2899e8872a2e976' or to_regnamespace('private') is not null then
+ if c<>'598ae47d30453ad1c903b5be7f602c27' or i<>'79c9a17b697a7b73f8eb9525b4d9b2eb' or t<>'1998fb8f45cd9c01e2899e8872a2e976' or to_regnamespace('private') is not null then
    raise exception 'MP-3 rollback postcondition failed' using errcode='55000';
  end if;
 end

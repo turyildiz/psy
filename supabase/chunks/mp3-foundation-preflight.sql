@@ -48,7 +48,6 @@ expected_enum(ord,label) as (
  ('handle_length','CHECK (char_length(handle) >= 3 AND char_length(handle) <= 30)'),
  ('location_length','CHECK (location IS NULL OR char_length(location) <= 100)'),
  ('profiles_handle_key','UNIQUE (handle)'),('profiles_pkey','PRIMARY KEY (id)'),
- ('profiles_one_per_user_key','UNIQUE (user_id)'),
  ('profiles_user_id_fkey','FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE')
 ), actual_constraints as (
  select conname::text,pg_get_constraintdef(oid,true)::text from pg_constraint
@@ -138,7 +137,7 @@ expected_enum(ord,label) as (
  ('package_d_column_acl_exact',not exists((select * from actual_column_acl except select * from expected_column_acl) union all (select * from expected_column_acl except select * from actual_column_acl)),'column ACL drift'),
  ('package_b_helpers_exact',not exists((select * from actual_helper except select * from expected_helper) union all (select * from expected_helper except select * from actual_helper)),'helper definition/overload drift'),
  ('package_b_helper_acl_exact',not exists((select * from actual_helper_acl except select * from expected_helper_acl) union all (select * from expected_helper_acl except select * from actual_helper_acl)),'helper ACL drift'),
- ('signup_exact',exists(select 1 from pg_proc p where p.oid=to_regprocedure('public.handle_new_user()') and p.proowner='postgres'::regrole and p.prosecdef and p.proconfig=array['search_path=pg_catalog, public, auth'] and md5(btrim(regexp_replace(p.prosrc,E'\s+',' ','g')))='eba9c36d311b3cf937ff3dd964ca8e58') and exists(select 1 from pg_trigger t where t.tgrelid=to_regclass('auth.users') and t.tgname='on_auth_user_created' and not t.tgisinternal and t.tgenabled='O' and t.tgfoid=to_regprocedure('public.handle_new_user()')),'signup drift'),
+ ('signup_exact',exists(select 1 from pg_proc p where p.oid=to_regprocedure('public.handle_new_user()') and p.proowner='postgres'::regrole and p.prosecdef and p.proconfig=array['search_path=pg_catalog, public, auth'] and md5(btrim(regexp_replace(p.prosrc,'[[:space:]]+',' ','g')))='7e57a7aed3435c9f734829de83475716') and exists(select 1 from pg_trigger t where t.tgrelid=to_regclass('auth.users') and t.tgname='on_auth_user_created' and not t.tgisinternal and t.tgenabled='O' and t.tgfoid=to_regprocedure('public.handle_new_user()')),'signup drift'),
  ('one_profile_data',not exists(select 1 from public.profiles group by user_id having count(*)<>1),'cardinality drift'),
  ('account_correspondence',not exists(select 1 from public.profiles p left join public.users u on u.id=p.user_id where u.id is null),'public account invariant drift'),
  ('mp3_names_absent',to_regnamespace('private') is null and not exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname in ('public','private') and p.proname in ('current_auth_session_id','get_active_profile','switch_active_profile','create_additional_profile','enforce_profile_owner_immutable','enforce_profile_cap')) and not exists(select 1 from pg_constraint where conrelid=to_regclass('public.profiles') and conname='profiles_id_user_id_key'),'MP-3 or same-name object already exists')
