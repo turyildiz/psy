@@ -50,7 +50,7 @@ expected_enum(ord,label) as (
  ('profiles_handle_key','UNIQUE (handle)'),('profiles_pkey','PRIMARY KEY (id)'),
  ('profiles_user_id_fkey','FOREIGN KEY (user_id) REFERENCES auth.users(id) ON DELETE CASCADE')
 ), actual_constraints as (
- select conname::text,pg_get_constraintdef(oid,true)::text from pg_constraint
+ select conname::text,regexp_replace(pg_get_constraintdef(oid,true),'(public|private)\.','','g')::text from pg_constraint
  where conrelid=to_regclass('public.profiles') and convalidated and not condeferrable and not condeferred
 ), expected_indexes(name,definition) as (
  values
@@ -68,7 +68,7 @@ expected_enum(ord,label) as (
  ('profiles_enforce_handle'::text,'CREATE TRIGGER profiles_enforce_handle BEFORE INSERT OR UPDATE OF handle ON profiles FOR EACH ROW EXECUTE FUNCTION enforce_profile_handle()'::text,'O'::text),
  ('tr_profiles_updated_at','CREATE TRIGGER tr_profiles_updated_at BEFORE UPDATE ON profiles FOR EACH ROW EXECUTE FUNCTION update_updated_at()','O')
 ), actual_triggers as (
- select tgname::text,pg_get_triggerdef(oid,true)::text,tgenabled::text from pg_trigger
+ select tgname::text,regexp_replace(pg_get_triggerdef(oid,true),'public\.','','g')::text,tgenabled::text from pg_trigger
  where tgrelid=to_regclass('public.profiles') and not tgisinternal
 ), expected_policies(name,cmd,permissive,roles,qual,check_expr) as (
  values
@@ -76,7 +76,7 @@ expected_enum(ord,label) as (
  ('Unbanned users insert own profiles','INSERT','PERMISSIVE','{authenticated}','', '((auth.uid() = user_id) AND (NOT current_user_is_banned()))'),
  ('Unbanned users update own profiles','UPDATE','PERMISSIVE','{authenticated}','((auth.uid() = user_id) AND (NOT current_user_is_banned()))','((auth.uid() = user_id) AND (NOT current_user_is_banned()))')
 ), actual_policies as (
- select policyname::text,cmd::text,permissive::text,roles::text,coalesce(qual,''),coalesce(with_check,'')
+ select policyname::text,cmd::text,permissive::text,roles::text,regexp_replace(coalesce(qual,''),'public\.','','g'),regexp_replace(coalesce(with_check,''),'public\.','','g')
  from pg_policies where schemaname='public' and tablename='profiles'
 ), available_privilege(privilege_type) as (
  values ('DELETE'::text),('INSERT'),('REFERENCES'),('SELECT'),('TRIGGER'),('TRUNCATE'),('UPDATE')
