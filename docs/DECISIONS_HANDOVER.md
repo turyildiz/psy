@@ -139,3 +139,19 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 - A scheduled VPS job, not a browser-based tool, scans new posts approximately every six hours. It is multimodal: text **and** images. Its review scope includes spam, pornography, and similar suspicious content.
 - **Flag only:** It reports suspicious cases, with a short reason, to Turgay and the co-founder. It never deletes content, bans users, or takes autonomous action. There is no automated "three strikes" rule. Turgay always has the final say on every moderation action.
 - It uses the same machinery and governing principle as the already-decided AI report triage: translate, summarize, and rank — never decide and never silently close.
+
+## 12. Addition — decided 15 Aug 2026
+
+### Wall post highlights — V1 scope, sequenced
+
+- **Status:** Turgay's idea; design fixed 15 Aug 2026. This is a V1 scope and sequencing decision, **not an implementation claim and not built now**.
+- **Per-profile cap and control:** Each profile can highlight up to five of its own Wall posts through a simple **Highlight** checkbox/toggle on the post.
+- **Wall presentation:** At the top of the profile's Wall, show one row of up to five circles in a story-highlight style, visually like the profile picture. The row's total width equals the post-column width below it. An image post uses its first image cropped into the circle; a text-only post uses a styled text fallback. Most-recently-highlighted appears first.
+- **Desktop hover:** Show a small popup with approximately the first 80 characters of the post, derived automatically from its body. There is no separate highlight-caption field.
+- **Mobile interaction:** There is no hover behavior. Tapping a circle opens the post.
+- **Open behavior:** Click/tap opens the full post in an overlay above the Wall, following the lightbox pattern. It deliberately does **not** scroll to the post: the Wall is cursor-paginated, and an older highlighted post may not be loaded, so scroll-to cannot work reliably.
+- **Sixth-highlight attempt:** Block it with the friendly message: “You can highlight up to 5 posts; unhighlight one first.” Never silently unpin another post.
+- **Stream boundary:** The Stream is completely unaffected. Highlights reorder/decorate only the profile's own Wall, preserving the no-algorithmic-feed identity decision.
+- **Multi-Profile semantics:** Highlights belong to the post's profile. After Multi-Profile, highlighting is an active-profile action like every Wall mutation.
+- **Fixed sequencing:** Implement only **after Slice MP-4 package MP4-D (Wall RPC conversion) is live**. Do not build highlights mid-slice into the Wall machinery MP4-D is converting. Delivery is one small database package (highlight columns, a max-five trigger fence, and an active-profile-authorized toggle) followed by an app slice for the circles row and overlay.
+- **Timing fallback:** If V1 timing becomes tight, demote highlights to V1.1 cleanly; no other feature or package depends on them.
