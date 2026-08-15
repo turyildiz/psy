@@ -1,12 +1,12 @@
 # Slice MP-4 — active authorization and deletion foundation plan
 
 **Prepared:** 2026-08-13
-**Status:** INVESTIGATION / PACKAGING PROPOSAL — no Slice MP-4 SQL has been authored or applied
-**Current database state:** MP-3 foundations are live; `profiles_one_per_user_key` remains in force; the site remains one-profile-per-account
+**Status:** GUARDED EXECUTION IN PROGRESS — MP4-A of eight is live; see [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md)
+**Current database state:** MP-3 foundations and the unused MP4-A active-authorization primitives are live; `profiles_one_per_user_key` remains in force; authorization behavior and the one-profile product model are unchanged
 
 ## 1. Purpose and evidence boundary
 
-This document plans the proposal's **Slice MP-4 — Database active-authorization and deletion foundation**. It is a pre-authoring investigation, not an implementation record.
+This document defines the proposal's **Slice MP-4 — Database active-authorization and deletion foundation** and remains the package authoring/ordering plan. Actual live sittings are recorded only in [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md).
 
 Authoritative inputs:
 

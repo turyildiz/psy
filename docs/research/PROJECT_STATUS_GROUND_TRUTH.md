@@ -348,3 +348,13 @@ This dated note updates the 2026-08-10 snapshot and the 2026-08-11/12 addenda wi
 - Therefore the §3.3 row and §8.1 item 3 statements that MP-3 was not authored/applied or remained future work are superseded: **MP-3 foundations are live and verified as of 2026-08-13.** The dormant `vendor` label, locked five-profile-cap trigger, owner-immutability trigger, private per-session active-profile state and authenticated helpers are live; the trusted additional-profile RPC remains unreachable by client roles.
 - Multi-Profile remains disabled because `profiles_one_per_user_key` is still in force. No profile creation/switching/deletion UI is enabled. The next guarded database operation is the proposal's **Slice MP-4 — Database active-authorization and deletion foundation**.
 - The operational rollback remains available and gates on the exact after-state. It deliberately retains the `vendor` enum label because PostgreSQL has no supported safe in-place enum-value removal.
+
+---
+
+## Addendum — 2026-08-14: Slice MP-4 execution began
+
+This dated note updates the prior audit and addenda without rewriting their historical snapshots.
+
+- Slice MP-4 guarded execution has begun. **MP4-A active-profile authorization primitives are live and verified.** See the rolling [`SLICE_MP4_EXECUTION_RECORD.md`](../SLICE_MP4_EXECUTION_RECORD.md), which is the single running execution source of truth for all eight Slice MP-4 packages.
+- Authorization behavior is **UNCHANGED**: no live policy or existing authorization function consults the new primitives yet. They are installed but unused, and the one-profile cardinality lock remains in force.
+- The next package, **MP4-B**, requires the Gate 4 session-lifecycle proof and a fresh wingman evidence bundle before authoring may begin.
