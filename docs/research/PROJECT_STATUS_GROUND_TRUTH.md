@@ -351,7 +351,7 @@ This dated note updates the 2026-08-10 snapshot and the 2026-08-11/12 addenda wi
 
 ---
 
-## Addendum — 2026-08-14: Slice MP-4 execution began
+## Addendum — 2026-08-15: Slice MP-4 execution began
 
 This dated note updates the prior audit and addenda without rewriting their historical snapshots.
 

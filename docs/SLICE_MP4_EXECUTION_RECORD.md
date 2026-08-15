@@ -13,7 +13,7 @@ Each package receives one dated section after its live sitting. Future package r
 
 | Package | Live status |
 |---|---|
-| MP4-A | Live and verified — 2026-08-14 |
+| MP4-A | Live and verified — 2026-08-15 |
 | MP4-B | Not yet authored/applied |
 | MP4-C | Not yet authored/applied |
 | MP4-D | Not yet authored/applied |
@@ -24,7 +24,7 @@ Each package receives one dated section after its live sitting. Future package r
 
 ---
 
-## 2026-08-14 — MP4-A: active-profile authorization primitives
+## 2026-08-15 — MP4-A: active-profile authorization primitives
 
 ### Scope
 
