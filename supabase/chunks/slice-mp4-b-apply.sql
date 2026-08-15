@@ -1,4 +1,5 @@
 -- psy.market Slice MP-4-B: profile/listing active authorization
+-- Policy fingerprints use plain pg_get_expr(), matching pg_policies evidence; PG16 and PG17 before-state renderings agree.
 -- APPLY — OWNER-RUN IN SUPABASE SQL EDITOR.
 
 begin;
@@ -36,7 +37,7 @@ default_acl_state as (
  from pg_default_acl d left join pg_namespace n on n.oid=d.defaclnamespace cross join lateral aclexplode(d.defaclacl) a
 ),
 policy_state as (
- select count(*)::int n,md5(coalesce(string_agg(c.relname||'|'||p.polname||'|'||(case p.polcmd when 'r' then 'SELECT' when 'a' then 'INSERT' when 'w' then 'UPDATE' when 'd' then 'DELETE' when '*' then 'ALL' end)||'|'||(case when p.polpermissive then 'PERMISSIVE' else 'RESTRICTIVE' end)||'|'||lower(coalesce((select array_agg(case when x=0 then 'public' else x::regrole::text end order by case when x=0 then 'public' else x::regrole::text end)::text from unnest(p.polroles) x),'{}'))||'|'||(case when p.polqual is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polqual,p.polrelid,true),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end)||'|'||(case when p.polwithcheck is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polwithcheck,p.polrelid,true),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end),E'\n' order by c.relname,p.polname),'')) h
+ select count(*)::int n,md5(coalesce(string_agg(c.relname||'|'||p.polname||'|'||(case p.polcmd when 'r' then 'SELECT' when 'a' then 'INSERT' when 'w' then 'UPDATE' when 'd' then 'DELETE' when '*' then 'ALL' end)||'|'||(case when p.polpermissive then 'PERMISSIVE' else 'RESTRICTIVE' end)||'|'||lower(coalesce((select array_agg(case when x=0 then 'public' else x::regrole::text end order by case when x=0 then 'public' else x::regrole::text end)::text from unnest(p.polroles) x),'{}'))||'|'||(case when p.polqual is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polqual,p.polrelid),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end)||'|'||(case when p.polwithcheck is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polwithcheck,p.polrelid),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end),E'\n' order by c.relname,p.polname),'')) h
  from pg_policy p join pg_class c on c.oid=p.polrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('profiles','listings')
 ),
 guard_function_state as (
@@ -120,7 +121,7 @@ manifest as (
  and (select count(*) from pg_roles where rolname in ('anon','audit_readonly','authenticated','postgres','service_role'))=5
  and not has_function_privilege('anon','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')
  and not has_function_privilege('authenticated','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')
- and not has_function_privilege('service_role','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')) and (m.policy_n=8 and m.policy_h=(case when current_setting('server_version_num')::int>=170000 then 'b5d360ed73970a20b5fa309ee36bcee6' else '6595bfe8a6027071307aaa212e7ac55b' end)
+ and not has_function_privilege('service_role','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')) and (m.policy_n=8 and m.policy_h='b5d360ed73970a20b5fa309ee36bcee6'
  and m.profile_acl_n=(case when current_setting('server_version_num')::int>=170000 then 31 else 27 end)
  and m.profile_acl_h=(case when current_setting('server_version_num')::int>=170000 then 'c8b27bbddc599663c22923dcfbd164ab' else '438c33680ce845f8483caaf812697b25' end)
  and has_table_privilege('authenticated','public.profiles','INSERT')),(m.relation_n=2 and m.relation_h='f1fe7c4aeb160fea5044ab172d5a863d'
@@ -152,7 +153,7 @@ manifest as (
  and (select count(*) from pg_roles where rolname in ('anon','audit_readonly','authenticated','postgres','service_role'))=5
  and not has_function_privilege('anon','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')
  and not has_function_privilege('authenticated','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')
- and not has_function_privilege('service_role','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')) and (m.policy_n=7 and m.policy_h=(case when current_setting('server_version_num')::int>=170000 then 'c06d36ed0330e2dcac1df91962cb4c55' else '244e88fef8081408484743848dc6ef3a' end)
+ and not has_function_privilege('service_role','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')) and (m.policy_n=7 and m.policy_h='0566c58b7df8eca155d3d2a1d23932a1'
  and m.profile_acl_n=(case when current_setting('server_version_num')::int>=170000 then 30 else 26 end)
  and m.profile_acl_h=(case when current_setting('server_version_num')::int>=170000 then '29e23694b3fc1e0f9e48ba0a00c7925d' else 'eed8b709d0bf2766aa213cd75afc8e27' end)
  and not has_table_privilege('authenticated','public.profiles','INSERT')
@@ -215,7 +216,7 @@ default_acl_state as (
  from pg_default_acl d left join pg_namespace n on n.oid=d.defaclnamespace cross join lateral aclexplode(d.defaclacl) a
 ),
 policy_state as (
- select count(*)::int n,md5(coalesce(string_agg(c.relname||'|'||p.polname||'|'||(case p.polcmd when 'r' then 'SELECT' when 'a' then 'INSERT' when 'w' then 'UPDATE' when 'd' then 'DELETE' when '*' then 'ALL' end)||'|'||(case when p.polpermissive then 'PERMISSIVE' else 'RESTRICTIVE' end)||'|'||lower(coalesce((select array_agg(case when x=0 then 'public' else x::regrole::text end order by case when x=0 then 'public' else x::regrole::text end)::text from unnest(p.polroles) x),'{}'))||'|'||(case when p.polqual is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polqual,p.polrelid,true),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end)||'|'||(case when p.polwithcheck is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polwithcheck,p.polrelid,true),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end),E'\n' order by c.relname,p.polname),'')) h
+ select count(*)::int n,md5(coalesce(string_agg(c.relname||'|'||p.polname||'|'||(case p.polcmd when 'r' then 'SELECT' when 'a' then 'INSERT' when 'w' then 'UPDATE' when 'd' then 'DELETE' when '*' then 'ALL' end)||'|'||(case when p.polpermissive then 'PERMISSIVE' else 'RESTRICTIVE' end)||'|'||lower(coalesce((select array_agg(case when x=0 then 'public' else x::regrole::text end order by case when x=0 then 'public' else x::regrole::text end)::text from unnest(p.polroles) x),'{}'))||'|'||(case when p.polqual is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polqual,p.polrelid),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end)||'|'||(case when p.polwithcheck is null then '<null>' else lower(regexp_replace(regexp_replace(regexp_replace(pg_get_expr(p.polwithcheck,p.polrelid),'(public|profiles|listings)\.','','g'),'[[:space:]]+','','g'),'as(current_active_profile_id|current_user_is_banned|current_user_is_active_unsuspended_profile)','','g')) end),E'\n' order by c.relname,p.polname),'')) h
  from pg_policy p join pg_class c on c.oid=p.polrelid join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('profiles','listings')
 ),
 guard_function_state as (
@@ -299,7 +300,7 @@ manifest as (
  and (select count(*) from pg_roles where rolname in ('anon','audit_readonly','authenticated','postgres','service_role'))=5
  and not has_function_privilege('anon','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')
  and not has_function_privilege('authenticated','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')
- and not has_function_privilege('service_role','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')) and (m.policy_n=7 and m.policy_h=(case when current_setting('server_version_num')::int>=170000 then 'c06d36ed0330e2dcac1df91962cb4c55' else '244e88fef8081408484743848dc6ef3a' end)
+ and not has_function_privilege('service_role','public.create_additional_profile(text,text,public.profile_type)','EXECUTE')) and (m.policy_n=7 and m.policy_h='0566c58b7df8eca155d3d2a1d23932a1'
  and m.profile_acl_n=(case when current_setting('server_version_num')::int>=170000 then 30 else 26 end)
  and m.profile_acl_h=(case when current_setting('server_version_num')::int>=170000 then '29e23694b3fc1e0f9e48ba0a00c7925d' else 'eed8b709d0bf2766aa213cd75afc8e27' end)
  and not has_table_privilege('authenticated','public.profiles','INSERT')
