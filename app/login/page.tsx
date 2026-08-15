@@ -145,7 +145,7 @@ export default function LoginPage() {
             Log in to your psy.market account
           </p>
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <form noValidate onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={fieldErrors.email} autoFocus />
             <div>
               <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="Your password" error={fieldErrors.password} />

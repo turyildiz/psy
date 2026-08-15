@@ -132,6 +132,7 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 - **Dedicated test mailbox:** It gets a dedicated All-Inkl mailbox used only for staging test accounts. This enables complete staging journeys: register → activation link through test webmail → login → forgot-password loop → profile edit → listing create/edit (text flows) → contact flows. Mailbox credentials belong in prompts/configuration, never in repository documentation.
 - **Workflow:** The wingman drafts each test script, including goals, staging URL/login, test-mailbox credentials, and the expected report format. Turgay pastes it into the extension. Findings return to the wingman for evaluation. Turgay's own click-round is reduced to spot-checks and judgment calls.
 - **Limits:** OS file-picker drivability for image uploads is unverified and will be tested once. Side-effect actions stay deliberate and minimal. Final approval and every judgment call remain with Turgay. This replaces the previously considered Fiverr site testers; it does **not** replace Turgay's final testing.
+- **Credential footnote:** The QA tester never performs the four credential moments—signup submit, either login, or password entry; those stay with Turgay.
 
 ### Stream Patrol — future V1.1 reports/moderation design input
 

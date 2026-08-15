@@ -172,7 +172,7 @@ function LoginForm({
         Log in to your psy.market account
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+      <form noValidate onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={fieldErrors.email} autoFocus />
         <div>
           <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" error={fieldErrors.password} />
@@ -202,6 +202,13 @@ function LoginForm({
           {isChecking ? "Checking…" : isSuccess ? "Welcome back!" : "Log In"}
         </button>
       </form>
+
+      <p style={{ textAlign: "center", fontSize: "12px", color: "oklch(40% 0.01 70)", marginTop: "24px", lineHeight: 1.6 }}>
+        By logging in you agree to our{" "}
+        <Link href="/terms-of-service" style={{ color: "oklch(55% 0.01 70)", textDecoration: "underline" }}>Terms</Link>
+        {" "}and{" "}
+        <Link href="/privacy-policy" style={{ color: "oklch(55% 0.01 70)", textDecoration: "underline" }}>Privacy Policy</Link>
+      </p>
 
       <p style={{ textAlign: "center", fontSize: "13px", color: "oklch(55% 0.01 70)", marginTop: "24px" }}>
         Don&apos;t have an account?{" "}
@@ -260,7 +267,8 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
     if (!name.trim()) e.name = "Required";
     if (!email.includes("@")) e.email = "Enter a valid email";
     if (password.length < 8) e.password = "At least 8 characters";
-    if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
+    if (!confirmPassword) e.confirmPassword = "Confirm password is required";
+    else if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
     setErrors1(e);
     return Object.keys(e).length === 0;
   };
@@ -316,7 +324,7 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
       </div>
       <h2 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "26px", fontWeight: 700, color: "white", marginBottom: "6px", letterSpacing: "-0.02em" }}>Create your account</h2>
       <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "24px" }}>Step 1 of 2 — your details</p>
-      <form onSubmit={(e) => { e.preventDefault(); if (validateStep1()) setStep(2); }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <form noValidate onSubmit={(e) => { e.preventDefault(); if (validateStep1()) setStep(2); }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <Field label="Full Name" value={name} onChange={setName} placeholder="Your name" error={errors1.name} autoFocus />
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={errors1.email} />
         <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Min. 8 characters" error={errors1.password} />
@@ -340,15 +348,15 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
       </div>
       <h2 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "26px", fontWeight: 700, color: "white", marginBottom: "6px", letterSpacing: "-0.02em" }}>Choose your handle</h2>
       <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "24px" }}>Step 2 of 2 — your identity on psy.market</p>
-      <form onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <form noValidate onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => setHandle(v.toLowerCase())}
+          onChange={(v) => { setCheckingHandle(true); setHandle(v.toLowerCase()); }}
           placeholder="yourhandle"
           error={handleError}
           errorColor={handleErrorColor}
-          hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
+          hint={checkingHandle ? "Checking…" : !handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
           autoFocus
           suffix={handle && (
             checkingHandle

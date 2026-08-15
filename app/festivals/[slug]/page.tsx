@@ -211,10 +211,10 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
               <span style={{ fontSize: 13, color: "var(--rust)", fontWeight: 600 }}>
                 ✓ You&apos;re {myRsvp === "selling" ? "selling here" : "attending"}
               </span>
-              <button onClick={() => setShowPicker(true)} style={{ fontSize: 12, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+              <button onClick={() => setShowPicker(true)} style={{ fontSize: 12, color: "oklch(92% 0.01 80)", background: "oklch(100% 0 0 / 0.08)", border: "1px solid oklch(100% 0 0 / 0.18)", borderRadius: 5, padding: "5px 9px", cursor: "pointer" }}>
                 Change
               </button>
-              <button onClick={() => handleRsvp(myRsvp)} style={{ fontSize: 12, color: "var(--muted)", background: "none", border: "none", cursor: "pointer", textDecoration: "underline" }}>
+              <button onClick={() => handleRsvp(myRsvp)} style={{ fontSize: 12, color: "oklch(92% 0.01 80)", background: "oklch(100% 0 0 / 0.08)", border: "1px solid oklch(100% 0 0 / 0.18)", borderRadius: 5, padding: "5px 9px", cursor: "pointer" }}>
                 Remove
               </button>
             </div>

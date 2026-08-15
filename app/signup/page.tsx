@@ -173,7 +173,8 @@ export default function SignupPage() {
     if (!name.trim()) e.name = "Required";
     if (!email.includes("@")) e.email = "Enter a valid email";
     if (password.length < 8) e.password = "At least 8 characters";
-    if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
+    if (!confirmPassword) e.confirmPassword = "Confirm password is required";
+    else if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
     setErrors1(e);
     return Object.keys(e).length === 0;
   };
@@ -272,7 +273,7 @@ export default function SignupPage() {
         Step 1 of 2 — your details
       </p>
 
-      <form onSubmit={handleStep1Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <form noValidate onSubmit={handleStep1Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Field label="Full Name" value={name} onChange={setName} placeholder="Your name" error={errors1.name} autoFocus />
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={errors1.email} />
         <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Min. 8 characters" error={errors1.password} hint={!errors1.password && password.length > 0 ? `${password.length} characters` : undefined} />
@@ -311,15 +312,15 @@ export default function SignupPage() {
         Step 2 of 2 — your identity on psy.market
       </p>
 
-      <form onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <form noValidate onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => setHandle(v.toLowerCase())}
+          onChange={(v) => { setCheckingHandle(true); setHandle(v.toLowerCase()); }}
           placeholder="yourhandle"
           error={handleError}
           errorColor={handleErrorColor}
-          hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
+          hint={checkingHandle ? "Checking…" : !handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
           autoFocus
           suffix={<HandleStatus handle={handle} error={handleError} errorColor={handleErrorColor} checking={checkingHandle} />}
         />

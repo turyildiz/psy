@@ -21,12 +21,29 @@ type RecoveryError = {
   requiresNewLink?: boolean;
 };
 
+function EyeIcon({ visible }: { visible: boolean }) {
+  return visible ? (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M1 9s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="oklch(55% 0.01 70)" strokeWidth="1.4" />
+      <circle cx="9" cy="9" r="2.5" stroke="oklch(55% 0.01 70)" strokeWidth="1.4" />
+      <line x1="2" y1="2" x2="16" y2="16" stroke="oklch(55% 0.01 70)" strokeWidth="1.4" strokeLinecap="round" />
+    </svg>
+  ) : (
+    <svg width="18" height="18" viewBox="0 0 18 18" fill="none" aria-hidden>
+      <path d="M1 9s3-6 8-6 8 6 8 6-3 6-8 6-8-6-8-6z" stroke="oklch(55% 0.01 70)" strokeWidth="1.4" />
+      <circle cx="9" cy="9" r="2.5" stroke="oklch(55% 0.01 70)" strokeWidth="1.4" />
+    </svg>
+  );
+}
+
 export default function RecoveryPage() {
   const initialized = useRef(false);
   const [state, setState] = useState<RecoveryState>("loading");
   const [tokenHash, setTokenHash] = useState<string | null>(null);
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{ password?: string; confirmPassword?: string }>({});
   const [formError, setFormError] = useState<string | null>(null);
 
@@ -129,7 +146,7 @@ export default function RecoveryPage() {
           <>
             <h1 style={{ color: "white", fontSize: "26px", margin: "0 0 10px" }}>Continue password reset</h1>
             <p style={{ color: "oklch(65% 0.01 70)", fontSize: "14px", lineHeight: 1.6, margin: "0 0 24px" }}>
-              For your security, confirm that you want to use this password-reset link. Supabase will not verify the one-time token until you continue and submit your new password.
+              For your security, confirm that you want to use this password-reset link. The one-time link will not be verified until you continue and submit your new password.
             </p>
             <button type="button" onClick={continueRecovery} style={{ width: "100%", border: 0, borderRadius: "9px", padding: "13px", background: "var(--rust)", color: "white", fontWeight: 700, cursor: "pointer" }}>
               Continue to reset password
@@ -143,15 +160,26 @@ export default function RecoveryPage() {
             <p style={{ color: "oklch(65% 0.01 70)", fontSize: "14px", lineHeight: 1.6, margin: "0" }}>
               Existing sessions will be revoked before your password is changed.
             </p>
-            <form onSubmit={updatePassword} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "24px" }}>
+            <form noValidate onSubmit={updatePassword} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "24px" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>New password</label>
-                <input type="password" value={password} onChange={(event) => setPassword(event.target.value)} autoFocus autoComplete="new-password" disabled={busy} style={{ padding: "13px 16px", borderRadius: "8px", border: fieldErrors.password ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoFocus autoComplete="new-password" disabled={busy} style={{ width: "100%", padding: "13px 44px 13px 16px", borderRadius: "8px", border: fieldErrors.password ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none", boxSizing: "border-box" }} />
+                  <button type="button" onClick={() => setShowPassword((visible) => !visible)} disabled={busy} aria-label={showPassword ? "Hide new password" : "Show new password"} style={{ position: "absolute", right: "14px", background: "none", border: "none", cursor: busy ? "default" : "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+                    <EyeIcon visible={showPassword} />
+                  </button>
+                </div>
+                {!fieldErrors.password && <p style={{ color: "oklch(55% 0.01 70)", fontSize: "12px", margin: 0 }}>Min. 8 characters</p>}
                 {fieldErrors.password && <p style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.password}</p>}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                 <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>Confirm password</label>
-                <input type="password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={busy} style={{ padding: "13px 16px", borderRadius: "8px", border: fieldErrors.confirmPassword ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />
+                <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
+                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={busy} style={{ width: "100%", padding: "13px 44px 13px 16px", borderRadius: "8px", border: fieldErrors.confirmPassword ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none", boxSizing: "border-box" }} />
+                  <button type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} disabled={busy} aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"} style={{ position: "absolute", right: "14px", background: "none", border: "none", cursor: busy ? "default" : "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+                    <EyeIcon visible={showConfirmPassword} />
+                  </button>
+                </div>
                 {fieldErrors.confirmPassword && <p style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.confirmPassword}</p>}
               </div>
               <button type="submit" disabled={busy} style={{ background: busy ? "oklch(25% 0.01 55)" : "var(--rust)", color: "white", border: "none", padding: "14px", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: busy ? "wait" : "pointer" }}>
