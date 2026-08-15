@@ -1,8 +1,8 @@
 # Slice MP-4 — active authorization and deletion foundation plan
 
 **Prepared:** 2026-08-13
-**Status:** GUARDED EXECUTION IN PROGRESS — MP4-A of eight is live; see [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md)
-**Current database state:** MP-3 foundations and the unused MP4-A active-authorization primitives are live; `profiles_one_per_user_key` remains in force; authorization behavior and the one-profile product model are unchanged
+**Status:** GUARDED EXECUTION IN PROGRESS — MP4-A+B of eight are live; see [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md)
+**Current database state:** MP-3 foundations, the MP4-A active-authorization primitives and MP4-B's converted profile/listing policies are live; `profiles_one_per_user_key` remains in force, profile/listing authorization now uses active-profile authority, and the one-profile product model is unchanged
 
 ## 1. Purpose and evidence boundary
 
@@ -13,7 +13,7 @@ Authoritative inputs:
 - [`MULTI_PROFILE_PROPOSAL.md`](MULTI_PROFILE_PROPOSAL.md), especially resolved decisions and Slice MP-4;
 - [`DECISIONS_HANDOVER.md`](DECISIONS_HANDOVER.md) §6, especially active identity/inbox, per-profile interactions, same-account contact, and neutral deleted identity;
 - [`research/PROJECT_STATUS_GROUND_TRUTH.md`](research/PROJECT_STATUS_GROUND_TRUTH.md), including all addenda;
-- [`MP4_POLICY_CONVERSION_VERIFICATION.md`](MP4_POLICY_CONVERSION_VERIFICATION.md), whose 22 converted policies and 10 converted functions are the current live authorization baseline;
+- [`MP4_POLICY_CONVERSION_VERIFICATION.md`](MP4_POLICY_CONVERSION_VERIFICATION.md), whose 22 converted policies and 10 converted functions formed the pre-Slice MP-4 authorization baseline used by this authoring plan;
 - [`MP3_FOUNDATION_VERIFICATION.md`](MP3_FOUNDATION_VERIFICATION.md), whose process lessons govern all future catalog pins.
 
 Repository SQL is evidence of the reviewed live baseline only where the verification records say it was applied. The live catalog remains authoritative. No baseline fingerprint below may be reconstructed from repository history.
@@ -85,13 +85,13 @@ Bans remain authoritative on `public.users.banned_at`; active identity must not 
 
 ---
 
-## 3. Complete actor inventory
+## 3. Complete actor inventory at the authoring baseline
 
-### 3.1 Live RLS policies
+### 3.1 Pre-MP4-B RLS policy inventory
 
-The current live conversion baseline contains the following actor-sensitive policies. Public visibility helpers/policies that do not choose the caller's identity are noted separately.
+The pre-MP4-B authoring baseline contained the following actor-sensitive policies. Public visibility helpers/policies that did not choose the caller's identity are noted separately.
 
-| Table / live policy | Current behavior | Target active-profile behavior | Failure at two profiles if unchanged |
+| Table / baseline policy | Authoring-baseline behavior | Target active-profile behavior | Failure at two profiles if unchanged |
 |---|---|---|---|
 | `profiles` — `Unbanned users update own profiles` | Any profile whose `user_id=auth.uid()` can be updated by the account. | Update only the active profile; preserve ban and owner-immutability triggers. | A stale/inactive sibling page or request could edit another sibling without switching. |
 | `profiles` — `Unbanned users insert own profiles` | Direct insert accepts caller ownership subject to ban and the live unique gate/cap triggers. | Remove authenticated direct-INSERT authority now (exact policy/grant cutover), while preserving SECURITY DEFINER signup and the unexposed dedicated creation RPC. | If the one-profile index were later removed while this stayed open, direct client inserts could bypass the reviewed creation flow. |
@@ -549,12 +549,14 @@ Completeness-sensitive live aggregates—row/null/orphan/violation counts—must
 
 ---
 
-## 9. Review gates before SQL authoring
+## 9. Original review gates and current disposition
+
+These gates governed entry from planning into guarded execution:
 
 1. Turgay confirms or amends the five technical gates above; no fixed product decision is reopened.
 2. Independent review confirms the actor inventory is complete against current HEAD and the live-baseline manifest.
-3. Wingman supplies the `mp4-a` live-evidence bundle only; later evidence is requested just before each package, not precomputed and allowed to stale.
-4. Psy drafts `mp4-a` preflight/apply/verify/rollback from live evidence, runs disposable PostgreSQL and static render-invariance tests, commits locally, and waits for independent review/push approval.
+3. Wingman supplies each package's fresh live-evidence bundle just before authoring rather than precomputing evidence and allowing it to stale.
+4. Psy drafts each preflight/apply/verify/rollback package from admitted live evidence, runs disposable PostgreSQL and static render-invariance tests, commits locally, and waits for independent review and push approval.
 5. Packages remain serial. No later package is authored against an unreviewed predecessor.
 
-Until those gates pass, Slice MP-4 remains a planning decision, not an implementation claim.
+The applicable gates, including Gate 4 session-claim compatibility, were satisfied for MP4-A and MP4-B; both packages are live and verified. The serial review and fresh-evidence gates remain binding for MP4-C through MP4-H, and this plan makes no implementation claim for those later packages.

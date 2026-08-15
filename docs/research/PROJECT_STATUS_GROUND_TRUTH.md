@@ -358,3 +358,15 @@ This dated note updates the prior audit and addenda without rewriting their hist
 - Slice MP-4 guarded execution has begun. **MP4-A active-profile authorization primitives are live and verified.** See the rolling [`SLICE_MP4_EXECUTION_RECORD.md`](../SLICE_MP4_EXECUTION_RECORD.md), which is the single running execution source of truth for all eight Slice MP-4 packages.
 - Authorization behavior is **UNCHANGED**: no live policy or existing authorization function consults the new primitives yet. They are installed but unused, and the one-profile cardinality lock remains in force.
 - The next package, **MP4-B**, requires the Gate 4 session-lifecycle proof and a fresh wingman evidence bundle before authoring may begin.
+
+---
+
+## Addendum — 2026-08-15: MP4-B live application
+
+This dated note updates the earlier 2026-08-15 Slice MP-4 addendum without rewriting that historical entry.
+
+- **MP4-B profile/listing active authorization is live and verified.** See the rolling [`SLICE_MP4_EXECUTION_RECORD.md`](../SLICE_MP4_EXECUTION_RECORD.md) for the full authoring, review, live-sitting and boundary record.
+- The owner-run live sequence returned PREFLIGHT **GO 3/3**, a clean first APPLY, a proven no-op APPLY rerun and VERIFY **GO 5/5**. Wingman catalog post-checks confirmed all five converted policies live, seven policies total in the exact after-state, authenticated profile `INSERT` revoked at table and column levels, and public listing reads intact.
+- Owner-reported hosted compatibility validation recorded a real profile-edit write and revert through the converted policy on a fresh session using the one-profile fallback path; reviewed public-surface health checks remained healthy.
+- Therefore the earlier same-day statements that authorization behavior was unchanged and MP4-B had not been authored are superseded. Profile and listing authorization now uses the MP4-A active-profile authority, while `profiles_one_per_user_key` remains in force and the one-profile product model is unchanged.
+- Slice MP-4 remains in guarded serial execution with **packages MP4-A and MP4-B of eight live**. The next guarded package is **MP4-C**, subject to fresh evidence and the standing owner-hosted gates.
