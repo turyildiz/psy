@@ -37,12 +37,17 @@ test("every login and signup form uses app-owned validation and login consent co
   assert.match(loginPage, /<form noValidate onSubmit=\{handleSubmit\}/);
   assert.match(signupPage, /<form noValidate/g);
   assert.match(forgotPasswordPage, /<form noValidate onSubmit=\{handleSubmit\}/);
+  for (const source of [modalLogin, modalSignup, loginPage, signupPage, forgotPasswordPage]) {
+    assert.match(source, /isValidEmail\(email\)/);
+    assert.doesNotMatch(source, /email\.includes\("@"\)/);
+  }
 });
 
 test("both signup variants flag an empty confirmation and clear stale handle availability", () => {
   for (const source of [authModal, signupPage]) {
     assert.match(source, /if \(!confirmPassword\) e\.confirmPassword = "Confirm password is required"/);
     assert.match(source, /setCheckingHandle\(true\);\s*setHandle/);
+    assert.match(source, /if \(nextHandle === handle\) return;/);
     assert.match(source, /hint=\{checkingHandle \? "Checking…"/);
   }
 });
@@ -54,6 +59,11 @@ test("recovery copy is vendor-neutral and password fields expose guidance and vi
   assert.match(recoveryPage, /Min\. 8 characters/);
   assert.match(recoveryPage, /aria-label=\{showPassword \? "Hide new password" : "Show new password"\}/);
   assert.match(recoveryPage, /aria-label=\{showConfirmPassword \? "Hide confirm password" : "Show confirm password"\}/);
+  assert.match(recoveryPage, /htmlFor="new-password"/);
+  assert.match(recoveryPage, /aria-describedby="new-password-message"/);
+  assert.match(recoveryPage, /htmlFor="confirm-password"/);
+  assert.match(recoveryPage, /aria-describedby=\{fieldErrors\.confirmPassword/);
+  assert.match(recoveryPage, /minWidth: "32px"/);
   assert.match(recoveryPage, /<form noValidate onSubmit=\{updatePassword\}/);
 });
 

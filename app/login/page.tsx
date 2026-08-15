@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { getLoginCallbackError, getSafeRedirect } from "@/lib/auth/safety";
+import { getLoginCallbackError, getSafeRedirect, isValidEmail } from "@/lib/auth/safety";
 import { assignAtTop } from "@/lib/navigation/scroll-reset";
 import AuthRouteModal from "@/components/AuthRouteModal";
 
@@ -97,7 +97,7 @@ export default function LoginPage() {
     setFieldErrors({});
     setFormError(null);
     const nextFieldErrors: { email?: string; password?: string } = {};
-    if (!email.includes("@")) nextFieldErrors.email = "Enter a valid email address";
+    if (!isValidEmail(email)) nextFieldErrors.email = "Enter a valid email address";
     if (!password) nextFieldErrors.password = "Password is required";
     if (Object.keys(nextFieldErrors).length > 0) { setFieldErrors(nextFieldErrors); return; }
 

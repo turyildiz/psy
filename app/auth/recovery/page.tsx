@@ -162,25 +162,25 @@ export default function RecoveryPage() {
             </p>
             <form noValidate onSubmit={updatePassword} style={{ display: "flex", flexDirection: "column", gap: "18px", marginTop: "24px" }}>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>New password</label>
+                <label htmlFor="new-password" style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>New password</label>
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <input type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoFocus autoComplete="new-password" disabled={busy} style={{ width: "100%", padding: "13px 44px 13px 16px", borderRadius: "8px", border: fieldErrors.password ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none", boxSizing: "border-box" }} />
-                  <button type="button" onClick={() => setShowPassword((visible) => !visible)} disabled={busy} aria-label={showPassword ? "Hide new password" : "Show new password"} style={{ position: "absolute", right: "14px", background: "none", border: "none", cursor: busy ? "default" : "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+                  <input id="new-password" aria-describedby="new-password-message" type={showPassword ? "text" : "password"} value={password} onChange={(event) => setPassword(event.target.value)} autoFocus autoComplete="new-password" disabled={busy} style={{ width: "100%", padding: "13px 44px 13px 16px", borderRadius: "8px", border: fieldErrors.password ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none", boxSizing: "border-box" }} />
+                  <button type="button" onClick={() => setShowPassword((visible) => !visible)} disabled={busy} aria-label={showPassword ? "Hide new password" : "Show new password"} style={{ position: "absolute", right: "7px", minWidth: "32px", minHeight: "32px", background: "none", border: "none", cursor: busy ? "default" : "pointer", padding: "7px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <EyeIcon visible={showPassword} />
                   </button>
                 </div>
-                {!fieldErrors.password && <p style={{ color: "oklch(55% 0.01 70)", fontSize: "12px", margin: 0 }}>Min. 8 characters</p>}
-                {fieldErrors.password && <p style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.password}</p>}
+                {!fieldErrors.password && <p id="new-password-message" style={{ color: "oklch(55% 0.01 70)", fontSize: "12px", margin: 0 }}>Min. 8 characters</p>}
+                {fieldErrors.password && <p id="new-password-message" role="alert" style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.password}</p>}
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
-                <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>Confirm password</label>
+                <label htmlFor="confirm-password" style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>Confirm password</label>
                 <div style={{ position: "relative", display: "flex", alignItems: "center" }}>
-                  <input type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={busy} style={{ width: "100%", padding: "13px 44px 13px 16px", borderRadius: "8px", border: fieldErrors.confirmPassword ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none", boxSizing: "border-box" }} />
-                  <button type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} disabled={busy} aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"} style={{ position: "absolute", right: "14px", background: "none", border: "none", cursor: busy ? "default" : "pointer", padding: 0, display: "flex", alignItems: "center" }}>
+                  <input id="confirm-password" aria-describedby={fieldErrors.confirmPassword ? "confirm-password-message" : undefined} type={showConfirmPassword ? "text" : "password"} value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} autoComplete="new-password" disabled={busy} style={{ width: "100%", padding: "13px 44px 13px 16px", borderRadius: "8px", border: fieldErrors.confirmPassword ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none", boxSizing: "border-box" }} />
+                  <button type="button" onClick={() => setShowConfirmPassword((visible) => !visible)} disabled={busy} aria-label={showConfirmPassword ? "Hide confirm password" : "Show confirm password"} style={{ position: "absolute", right: "7px", minWidth: "32px", minHeight: "32px", background: "none", border: "none", cursor: busy ? "default" : "pointer", padding: "7px", display: "flex", alignItems: "center", justifyContent: "center" }}>
                     <EyeIcon visible={showConfirmPassword} />
                   </button>
                 </div>
-                {fieldErrors.confirmPassword && <p style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.confirmPassword}</p>}
+                {fieldErrors.confirmPassword && <p id="confirm-password-message" role="alert" style={{ color: "var(--rust-dim)", fontSize: "12px", margin: 0 }}>{fieldErrors.confirmPassword}</p>}
               </div>
               <button type="submit" disabled={busy} style={{ background: busy ? "oklch(25% 0.01 55)" : "var(--rust)", color: "white", border: "none", padding: "14px", borderRadius: "8px", fontWeight: 700, fontSize: "15px", cursor: busy ? "wait" : "pointer" }}>
                 {state === "resetting" ? "Securing account…" : "Update password"}

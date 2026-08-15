@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
+import { isValidEmail, normalizeHandle, validateHandle } from "@/lib/auth/safety";
 import AuthRouteModal from "@/components/AuthRouteModal";
 
 /* ── Eye icon ── */
@@ -171,7 +171,7 @@ export default function SignupPage() {
   const validateStep1 = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Required";
-    if (!email.includes("@")) e.email = "Enter a valid email";
+    if (!isValidEmail(email)) e.email = "Enter a valid email";
     if (password.length < 8) e.password = "At least 8 characters";
     if (!confirmPassword) e.confirmPassword = "Confirm password is required";
     else if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
@@ -316,7 +316,12 @@ export default function SignupPage() {
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => { setCheckingHandle(true); setHandle(v.toLowerCase()); }}
+          onChange={(v) => {
+            const nextHandle = v.toLowerCase();
+            if (nextHandle === handle) return;
+            setCheckingHandle(true);
+            setHandle(nextHandle);
+          }}
           placeholder="yourhandle"
           error={handleError}
           errorColor={handleErrorColor}

@@ -34,6 +34,7 @@ import {
   isAllowedAuthRequestOrigin,
   getRecoveryToken,
   getRecoveryVerificationErrorStatus,
+  isValidEmail,
   normalizeHandle,
   validateHandle,
   getFriendlySignupError,
@@ -286,6 +287,15 @@ test("recovery verification preserves retryable provider failures", () => {
 
 test("handle normalization is case-insensitive and trims whitespace", () => {
   assert.equal(normalizeHandle("  PsyMarket_User  "), "psymarket_user");
+});
+
+test("app-owned email validation accepts normal addresses and rejects malformed input", () => {
+  assert.equal(isValidEmail(" person@example.com "), true);
+  assert.equal(isValidEmail("person+tag@example.co.uk"), true);
+  assert.equal(isValidEmail("@"), false);
+  assert.equal(isValidEmail("person@"), false);
+  assert.equal(isValidEmail("person@example"), false);
+  assert.equal(isValidEmail("person @example.com"), false);
 });
 
 test("handle validation returns friendly format errors", () => {

@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { isValidEmail } from "@/lib/auth/safety";
 import AuthRouteModal from "@/components/AuthRouteModal";
 
 export default function ForgotPasswordPage() {
@@ -16,7 +17,7 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     setEmailError(null);
     setFormError(null);
-    if (!email.includes("@")) {
+    if (!isValidEmail(email)) {
       setEmailError("Enter a valid email address.");
       return;
     }

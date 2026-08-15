@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
+import { isValidEmail, normalizeHandle, validateHandle } from "@/lib/auth/safety";
 import { reloadAtTop } from "@/lib/navigation/scroll-reset";
 import { tryBeginAuthUiTransition } from "@/lib/auth/ui-transition";
 import AuthModalFrame from "@/components/AuthModalFrame";
@@ -109,7 +109,7 @@ function LoginForm({
     setFieldErrors({});
     setFormError(null);
     const nextFieldErrors: { email?: string; password?: string } = {};
-    if (!email.includes("@")) nextFieldErrors.email = "Enter a valid email address";
+    if (!isValidEmail(email)) nextFieldErrors.email = "Enter a valid email address";
     if (!password) nextFieldErrors.password = "Password is required";
     if (Object.keys(nextFieldErrors).length > 0) { setFieldErrors(nextFieldErrors); return; }
 
@@ -265,7 +265,7 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
   const validateStep1 = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Required";
-    if (!email.includes("@")) e.email = "Enter a valid email";
+    if (!isValidEmail(email)) e.email = "Enter a valid email";
     if (password.length < 8) e.password = "At least 8 characters";
     if (!confirmPassword) e.confirmPassword = "Confirm password is required";
     else if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
@@ -352,7 +352,12 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => { setCheckingHandle(true); setHandle(v.toLowerCase()); }}
+          onChange={(v) => {
+            const nextHandle = v.toLowerCase();
+            if (nextHandle === handle) return;
+            setCheckingHandle(true);
+            setHandle(nextHandle);
+          }}
           placeholder="yourhandle"
           error={handleError}
           errorColor={handleErrorColor}

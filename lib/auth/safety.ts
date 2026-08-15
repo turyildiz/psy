@@ -170,6 +170,11 @@ export function getHandleAvailabilityError(result: HandleAvailabilityResult) {
   return null;
 }
 
+export function isValidEmail(email: string) {
+  const normalized = email.trim();
+  return normalized.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized);
+}
+
 export function normalizeHandle(handle: string) {
   return handle.trim().toLowerCase();
 }
