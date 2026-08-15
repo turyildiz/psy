@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { isValidEmail, normalizeHandle, validateHandle } from "@/lib/auth/safety";
+import { checkHandleAvailability, getHandleEditValue, isValidEmail, normalizeHandle, validateHandle } from "@/lib/auth/safety";
 import { reloadAtTop } from "@/lib/navigation/scroll-reset";
 import { tryBeginAuthUiTransition } from "@/lib/auth/ui-transition";
 import AuthModalFrame from "@/components/AuthModalFrame";
@@ -246,18 +246,21 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
     let cancelled = false;
     const timer = setTimeout(async () => {
       const supabase = createClient();
-      const [profileResult, blockedResult] = await Promise.all([
-        supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
-        supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
-      ]);
+      const availabilityError = await checkHandleAvailability(async () => {
+        const [profileResult, blockedResult] = await Promise.all([
+          supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
+          supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
+        ]);
+        return {
+          profileExists: !!profileResult.data,
+          blockedExists: !!blockedResult.data,
+          profileError: !!profileResult.error,
+          blockedError: !!blockedResult.error,
+        };
+      });
       if (cancelled) return;
       setCheckingHandle(false);
-      if (profileResult.error || blockedResult.error) {
-        setHandleError("We couldn’t check this handle. Please try again.");
-        return;
-      }
-      if (blockedResult.data) { setHandleError("This handle is reserved. Please choose another."); return; }
-      if (profileResult.data) setHandleError("This handle is already taken.");
+      setHandleError(availabilityError);
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [handle]);
@@ -353,8 +356,8 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
           label="Handle"
           value={handle}
           onChange={(v) => {
-            const nextHandle = v.toLowerCase();
-            if (nextHandle === handle) return;
+            const nextHandle = getHandleEditValue(handle, v);
+            if (nextHandle === null) return;
             setCheckingHandle(true);
             setHandle(nextHandle);
           }}

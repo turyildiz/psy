@@ -47,7 +47,8 @@ test("both signup variants flag an empty confirmation and clear stale handle ava
   for (const source of [authModal, signupPage]) {
     assert.match(source, /if \(!confirmPassword\) e\.confirmPassword = "Confirm password is required"/);
     assert.match(source, /setCheckingHandle\(true\);\s*setHandle/);
-    assert.match(source, /if \(nextHandle === handle\) return;/);
+    assert.match(source, /getHandleEditValue\(handle, v\)/);
+    assert.match(source, /checkHandleAvailability\(async \(\) =>/);
     assert.match(source, /hint=\{checkingHandle \? "Checking…"/);
   }
 });
