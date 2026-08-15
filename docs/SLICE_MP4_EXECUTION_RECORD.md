@@ -15,7 +15,7 @@ Each package receives one dated section after its live sitting. Future package r
 |---|---|
 | MP4-A | Live and verified — 2026-08-15 |
 | MP4-B | Live and verified — 2026-08-15 |
-| MP4-C | Not yet authored/applied |
+| MP4-C | Live and verified — 2026-08-15 |
 | MP4-D | Not yet authored/applied |
 | MP4-E | Not yet authored/applied |
 | MP4-F | Not yet authored/applied |
@@ -121,3 +121,53 @@ Owner-reported hosted compatibility validation additionally recorded:
 - The wingman evidence-bundle standard now labels catalog rendering mode explicitly, including plain policy rendering via `pg_policies`, so future pin derivation is unambiguous.
 
 MP4-B is live and verified. The next guarded package is MP4-C; its sitting must continue to use the rolling record and mandatory owner-hosted gates.
+
+---
+
+## 2026-08-15 — MP4-C: social/event active authorization
+
+### Scope
+
+MP4-C converts the actor policies for favorites, follows, festival RSVPs (`vendor_events`), Notice Board posts and reactions, and event notifications to the MP4-A active-profile authority. It preserves public reads, exact uniqueness/counting semantics, sibling-profile follows and RSVPs, the exact self-follow block, and the account-level notification preference.
+
+### Bridge authoring and review history
+
+- MP4-C was the first package carried through the kanban bridge, commissioned on task `t_2f4f3438` with its correction on `t_2c08744b`.
+- The worker authored and validated the initial package in 16 minutes. Its own independent review lane caught a **MAJOR** environment-specific OID-ordering defect in the ACL serializer before commit.
+- The serializer was corrected to order rendered grantor names with locale-invariant `COLLATE "C"`. Corrected commit `2966b0b` received a fresh full validation battery.
+- One worker crash was cleanly recovered by dispatcher retry, including complete re-validation rather than reliance on the interrupted run.
+- Three independent review lanes passed the exact corrected commit. Wingman deep review also passed, including byte-identity checks and a live pin recompute with one expected owner-context finding.
+- The frozen reviewed artifact bytes were:
+
+  | Artifact | SHA-256 |
+  |---|---|
+  | Preflight | `76fdaa84c6c5c902d45aaf530b8829d18d8cc67dee957506606140a2e1ad9b91` |
+  | Apply | `d47f8973f3a138926b6700e4337e3cbf931e79ce18f43b8efd5521c7f6892fcd` |
+  | Verify | `36e0a33a4fdf2425d49755d95fef88a78bad3490a3783a9c4592a65c4c02f944` |
+  | Rollback | `8fb1c9b5d8cbc56b94e3f85149b3eab3a4e103886bee782229d75a529a0e915f` |
+
+### Live sitting results
+
+The owner-run live sequence completed successfully:
+
+1. **PREFLIGHT: GO 4/4** — the exact live before-state and mandatory owner-hosted gates passed.
+2. **APPLY: clean first run** — the guarded policy transition committed successfully.
+3. **APPLY rerun: proven no-op live** — the exact after-state was accepted without further mutation.
+4. **VERIFY: GO 5/5** — the final catalog, policy and dependency state passed.
+
+Wingman post-checks confirmed:
+
+- exactly 13 policies use the active-profile accessor;
+- no account-ownership authorization actors remain in the converted scope;
+- the self-follow block remains intact;
+- public reads return HTTP 200.
+
+Live compatibility was proven with an RSVP round trip through the converted rules: Turgay inserted the RSVP and the wingman deleted it through the browser.
+
+### Declared boundaries, QA and process update
+
+- Disposable lifecycle proof was performed on PostgreSQL 16; the mandatory owner-hosted live gates were retained and passed.
+- QA finding #9 was logged for the polish slice: festival RSVP **Change** and **Remove** buttons are functional but near-invisible because of gray-on-dark contrast.
+- Review-lane findings must end future runs as blocked or awaiting review, not done, so task state reflects unresolved findings.
+
+MP4-C is live and verified. The next guarded package is MP4-D; its sitting must continue to use this rolling record and mandatory owner-hosted gates.
