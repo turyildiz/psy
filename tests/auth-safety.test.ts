@@ -34,6 +34,9 @@ import {
   isAllowedAuthRequestOrigin,
   getRecoveryToken,
   getRecoveryVerificationErrorStatus,
+  checkHandleAvailability,
+  getHandleEditValue,
+  isValidEmail,
   normalizeHandle,
   validateHandle,
   getFriendlySignupError,
@@ -286,6 +289,32 @@ test("recovery verification preserves retryable provider failures", () => {
 
 test("handle normalization is case-insensitive and trims whitespace", () => {
   assert.equal(normalizeHandle("  PsyMarket_User  "), "psymarket_user");
+});
+
+test("app-owned email validation accepts normal addresses and rejects malformed input", () => {
+  assert.equal(isValidEmail(" person@example.com "), true);
+  assert.equal(isValidEmail("person+tag@example.co.uk"), true);
+  assert.equal(isValidEmail("@"), false);
+  assert.equal(isValidEmail("person@"), false);
+  assert.equal(isValidEmail("person@example"), false);
+  assert.equal(isValidEmail("person @example.com"), false);
+  assert.equal(isValidEmail("person@example..com"), false);
+  assert.equal(isValidEmail("person@-example.com"), false);
+  assert.equal(isValidEmail("person@example-.com"), false);
+  assert.equal(isValidEmail("person@examplé.com"), false);
+});
+
+test("handle edits start checks only when the controlled value changes", () => {
+  assert.equal(getHandleEditValue("available_handle", "AVAILABLE_HANDLE"), null);
+  assert.equal(getHandleEditValue("available_handle", "Available_Handle2"), "available_handle2");
+});
+
+test("handle availability checks settle lookup failures into a definite error", async () => {
+  assert.equal(await checkHandleAvailability(async () => ({})), null);
+  assert.equal(
+    await checkHandleAvailability(async () => { throw new Error("network failed"); }),
+    "We couldn’t check this handle. Please try again."
+  );
 });
 
 test("handle validation returns friendly format errors", () => {

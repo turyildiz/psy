@@ -170,6 +170,27 @@ export function getHandleAvailabilityError(result: HandleAvailabilityResult) {
   return null;
 }
 
+export async function checkHandleAvailability(
+  lookup: () => Promise<HandleAvailabilityResult>
+) {
+  try {
+    return getHandleAvailabilityError(await lookup());
+  } catch {
+    return "We couldn’t check this handle. Please try again.";
+  }
+}
+
+export function isValidEmail(email: string) {
+  const normalized = email.trim();
+  return normalized.length <= 254
+    && /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/.test(normalized);
+}
+
+export function getHandleEditValue(currentHandle: string, enteredValue: string) {
+  const nextHandle = enteredValue.toLowerCase();
+  return nextHandle === currentHandle ? null : nextHandle;
+}
+
 export function normalizeHandle(handle: string) {
   return handle.trim().toLowerCase();
 }

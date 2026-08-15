@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { getLoginCallbackError, getSafeRedirect } from "@/lib/auth/safety";
+import { getLoginCallbackError, getSafeRedirect, isValidEmail } from "@/lib/auth/safety";
 import { assignAtTop } from "@/lib/navigation/scroll-reset";
 import AuthRouteModal from "@/components/AuthRouteModal";
 
@@ -97,7 +97,7 @@ export default function LoginPage() {
     setFieldErrors({});
     setFormError(null);
     const nextFieldErrors: { email?: string; password?: string } = {};
-    if (!email.includes("@")) nextFieldErrors.email = "Enter a valid email address";
+    if (!isValidEmail(email)) nextFieldErrors.email = "Enter a valid email address";
     if (!password) nextFieldErrors.password = "Password is required";
     if (Object.keys(nextFieldErrors).length > 0) { setFieldErrors(nextFieldErrors); return; }
 
@@ -145,7 +145,7 @@ export default function LoginPage() {
             Log in to your psy.market account
           </p>
 
-          <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+          <form noValidate onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
             <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={fieldErrors.email} autoFocus />
             <div>
               <Field label="Password" type="password" value={password} onChange={setPassword} placeholder="Your password" error={fieldErrors.password} />

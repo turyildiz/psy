@@ -61,17 +61,17 @@ export default function HomePage() {
     });
 
     const loadSellers = async () => {
-      const { data: p } = await supabase.from("profiles").select(PUBLIC_PROFILE_SELECT).order("created_at", { ascending: false }).limit(6);
+      const { data: p } = await supabase
+        .from("profiles")
+        .select(`${PUBLIC_PROFILE_SELECT}, listings!inner(id)`)
+        .eq("listings.status", "active")
+        .order("created_at", { ascending: false })
+        .limit(6);
       if (cancelled) return;
       const profileRows = p ?? [];
-      const profileIds = profileRows.map((r) => r.id);
-      const { data: counts } = await supabase.from("listings").select("profile_id").in("profile_id", profileIds).eq("status", "active");
-      if (cancelled) return;
-      const countMap: Record<string, number> = {};
-      (counts ?? []).forEach((r) => { countMap[r.profile_id] = (countMap[r.profile_id] ?? 0) + 1; });
       setSellers(profileRows.map((row, i) => ({
         ...toPublicProfile(row),
-        itemCount: countMap[row.id] ?? 0,
+        itemCount: row.listings.length,
         badge: ["Featured", "Top Rated", "Power Seller"][i] || "Verified",
       })));
     };

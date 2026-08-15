@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
+import { checkHandleAvailability, getHandleEditValue, isValidEmail, normalizeHandle, validateHandle } from "@/lib/auth/safety";
 import AuthRouteModal from "@/components/AuthRouteModal";
 
 /* ── Eye icon ── */
@@ -152,18 +152,21 @@ export default function SignupPage() {
     let cancelled = false;
     const timer = setTimeout(async () => {
       const supabase = createClient();
-      const [profileResult, blockedResult] = await Promise.all([
-        supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
-        supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
-      ]);
+      const availabilityError = await checkHandleAvailability(async () => {
+        const [profileResult, blockedResult] = await Promise.all([
+          supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
+          supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
+        ]);
+        return {
+          profileExists: !!profileResult.data,
+          blockedExists: !!blockedResult.data,
+          profileError: !!profileResult.error,
+          blockedError: !!blockedResult.error,
+        };
+      });
       if (cancelled) return;
       setCheckingHandle(false);
-      if (profileResult.error || blockedResult.error) {
-        setHandleError("We couldn’t check this handle. Please try again.");
-        return;
-      }
-      if (blockedResult.data) { setHandleError("This handle is reserved. Please choose another."); return; }
-      if (profileResult.data) { setHandleError("This handle is already taken."); return; }
+      setHandleError(availabilityError);
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [handle]);
@@ -171,9 +174,10 @@ export default function SignupPage() {
   const validateStep1 = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Required";
-    if (!email.includes("@")) e.email = "Enter a valid email";
+    if (!isValidEmail(email)) e.email = "Enter a valid email";
     if (password.length < 8) e.password = "At least 8 characters";
-    if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
+    if (!confirmPassword) e.confirmPassword = "Confirm password is required";
+    else if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
     setErrors1(e);
     return Object.keys(e).length === 0;
   };
@@ -272,7 +276,7 @@ export default function SignupPage() {
         Step 1 of 2 — your details
       </p>
 
-      <form onSubmit={handleStep1Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <form noValidate onSubmit={handleStep1Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Field label="Full Name" value={name} onChange={setName} placeholder="Your name" error={errors1.name} autoFocus />
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={errors1.email} />
         <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Min. 8 characters" error={errors1.password} hint={!errors1.password && password.length > 0 ? `${password.length} characters` : undefined} />
@@ -311,15 +315,20 @@ export default function SignupPage() {
         Step 2 of 2 — your identity on psy.market
       </p>
 
-      <form onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
+      <form noValidate onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "20px" }}>
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => setHandle(v.toLowerCase())}
+          onChange={(v) => {
+            const nextHandle = getHandleEditValue(handle, v);
+            if (nextHandle === null) return;
+            setCheckingHandle(true);
+            setHandle(nextHandle);
+          }}
           placeholder="yourhandle"
           error={handleError}
           errorColor={handleErrorColor}
-          hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
+          hint={checkingHandle ? "Checking…" : !handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
           autoFocus
           suffix={<HandleStatus handle={handle} error={handleError} errorColor={handleErrorColor} checking={checkingHandle} />}
         />

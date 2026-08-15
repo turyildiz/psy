@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
+import { isValidEmail } from "@/lib/auth/safety";
 import AuthRouteModal from "@/components/AuthRouteModal";
 
 export default function ForgotPasswordPage() {
@@ -16,7 +17,7 @@ export default function ForgotPasswordPage() {
     event.preventDefault();
     setEmailError(null);
     setFormError(null);
-    if (!email.includes("@")) {
+    if (!isValidEmail(email)) {
       setEmailError("Enter a valid email address.");
       return;
     }
@@ -59,7 +60,7 @@ export default function ForgotPasswordPage() {
           ) : (
             <>
               <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", lineHeight: 1.6, marginBottom: "28px" }}>Enter your account email and we’ll send you a secure reset link.</p>
-              <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+              <form noValidate onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
                 <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
                   <label style={{ color: "oklch(70% 0.01 70)", fontSize: "12px", fontWeight: 600, textTransform: "uppercase" }}>Email</label>
                   <input type="email" value={email} onChange={(event) => setEmail(event.target.value)} autoFocus placeholder="you@example.com" style={{ padding: "13px 16px", borderRadius: "8px", border: emailError ? "1px solid var(--rust-dim)" : "1px solid oklch(100% 0 0 / 0.14)", background: "oklch(100% 0 0 / 0.06)", color: "white", fontSize: "15px", outline: "none" }} />

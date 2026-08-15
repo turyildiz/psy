@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/client";
-import { normalizeHandle, validateHandle } from "@/lib/auth/safety";
+import { checkHandleAvailability, getHandleEditValue, isValidEmail, normalizeHandle, validateHandle } from "@/lib/auth/safety";
 import { reloadAtTop } from "@/lib/navigation/scroll-reset";
 import { tryBeginAuthUiTransition } from "@/lib/auth/ui-transition";
 import AuthModalFrame from "@/components/AuthModalFrame";
@@ -109,7 +109,7 @@ function LoginForm({
     setFieldErrors({});
     setFormError(null);
     const nextFieldErrors: { email?: string; password?: string } = {};
-    if (!email.includes("@")) nextFieldErrors.email = "Enter a valid email address";
+    if (!isValidEmail(email)) nextFieldErrors.email = "Enter a valid email address";
     if (!password) nextFieldErrors.password = "Password is required";
     if (Object.keys(nextFieldErrors).length > 0) { setFieldErrors(nextFieldErrors); return; }
 
@@ -172,7 +172,7 @@ function LoginForm({
         Log in to your psy.market account
       </p>
 
-      <form onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
+      <form noValidate onSubmit={handleSubmit} style={{ display: "flex", flexDirection: "column", gap: "18px" }}>
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={fieldErrors.email} autoFocus />
         <div>
           <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Your password" error={fieldErrors.password} />
@@ -202,6 +202,13 @@ function LoginForm({
           {isChecking ? "Checking…" : isSuccess ? "Welcome back!" : "Log In"}
         </button>
       </form>
+
+      <p style={{ textAlign: "center", fontSize: "12px", color: "oklch(40% 0.01 70)", marginTop: "24px", lineHeight: 1.6 }}>
+        By logging in you agree to our{" "}
+        <Link href="/terms-of-service" style={{ color: "oklch(55% 0.01 70)", textDecoration: "underline" }}>Terms</Link>
+        {" "}and{" "}
+        <Link href="/privacy-policy" style={{ color: "oklch(55% 0.01 70)", textDecoration: "underline" }}>Privacy Policy</Link>
+      </p>
 
       <p style={{ textAlign: "center", fontSize: "13px", color: "oklch(55% 0.01 70)", marginTop: "24px" }}>
         Don&apos;t have an account?{" "}
@@ -239,18 +246,21 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
     let cancelled = false;
     const timer = setTimeout(async () => {
       const supabase = createClient();
-      const [profileResult, blockedResult] = await Promise.all([
-        supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
-        supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
-      ]);
+      const availabilityError = await checkHandleAvailability(async () => {
+        const [profileResult, blockedResult] = await Promise.all([
+          supabase.from("profiles").select("id").eq("handle", normalizedHandle).maybeSingle(),
+          supabase.from("blocked_handles").select("handle").eq("handle", normalizedHandle).maybeSingle(),
+        ]);
+        return {
+          profileExists: !!profileResult.data,
+          blockedExists: !!blockedResult.data,
+          profileError: !!profileResult.error,
+          blockedError: !!blockedResult.error,
+        };
+      });
       if (cancelled) return;
       setCheckingHandle(false);
-      if (profileResult.error || blockedResult.error) {
-        setHandleError("We couldn’t check this handle. Please try again.");
-        return;
-      }
-      if (blockedResult.data) { setHandleError("This handle is reserved. Please choose another."); return; }
-      if (profileResult.data) setHandleError("This handle is already taken.");
+      setHandleError(availabilityError);
     }, 400);
     return () => { cancelled = true; clearTimeout(timer); };
   }, [handle]);
@@ -258,9 +268,10 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
   const validateStep1 = () => {
     const e: Record<string, string> = {};
     if (!name.trim()) e.name = "Required";
-    if (!email.includes("@")) e.email = "Enter a valid email";
+    if (!isValidEmail(email)) e.email = "Enter a valid email";
     if (password.length < 8) e.password = "At least 8 characters";
-    if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
+    if (!confirmPassword) e.confirmPassword = "Confirm password is required";
+    else if (password !== confirmPassword) e.confirmPassword = "Passwords don't match";
     setErrors1(e);
     return Object.keys(e).length === 0;
   };
@@ -316,7 +327,7 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
       </div>
       <h2 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "26px", fontWeight: 700, color: "white", marginBottom: "6px", letterSpacing: "-0.02em" }}>Create your account</h2>
       <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "24px" }}>Step 1 of 2 — your details</p>
-      <form onSubmit={(e) => { e.preventDefault(); if (validateStep1()) setStep(2); }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <form noValidate onSubmit={(e) => { e.preventDefault(); if (validateStep1()) setStep(2); }} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <Field label="Full Name" value={name} onChange={setName} placeholder="Your name" error={errors1.name} autoFocus />
         <Field label="Email" type="email" value={email} onChange={setEmail} placeholder="you@example.com" error={errors1.email} />
         <PasswordField label="Password" value={password} onChange={setPassword} placeholder="Min. 8 characters" error={errors1.password} />
@@ -340,15 +351,20 @@ function SignupForm({ onSwitch }: { onSwitch: () => void }) {
       </div>
       <h2 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "26px", fontWeight: 700, color: "white", marginBottom: "6px", letterSpacing: "-0.02em" }}>Choose your handle</h2>
       <p style={{ fontSize: "14px", color: "oklch(55% 0.01 70)", marginBottom: "24px" }}>Step 2 of 2 — your identity on psy.market</p>
-      <form onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+      <form noValidate onSubmit={handleStep2Submit} style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
         <Field
           label="Handle"
           value={handle}
-          onChange={(v) => setHandle(v.toLowerCase())}
+          onChange={(v) => {
+            const nextHandle = getHandleEditValue(handle, v);
+            if (nextHandle === null) return;
+            setCheckingHandle(true);
+            setHandle(nextHandle);
+          }}
           placeholder="yourhandle"
           error={handleError}
           errorColor={handleErrorColor}
-          hint={!handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
+          hint={checkingHandle ? "Checking…" : !handleError && handle.length >= 3 ? "Available!" : "Letters, numbers, underscores only"}
           autoFocus
           suffix={handle && (
             checkingHandle
