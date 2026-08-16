@@ -16,7 +16,7 @@ Each package receives one dated section after its live sitting. Future package r
 | MP4-A | Live and verified — 2026-08-15 |
 | MP4-B | Live and verified — 2026-08-15 |
 | MP4-C | Live and verified — 2026-08-15 |
-| MP4-D | Not yet authored/applied |
+| MP4-D | Live and verified — 2026-08-15 |
 | MP4-E | Not yet authored/applied |
 | MP4-F | Not yet authored/applied |
 | MP4-G | Not yet authored/applied |
@@ -171,3 +171,62 @@ Live compatibility was proven with an RSVP round trip through the converted rule
 - Review-lane findings must end future runs as blocked or awaiting review, not done, so task state reflects unresolved findings.
 
 MP4-C is live and verified. The next guarded package is MP4-D; its sitting must continue to use this rolling record and mandatory owner-hosted gates.
+
+---
+
+## 2026-08-15 — MP4-D: Wall active authorization
+
+### Scope
+
+MP4-D converts `create_post`, `update_post`, `delete_own_post`, `set_post_reaction` and `remove_post_reaction` to the MP4-A active-profile authority. It preserves the direct-DML fail-closed design, visibility helpers, the `guard_post_reaction_identity` trigger, moderation and Hero behavior, image/link validation, and the account-level write rate limit.
+
+### Bridge authoring and review history
+
+- MP4-D was authored on card `t_ca19a741`.
+- The first review requested changes with two **MAJOR** findings: function default expressions were not serialized, so the claimed exact source/target manifests were not exact; and the required runtime verification was absent, not merely unexecuted.
+- Both findings were corrected. Defaults are serialized through `pg_get_function_arguments`; the column serializers include `attcollation`, `attidentity` and `attgenerated`; and the missing disposable runtime harness was built.
+- Final local commit `edd30b5` (`Add MP4-D Wall active-authority package`) changed six files, was hash-frozen, and passed the double-bound lifecycle.
+- Independent exact-byte review was completed on card `t_d3ee48bf`.
+
+### Live sitting results
+
+The owner-run Supabase SQL Editor sequence completed successfully on 2026-08-15:
+
+1. **PREFLIGHT: GO 5/5** — the mandatory owner-hosted gates passed.
+2. **APPLY: clean first run** — the guarded function transition committed successfully.
+3. **APPLY rerun: proven no-op live** — the exact after-state was accepted without further mutation.
+4. **VERIFY: GO 6/6** — the final state passed.
+
+The package was pushed on the evening of 2026-08-15 within merge `1471d82`.
+
+Application-layer proof followed on staging on 2026-08-16. The MP4-D surface is `components/ProfileWall.tsx`, used by the profile page (`/[handle]`) and Stream; it is not the festival Notice Board. A round as the logged-in owner covered create, react, un-react with persistence across reload, and delete through the existing two-step confirmation. Live-catalog wiring proved that `posts` and `post_reactions` grant only `SELECT` to `authenticated` and `anon`, and that the sole `post_reactions` policy is read-only. Those writes therefore could only have executed through the `SECURITY DEFINER` RPCs.
+
+### Declared boundaries, QA and process update
+
+- The 2026-08-15 click-round tested the festival Notice Board, which uses direct DML on `notice_posts`, in the mistaken belief that it exercised MP4-D. The root cause was that two UI surfaces were both named “Wall”. The `V1_DECISIONS` rename to **Notice Board** has now been implemented.
+- Standing QA rule: every checklist item must name the exact route and the exact function or table it exercises, and the wiring must be verified through the catalog or network rather than inferred from appearance.
+- Standing bridge rule from RCA card `t_443bf2e8`: never exit with background subtasks running. Await them or block the card first, and always close the card with `kanban_complete` or `kanban_block` before exiting.
+- Standing bridge rule from card `t_2f8aa70e` on 2026-08-16: a delegated reviewer must return its verdict to the author and must never complete, close or block the reviewed card; only the author closes its own card. In that incident, the reviewer closed the card, scratch cleanup removed the uncommitted worktree, and the author recovered the staged index before finishing the work.
+- Board serialization is not repository serialization: only one repository-touching card may be eligible at a time.
+
+#### App polish slice 1
+
+Cards `t_59958fdf` and correction `t_7f8ceac4`, commits `82deb4c`, `6f1276b` and `993938c`, merged as `1471d82`, delivered the QA-journey findings; a homepage spotlight filtered to sellers with active listings; contrasting RSVP **Change** and **Remove** pills; app-owned email validation at least as strict as the native validation it replaced; a handle-availability state machine that cannot remain stranded on **Checking…**; the consent line; and the documentation footnote. All checks passed on staging on 2026-08-15, and the slice was pushed.
+
+#### App polish slice 2
+
+Card `t_2f8aa70e`, commit `0aa5bab`, merged as `758ee77`, delivered per-note deletion confirmation on the Notice Board through an isolated `NoticeDeleteControl`; `/reset-password` redirection to `/update-password` with the query string and hash fragment preserved; and the festival tab label change from **The Wall** to **Notice Board**. The redirect is client-side because the hash fragment never reaches the server. The rename is label-only: CSS classes, storage keys and Realtime channel names remain untouched.
+
+Independent review had caught component-global deletion state that allowed a second deletion to overwrite the first. The isolated control corrected that defect. Staging verification passed on 2026-08-16, including the two-notes-at-once isolation case, and the slice was pushed.
+
+#### Launch-critical email deliverability finding
+
+QA finding #10 remains launch-critical. Auth mail from `noreply@psy.market` carries no DKIM signature: recipient headers report `dkim=none`, `spf=pass`, and `dmarc=pass` with policy `p=none`. A spam copy and an inbox copy were identical in authentication terms; the inbox copy arrived only after the recipient had marked earlier mail as not spam.
+
+All-Inkl KAS inspection on 2026-08-16 found no DKIM signing option in mailbox settings. Its guide covers only external mail servers, and its DNS settings are tariff-locked and irrelevant because `psy.market` DNS is at Cloudflare. A support question was sent to All-Inkl on 2026-08-15. The identified fallback is Cloudflare Email Service, public beta since April 2026: it requires DNS at Cloudflare, creates SPF/DKIM/DMARC records automatically, and offers SMTP submission. Cloudflare Email Routing is inbound-only and cannot serve this need.
+
+#### Weekly co-founder update automation
+
+The Sunday co-founder auto-update timer, `psy-weekly-cofounder.timer`, was verified armed on 2026-08-16 with its first run due that afternoon. It runs Sundays at 15:00 `Europe/Berlin`, has `Persistent=true`, and linger is enabled.
+
+MP4-D is live and verified. The next guarded package is MP4-E; its sitting must continue to use this rolling record and mandatory owner-hosted gates.

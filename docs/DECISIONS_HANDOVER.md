@@ -94,7 +94,7 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 - MP-4 (policy/function conversion package): **LIVE — owner-applied and verified 11 Aug 2026.** History: the authored, validated and published package was initially held because `banned_profile_owner` was unproven. Turgay then ran the reviewed `@darktribo` database-only fixture ritual (preflight GO → temporary ban → fixture verify GO), after which the MP-4 preflight returned full GO and the apply committed cleanly. The first post-apply verify returned STOP 13/16 because its harness used one invalid Notice category, one invalid reaction emoji and an RSVP pair already present in live data; no policy defect was found. Commit `b85b20f` corrected that verify-only harness after independent review, and the live rerun returned GO 16/16 with every allow and deny path proven, including banned-account denial. The fixture unban and unban-verify returned GO; `@darktribo` had no Hero posts to clear, and only the previously accepted `updated_at` timestamp advances remained. Detailed record: [`MP4_POLICY_CONVERSION_VERIFICATION.md`](MP4_POLICY_CONVERSION_VERIFICATION.md).
 - Package D (database-enforced public-profile privacy): **LIVE — owner-applied and verified 12 Aug 2026.** Preflight returned GO with no findings and captured the complete pinned 33-entry pre-cutover ACL. Apply committed cleanly on its first live run. Verify returned GO 33/33: both `anon` and `authenticated` received exactly the 12 `PUBLIC_PROFILE_SELECT` columns; direct reads of `user_id`, `is_suspended`, `updated_at` and `select=*` were denied with SQLSTATE `42501`; embeds, private owner/admin helpers and `service_role` access remained intact. An independent VPS REST probe changed from HTTP 200 with owner-ID data before apply to HTTP 401 / SQLSTATE `42501` afterward, while safe-column reads remained HTTP 200. Turgay's staging click-round passed. Rollback exists and was not needed. Detailed record: [`PACKAGE_D_PRIVACY_CUTOVER_VERIFICATION.md`](PACKAGE_D_PRIVACY_CUTOVER_VERIFICATION.md).
 - MP-3 foundation (cardinality, type and active-session foundations): **LIVE — owner-applied and verified 13 Aug 2026.** Wingman pre-review caught two stale reconstructed baseline pins before execution; `af0b2dd` replaced them with live-catalog evidence. Live preflight returned GO and apply completed cleanly. The first verify returned STOP 17/19 only because two fingerprints embedded environment/session-dependent catalog renderings; all behavior checks passed and wingman diagnosis confirmed the applied state was functionally exact. `eadd83b` and `01f8382` normalized settings, ACL sets, schema qualification and function-body whitespace; every pin matched live before the rerun, which returned GO 19/19 with expected SQLSTATE `42501` denials. The first Claude-in-Chrome QA mission under §11 passed on the homepage, profile, profile-edit round trip and Stream. `vendor` and the active-session/cap/owner guards are live, but `profiles_one_per_user_key` remains in force, so multiple profiles are still disabled. Detailed record: [`MP3_FOUNDATION_VERIFICATION.md`](MP3_FOUNDATION_VERIFICATION.md).
-- Slice MP-4: **in guarded execution, packages A+B+C of eight live** (see [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md)). This line is updated as packages land; package sitting details belong in the rolling execution record.
+- Slice MP-4: **in guarded execution, packages A+B+C+D of eight live** (see [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md)). This line is updated as packages land; package sitting details belong in the rolling execution record.
 - All user-visible multi-profile features (cap raise, switcher, vendor type, profile creation/deletion UI): NOT implemented — later slices per the plan.
 
 ## 8. Deliberate NOs (decided, do not re-litigate casually)
@@ -156,3 +156,27 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 - **Multi-Profile semantics:** Highlights belong to the post's profile. After Multi-Profile, highlighting is an active-profile action like every Wall mutation.
 - **Fixed sequencing:** Implement only **after Slice MP-4 package MP4-D (Wall RPC conversion) is live**. Do not build highlights mid-slice into the Wall machinery MP4-D is converting. Delivery is one small database package (highlight columns, a max-five trigger fence, and an active-profile-authorized toggle) followed by an app slice for the circles row and overlay.
 - **Timing fallback:** If V1 timing becomes tight, demote highlights to V1.1 cleanly; no other feature or package depends on them.
+
+## 13. Additions — decided 16 Aug 2026
+
+### Notice Board and password-reset polish
+
+- Notice Board deletion requires a confirmation step. Turgay decided this after the 2026-08-15 click-round; it was built in app polish slice 2.
+- `/reset-password` redirects to `/update-password`. This was decided and built in the same slice.
+- The `V1_DECISIONS` rename to **Notice Board** is now implemented.
+
+### Full mobile launch gate
+
+- Full mobile testing is a launch gate, deferred to the thorough pre-launch testing point.
+- It is a **guided session on Turgay's own phone**, not a commissioned card and not further emulation. The wingman dictates one step at a time; Turgay performs it and reports back.
+
+### Updated app-change ritual
+
+- Click-rounds on staging are driven by the wingman through the browser QA tester.
+- Turgay's gates are approval for the staging rebuild and approval for the push. He may click through staging himself whenever he wants.
+
+### Standing bridge rules
+
+- Never exit with background subtasks running: await them, or block the card first, and always close the card with `kanban_complete` or `kanban_block` before exiting.
+- A delegated reviewer returns its verdict to the author and must never complete, close or block the reviewed card. Only the author closes its own card.
+- Board serialization is not repository serialization: only one repository-touching card may be eligible at a time.
