@@ -76,7 +76,7 @@ checks(name,ok,detail) as (select v.* from manifest m cross join lateral (values
  and m.acl_n=(case when current_setting('server_version_num')::int>=170000 then 30 else 27 end)
  and m.acl_h=(case when current_setting('server_version_num')::int>=170000 then 'cc7fa3fcddd72c7542f85a0fb8fd10ef' else '51d2feec17ddf0a309e74ef4bc6e471b' end)
  and m.colacl_n=0 and m.publication_n=0 and m.publication_h='d41d8cd98f00b204e9800998ecf8427e'
- and m.wall_function_n=25 and m.wall_function_h='d98ebf15007d8fd14323ccdfcca77dd9'
+ and m.wall_function_n=25 and m.wall_function_h='8d908fb76331da1f420276ad2740cf6e'
  and m.wall_acl_n=44 and m.wall_acl_h='b684b58a31c39ae1c4326ebd10f1b1cd'
  and m.mp4a_function_n=4 and m.mp4a_function_h='094e79ae6b137952098334f53f54f695'
  and m.mp4a_acl_n=7 and m.mp4a_acl_h='1a9bc3c64d199fbfe7463dc80a3f7fb1'

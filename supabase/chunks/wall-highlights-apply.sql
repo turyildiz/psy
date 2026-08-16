@@ -94,7 +94,7 @@ manifest as (
  and m.acl_n=(case when current_setting('server_version_num')::int>=170000 then 30 else 27 end)
  and m.acl_h=(case when current_setting('server_version_num')::int>=170000 then 'cc7fa3fcddd72c7542f85a0fb8fd10ef' else '51d2feec17ddf0a309e74ef4bc6e471b' end)
  and m.colacl_n=0 and m.publication_n=0 and m.publication_h='d41d8cd98f00b204e9800998ecf8427e'
- and m.wall_function_n=25 and m.wall_function_h='d98ebf15007d8fd14323ccdfcca77dd9'
+ and m.wall_function_n=25 and m.wall_function_h='8d908fb76331da1f420276ad2740cf6e'
  and m.wall_acl_n=44 and m.wall_acl_h='b684b58a31c39ae1c4326ebd10f1b1cd'
  and m.mp4a_function_n=4 and m.mp4a_function_h='094e79ae6b137952098334f53f54f695'
  and m.mp4a_acl_n=7 and m.mp4a_acl_h='1a9bc3c64d199fbfe7463dc80a3f7fb1'
@@ -146,7 +146,7 @@ begin
   perform 1
   from public.profiles as profile
   where profile.id = new.profile_id
-  for update;
+  for no key update;
 
   if not found then
     raise exception 'Post profile does not exist'
@@ -162,7 +162,7 @@ begin
 
   if highlighted_count >= 5 then
     raise exception 'You can highlight up to 5 posts; unhighlight one first.'
-      using errcode = 'P5005';
+      using errcode = 'P0001';
   end if;
 
   new.highlighted_at := pg_catalog.clock_timestamp();
@@ -206,26 +206,39 @@ begin
       using errcode = '42501';
   end if;
 
-  update public.posts as post
-  set is_highlighted = should_highlight
+  perform 1
+  from public.posts as post
   where post.id = target_post_id
     and post.profile_id = active_profile_id
-    and post.is_highlighted is distinct from should_highlight;
+  for no key update;
 
-  get diagnostics affected_rows = row_count;
-  if affected_rows = 0 then
-    if exists (
-      select 1
-      from public.posts as post
-      where post.id = target_post_id
-        and post.profile_id = active_profile_id
-        and post.is_highlighted is not distinct from should_highlight
-    ) then
-      return;
-    end if;
-
+  if not found then
     raise exception 'Post does not exist or is not owned by the active profile'
       using errcode = '42501';
+  end if;
+
+  if exists (
+    select 1
+    from public.posts as post
+    where post.id = target_post_id
+      and post.is_highlighted is not distinct from should_highlight
+  ) then
+    return;
+  end if;
+
+  if not public.consume_post_write_rate_limit() then
+    raise exception 'Post write burst limit reached'
+      using errcode = 'P0001';
+  end if;
+
+  update public.posts as post
+  set is_highlighted = should_highlight
+  where post.id = target_post_id;
+
+  get diagnostics affected_rows = row_count;
+  if affected_rows <> 1 then
+    raise exception 'Post highlight update invariant failed'
+      using errcode = '55000';
   end if;
 end;
 $function$$ddl$;
@@ -308,7 +321,7 @@ manifest as (
  and m.acl_n=(case when current_setting('server_version_num')::int>=170000 then 30 else 27 end)
  and m.acl_h=(case when current_setting('server_version_num')::int>=170000 then 'cc7fa3fcddd72c7542f85a0fb8fd10ef' else '51d2feec17ddf0a309e74ef4bc6e471b' end)
  and m.colacl_n=0 and m.publication_n=0 and m.publication_h='d41d8cd98f00b204e9800998ecf8427e'
- and m.wall_function_n=25 and m.wall_function_h='d98ebf15007d8fd14323ccdfcca77dd9'
+ and m.wall_function_n=25 and m.wall_function_h='8d908fb76331da1f420276ad2740cf6e'
  and m.wall_acl_n=44 and m.wall_acl_h='b684b58a31c39ae1c4326ebd10f1b1cd'
  and m.mp4a_function_n=4 and m.mp4a_function_h='094e79ae6b137952098334f53f54f695'
  and m.mp4a_acl_n=7 and m.mp4a_acl_h='1a9bc3c64d199fbfe7463dc80a3f7fb1'

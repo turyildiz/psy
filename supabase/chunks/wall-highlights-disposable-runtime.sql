@@ -25,10 +25,20 @@ create function pg_temp.expect_state(test_name text,expected_state text,statemen
 declare got text; begin begin execute statement_text; exception when others then got:=sqlstate; end;
 if got is distinct from expected_state then raise exception '% expected %, got %',test_name,expected_state,coalesce(got,'SUCCESS') using errcode='XX000'; end if;
 raise notice 'PASS % SQLSTATE %',test_name,got; end$$;
+create function pg_temp.expect_error(test_name text,expected_state text,expected_message text,statement_text text) returns void language plpgsql as $$
+declare got_state text; got_message text; begin begin execute statement_text; exception when others then
+get stacked diagnostics got_state=returned_sqlstate,got_message=message_text; end;
+if got_state is distinct from expected_state or got_message is distinct from expected_message then
+raise exception '% expected % / %, got % / %',test_name,expected_state,expected_message,coalesce(got_state,'SUCCESS'),coalesce(got_message,'<none>') using errcode='XX000'; end if;
+raise notice 'PASS % SQLSTATE % MESSAGE %',test_name,got_state,got_message; end$$;
 create function pg_temp.assert_true(test_name text,ok boolean) returns void language plpgsql as $$begin
 if ok is not true then raise exception '% failed',test_name using errcode='XX000'; end if; raise notice 'PASS %',test_name; end$$;
 create function pg_temp.claims(uid uuid,sid uuid) returns void language plpgsql as $$begin
 perform set_config('request.jwt.claims',jsonb_build_object('sub',uid,'role','authenticated','session_id',sid)::text,true); end$$;
+create function pg_temp.consume_twenty_highlight_toggles(target_post_id uuid) returns void language plpgsql as $$begin
+for attempt_number in 1..20 loop
+  perform public.toggle_post_highlight(target_post_id,attempt_number % 2 = 0);
+end loop; end$$;
 
 set local role authenticated;
 select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000001');
@@ -52,7 +62,7 @@ select public.toggle_post_highlight(:'p2',true);
 select public.toggle_post_highlight(:'p3',true);
 select public.toggle_post_highlight(:'p4',true);
 select public.toggle_post_highlight(:'p5',true);
-select pg_temp.expect_state('sixth highlight blocked','P5005',format('select public.toggle_post_highlight(%L::uuid,true)',:'p6'));
+select pg_temp.expect_error('sixth highlight blocked','P0001','You can highlight up to 5 posts; unhighlight one first.',format('select public.toggle_post_highlight(%L::uuid,true)',:'p6'));
 select pg_temp.assert_true('exactly five highlighted',count(*)=5) from public.posts where profile_id=:'a1' and is_highlighted;
 select pg_temp.assert_true('highlight timestamps populated',count(*)=5) from public.posts where profile_id=:'a1' and is_highlighted and highlighted_at is not null;
 select pg_temp.assert_true('same-transaction highlight timestamps order newest first',
@@ -66,6 +76,28 @@ select pg_temp.assert_true('idempotent true keeps five',count(*)=5) from public.
 select public.toggle_post_highlight(:'p1',false);
 select public.toggle_post_highlight(:'p6',true);
 select pg_temp.assert_true('unhighlight frees one slot',count(*)=5 and bool_and(highlighted_at is not null)) from public.posts where profile_id=:'a1' and is_highlighted;
+reset role;
+update public.post_write_rate_limits set attempts='{}'::timestamp with time zone[],updated_at=pg_catalog.clock_timestamp() where user_id='a1000000-0000-0000-0000-000000000001';
+select ctid::text as no_op_ctid from public.posts where id=:'p6' \gset
+set local role authenticated;
+select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000001');
+select public.toggle_post_highlight(:'p6',true);
+select public.toggle_post_highlight(:'p6',true);
+select public.toggle_post_highlight(:'p6',true);
+reset role;
+select pg_temp.assert_true('idempotent no-op consumes no quota and performs no update',
+  (select pg_catalog.cardinality(attempts)=0 from public.post_write_rate_limits where user_id='a1000000-0000-0000-0000-000000000001')
+  and (select ctid::text=:'no_op_ctid' from public.posts where id=:'p6'));
+set local role authenticated;
+select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000001');
+select pg_temp.consume_twenty_highlight_toggles(:'p6');
+select pg_temp.expect_error('highlight toggle loop hits account limiter','P0001','Post write burst limit reached',format('select public.toggle_post_highlight(%L::uuid,false)',:'p6'));
+reset role;
+select pg_temp.assert_true('limiter refusal preserves highlight state and accepted quota count',
+  (select is_highlighted from public.posts where id=:'p6')
+  and (select pg_catalog.cardinality(attempts)=20 from public.post_write_rate_limits where user_id='a1000000-0000-0000-0000-000000000001'));
+set local role authenticated;
+select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000001');
 select pg_temp.expect_state('inactive sibling denied','42501',format('select public.toggle_post_highlight(%L::uuid,true)',:'pinactive'));
 select pg_temp.expect_state('foreign post denied','42501',format('select public.toggle_post_highlight(%L::uuid,true)',:'pforeign'));
 select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000099');
@@ -86,6 +118,11 @@ select pg_temp.claims('b2000000-0000-0000-0000-000000000002','bb000000-0000-0000
 select pg_temp.assert_true('authenticated members-only post read unchanged',count(*)=1) from public.posts where id=:'pmembers';
 reset role;
 select pg_temp.expect_state('timestamp trigger owned','42501',format('update public.posts set highlighted_at=clock_timestamp() where id=%L::uuid',:'p2'));
-select pg_temp.expect_state('owner sixth also fenced','P5005',format('update public.posts set is_highlighted=true where id=%L::uuid',:'p1'));
+select pg_temp.expect_error('owner sixth also fenced','P0001','You can highlight up to 5 posts; unhighlight one first.',format('update public.posts set is_highlighted=true where id=%L::uuid',:'p1'));
+insert into public.posts(profile_id,body)
+select :'a2','multi-row cap post '||g from generate_series(1,6) g;
+select pg_temp.expect_error('multi-row owner update fenced','P0001','You can highlight up to 5 posts; unhighlight one first.',
+  format('update public.posts set is_highlighted=true where profile_id=%L::uuid and body like %L',:'a2','multi-row cap post %'));
+select pg_temp.assert_true('multi-row owner update rolls back all six highlights',count(*)=0) from public.posts where profile_id=:'a2' and is_highlighted;
 rollback;
 \echo HIGHLIGHTS_BEHAVIOR=PASS

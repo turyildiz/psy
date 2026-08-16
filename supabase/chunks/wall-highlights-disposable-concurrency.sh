@@ -32,7 +32,8 @@ rc_b=$?
 wait "$pid_a"; rc_a=$?
 set -e
 [[ $rc_a -eq 0 && $rc_b -ne 0 ]]
-grep -q P5005 "$LOG_DIR/concurrency-b.log"
+grep -q P0001 "$LOG_DIR/concurrency-b.log"
+grep -q 'You can highlight up to 5 posts; unhighlight one first.' "$LOG_DIR/concurrency-b.log"
 [[ $(psql -X -At -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -c 'select count(*) from public.posts where is_highlighted') == 5 ]]
 psql -X -q -v ON_ERROR_STOP=1 -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -f "$ROOT/supabase/chunks/wall-highlights-apply.sql" >"$LOG_DIR/apply-after-use.log"
 [[ $(psql -X -At -h "$HOST" -p "$PORT" -U "$USER" -d "$DB" -c 'select count(*) from public.posts where is_highlighted') == 5 ]]
