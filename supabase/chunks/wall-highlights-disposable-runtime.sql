@@ -17,7 +17,6 @@ select id as c1 from public.profiles where user_id='c3000000-0000-0000-0000-0000
 insert into public.profiles(id,user_id,type,handle,display_name)
 values ('a1000000-0000-0000-0000-000000000012','a1000000-0000-0000-0000-000000000001','personal','highlights_sibling','Sibling A2');
 \set a2 'a1000000-0000-0000-0000-000000000012'
-update public.users set banned_at=clock_timestamp() where id='c3000000-0000-0000-0000-000000000003';
 insert into private.account_session_active_profiles(session_id,user_id,profile_id) values
  ('aa000000-0000-0000-0000-000000000001','a1000000-0000-0000-0000-000000000001',:'a1'),
  ('bb000000-0000-0000-0000-000000000002','b2000000-0000-0000-0000-000000000002',:'b1'),
@@ -43,6 +42,8 @@ select public.create_post(:'a1','members only highlight control',array[]::text[]
 reset role;
 insert into public.posts(profile_id,body) values (:'a2','inactive post') returning id as pinactive \gset
 insert into public.posts(profile_id,body) values (:'b1','foreign post') returning id as pforeign \gset
+insert into public.posts(profile_id,body) values (:'c1','banned profile own post') returning id as pbanned \gset
+update public.users set banned_at=clock_timestamp() where id='c3000000-0000-0000-0000-000000000003';
 set local role authenticated;
 select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000001');
 
@@ -70,7 +71,7 @@ select pg_temp.expect_state('foreign post denied','42501',format('select public.
 select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000099');
 select pg_temp.expect_state('missing active denied','42501',format('select public.toggle_post_highlight(%L::uuid,false)',:'p2'));
 select pg_temp.claims('c3000000-0000-0000-0000-000000000003','cc000000-0000-0000-0000-000000000003');
-select pg_temp.expect_state('banned caller denied','42501',format('select public.toggle_post_highlight(%L::uuid,true)',:'pforeign'));
+select pg_temp.expect_state('banned caller own post denied','42501',format('select public.toggle_post_highlight(%L::uuid,true)',:'pbanned'));
 select pg_temp.claims('a1000000-0000-0000-0000-000000000001','aa000000-0000-0000-0000-000000000001');
 select pg_temp.expect_state('null state rejected','22023',format('select public.toggle_post_highlight(%L::uuid,null)',:'p2'));
 select pg_temp.expect_state('direct client highlight insert denied','42501',format('insert into public.posts(profile_id,body,is_highlighted) values (%L::uuid,%L,true)',:'a1','direct denied'));
