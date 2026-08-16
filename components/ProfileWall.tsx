@@ -589,28 +589,34 @@ function HighlightedPostsRow({ posts, onOpen }: { posts: Post[]; onOpen: (post: 
   if (posts.length === 0) return null;
   return (
     <section className="post-highlights" aria-label="Highlighted posts">
-      {posts.map((post) => {
-        const preview = getPostHighlightPreview(post.body);
-        return (
-          <button
-            key={post.id}
-            type="button"
-            className="post-highlight-circle"
-            data-highlight-preview={preview}
-            aria-label={`Open highlighted post: ${preview}`}
-            onClick={() => onOpen(post)}
-          >
-            <span className="post-highlight-circle-frame">
-              {post.images[0] ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={post.images[0]} alt="" />
-              ) : (
-                <span className="post-highlight-text" aria-hidden="true">{preview}</span>
-              )}
-            </span>
-          </button>
-        );
-      })}
+      <div className="post-highlights-heading">
+        <span aria-hidden="true" />
+        <h2>Highlights</h2>
+      </div>
+      <div className="post-highlights-row">
+        {posts.map((post) => {
+          const preview = getPostHighlightPreview(post.body);
+          return (
+            <button
+              key={post.id}
+              type="button"
+              className="post-highlight-circle"
+              data-highlight-preview={preview}
+              aria-label={`Open highlighted post: ${preview}`}
+              onClick={() => onOpen(post)}
+            >
+              <span className="post-highlight-circle-frame">
+                {post.images[0] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={post.images[0]} alt="" />
+                ) : (
+                  <span className="post-highlight-text" aria-hidden="true">{preview}</span>
+                )}
+              </span>
+            </button>
+          );
+        })}
+      </div>
     </section>
   );
 }
@@ -655,8 +661,8 @@ function HighlightedPostOverlay({
   if (!portalTarget) return null;
   return createPortal(
     <div className="post-highlight-overlay" role="dialog" aria-modal="true" aria-label="Highlighted post" onClick={onClose}>
+      <button type="button" className="post-highlight-overlay-close" aria-label="Close highlighted post" onClick={onClose}>✕</button>
       <div className="post-highlight-overlay-panel" onClick={(event) => event.stopPropagation()}>
-        <button type="button" className="post-highlight-overlay-close" aria-label="Close highlighted post" onClick={onClose}>✕</button>
         <PostCard
           post={post}
           profile={profile}
@@ -884,7 +890,11 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
 
       <style>{`
         .profile-wall { max-width: 680px; margin: 0 auto; padding: 32px 0 80px; }
-        .post-highlights { width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0 0 24px; padding: 14px 16px; background: var(--white); border: 1px solid var(--sand); border-radius: 12px; }
+        .post-highlights { width: 100%; margin: 0 0 24px; }
+        .post-highlights-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
+        .post-highlights-heading > span { width: 26px; height: 2px; flex-shrink: 0; background: var(--rust); }
+        .post-highlights-heading h2 { margin: 0; color: var(--text); font: 700 20px 'Bricolage Grotesque', var(--font-bricolage); letter-spacing: -.02em; }
+        .post-highlights-row { width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 14px 16px; background: var(--white); border: 1px solid var(--sand); border-radius: 12px; }
         .post-highlight-circle { position: relative; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer; }
         .post-highlight-circle-frame { display: flex; width: clamp(52px, 9vw, 82px); max-width: 100%; aspect-ratio: 1; margin: 0 auto; align-items: center; justify-content: center; overflow: hidden; border: 3px solid var(--white); border-radius: 50%; outline: 2px solid var(--rust); background: linear-gradient(145deg, var(--rust), #7c4250); box-shadow: 0 3px 12px oklch(0% 0 0 / .12); }
         .post-highlight-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -893,9 +903,9 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         .post-highlight-load-error { margin: -12px 0 20px; }
         .post-highlight-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--text-mid); font-size: 11px; font-weight: 650; cursor: pointer; }
         .post-highlight-toggle input { accent-color: var(--rust); }
-        .post-highlight-overlay { position: fixed; inset: 0; z-index: 1800; overflow-y: auto; padding: 64px 20px; box-sizing: border-box; background: oklch(0% 0 0 / .72); }
-        .post-highlight-overlay-panel { position: relative; width: min(680px, 100%); margin: 0 auto; }
-        .post-highlight-overlay-close { position: absolute; z-index: 1; top: -50px; right: 0; width: 44px; height: 44px; border: 1px solid var(--sand); border-radius: 50%; background: var(--white); color: var(--text); font-size: 16px; cursor: pointer; box-shadow: 0 2px 10px oklch(0% 0 0 / .14); }
+        .post-highlight-overlay { position: fixed; inset: 0; z-index: 1800; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px; box-sizing: border-box; background: oklch(0% 0 0 / .72); }
+        .post-highlight-overlay-panel { position: relative; width: min(680px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; border-radius: 12px; }
+        .post-highlight-overlay-close { position: absolute; z-index: 2; top: 20px; right: 20px; width: 44px; height: 44px; border: 1px solid var(--sand); border-radius: 50%; background: var(--white); color: var(--text); font-size: 16px; cursor: pointer; box-shadow: 0 2px 10px oklch(0% 0 0 / .14); }
         .post-editor, .post-card { background: var(--white); border: 1px solid var(--sand); border-radius: 12px; padding: 20px; }
         .post-editor { margin-bottom: 24px; }
         .post-editor-inline { margin-bottom: 0; }
@@ -951,11 +961,12 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         }
         @media (max-width: 640px) {
           .profile-wall { padding-top: 20px; }
-          .post-highlights { gap: 8px; padding: 12px 10px; border-radius: 10px; }
+          .post-highlights-row { gap: 8px; padding: 12px 10px; border-radius: 10px; }
           .post-highlight-circle-frame { width: clamp(48px, 15vw, 68px); }
           .post-highlight-text { padding: 6px; font-size: 8px; }
-          .post-highlight-overlay { padding: 48px 10px 24px; }
-          .post-highlight-overlay-close { top: -42px; right: 0; }
+          .post-highlight-overlay { padding: 10px; }
+          .post-highlight-overlay-panel { max-height: calc(100dvh - 20px); }
+          .post-highlight-overlay-close { top: 14px; right: 14px; }
           .post-editor, .post-card { padding: 15px; border-radius: 10px; }
           .post-editor-previews { grid-template-columns: repeat(3, 1fr); }
           .post-images button { height: 190px; }

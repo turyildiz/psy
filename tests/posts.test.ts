@@ -194,12 +194,15 @@ test("Wall highlights use the trusted toggle, RLS-backed circles, and a portalle
   assert.match(wall, /getPostHighlightErrorMessage\(error\)/);
   assert.match(wall, /className="post-highlight-toggle"/);
   assert.match(wall, /className="post-highlights"/);
+  assert.match(wall, /if \(posts\.length === 0\) return null;[\s\S]*?<h2>Highlights<\/h2>/);
   assert.match(wall, /className="post-highlight-circle"/);
   assert.match(wall, /getPostHighlightPreview\(post\.body\)/);
   assert.match(wall, /post\.images\[0\]/);
   assert.match(wall, /createPortal\(/);
   assert.match(wall, /aria-label="Highlighted post"/);
   assert.match(wall, /e\.key === "Escape"/);
+  assert.match(wall, /\.post-highlight-overlay \{[^}]*display: flex;[^}]*align-items: center;[^}]*justify-content: center;/);
+  assert.match(wall, /\.post-highlight-overlay-panel \{[^}]*max-height: calc\(100dvh - 40px\);[^}]*overflow-y: auto;/);
   assert.doesNotMatch(stream, /\.eq\("is_highlighted"|\.order\("highlighted_at"|toggle_post_highlight/);
 });
 
