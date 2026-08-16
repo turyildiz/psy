@@ -7,6 +7,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { createClient } from "@/lib/supabase/client";
+import { getPostWriteErrorMessage } from "@/lib/posts/validation";
 import {
   getMyProfiles,
   getOnlyProfileForCurrentAccount,
@@ -290,6 +291,39 @@ function WhoGoingTab({ festivalId, myProfileId }: { festivalId: string; myProfil
 }
 
 // ---- Notice Board Tab ----
+function NoticeDeleteControl({ postId, onDeleted }: { postId: string; onDeleted: () => Promise<void> }) {
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  const deletePost = async () => {
+    setDeleting(true);
+    setDeleteError(null);
+    const { error } = await createClient().from("notice_posts").delete().eq("id", postId);
+    if (error) {
+      setDeleteError(getPostWriteErrorMessage(error, "delete"));
+      setDeleting(false);
+      return;
+    }
+    await onDeleted();
+  };
+
+  return (
+    <>
+      {!confirmDelete ? (
+        <button type="button" onClick={() => setConfirmDelete(true)} title="Remove note" style={{ fontSize: 12, color: "oklch(45% 0.03 60)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>✕</button>
+      ) : (
+        <div className="post-delete-confirm" style={{ display: "flex", alignItems: "center", gap: 6, flexBasis: "100%", flexWrap: "wrap" }}>
+          <span>Delete permanently?</span>
+          <button type="button" onClick={deletePost} disabled={deleting} style={{ fontSize: 11, padding: "3px 7px", borderRadius: 4, border: "1px solid oklch(45% 0.12 28)", background: "oklch(52% 0.16 28)", color: "white", cursor: "pointer" }}>{deleting ? "Deleting…" : "Yes, delete"}</button>
+          <button type="button" onClick={() => setConfirmDelete(false)} disabled={deleting} style={{ fontSize: 11, padding: "3px 7px", borderRadius: 4, border: "1px solid oklch(0% 0 0 / 0.2)", background: "oklch(100% 0 0 / 0.45)", color: "oklch(32% 0.03 60)", cursor: "pointer" }}>Keep</button>
+        </div>
+      )}
+      {deleteError && <p role="alert" style={{ margin: "7px 0 0", color: "oklch(42% 0.16 28)", fontSize: 11, lineHeight: 1.4, flexBasis: "100%" }}>{deleteError}</p>}
+    </>
+  );
+}
+
 function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: string; myProfileId: string | null; coverUrl?: string }) {
   const [posts, setPosts] = useState<NoticePost[]>([]);
   const [loading, setLoading] = useState(true);
@@ -394,11 +428,6 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
     fetchPosts();
   };
 
-  const deletePost = async (postId: string) => {
-    const supabase = createClient();
-    await supabase.from("notice_posts").delete().eq("id", postId);
-    fetchPosts();
-  };
 
   const counts = posts.reduce((acc, p) => { acc[p.category] = (acc[p.category] ?? 0) + 1; return acc; }, {} as Record<string, number>);
   const q = query.trim().toLowerCase();
@@ -414,7 +443,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
 
   return (
     <div>
-      {/* The Wall intro */}
+      {/* Notice Board intro */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: 20, flexWrap: "wrap", marginBottom: 24 }}>
         <div style={{ display: "flex", gap: 14, alignItems: "flex-start", minWidth: 0 }}>
           <svg width="38" height="38" viewBox="0 0 24 24" fill="none" stroke="oklch(68% 0.10 140)" strokeWidth="1.1" strokeLinejoin="round" aria-hidden style={{ flexShrink: 0, marginTop: 3 }}>
@@ -423,7 +452,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
             <path d="M12 2.5V8" />
           </svg>
           <div>
-            <h2 style={{ fontFamily: "var(--font-bricolage)", fontSize: 24, fontWeight: 700, color: "oklch(94% 0.01 80)", margin: 0, letterSpacing: "-0.02em" }}>The Wall</h2>
+            <h2 style={{ fontFamily: "var(--font-bricolage)", fontSize: 24, fontWeight: 700, color: "oklch(94% 0.01 80)", margin: 0, letterSpacing: "-0.02em" }}>Notice Board</h2>
             <p style={{ fontSize: 13.5, color: "oklch(62% 0.02 70)", margin: "4px 0 0", maxWidth: 420, lineHeight: 1.55 }}>
               Your community board for rides, lost items, gear, and good vibes. Help each other out.
             </p>
@@ -464,7 +493,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
           <input
             value={query}
             onChange={e => { setQuery(e.target.value); setVisibleCount(12); }}
-            placeholder="Search the wall…"
+            placeholder="Search the notice board…"
             style={{ width: "100%", boxSizing: "border-box", background: "oklch(20% 0.015 55)", border: "1px solid oklch(30% 0.015 55)", borderRadius: 8, padding: "10px 12px 10px 34px", fontSize: 13.5, color: "oklch(90% 0.01 80)", outline: "none", fontFamily: "var(--font-manrope)" }}
           />
         </div>
@@ -550,7 +579,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
         ))}
       </div>
 
-      {/* The wall — plastered festival board, the festival's art bleeds through */}
+      {/* Notice Board — plastered festival board, the festival's art bleeds through */}
       <div className="wall-board">
         {coverUrl && (
           // eslint-disable-next-line @next/next/no-img-element
@@ -565,7 +594,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
         ) : filtered.length === 0 ? (
           <div style={{ padding: "70px 20px", textAlign: "center" }}>
             <p style={{ fontFamily: "var(--font-caveat), cursive", fontWeight: 700, fontSize: 26, color: "oklch(96% 0.02 80)", textShadow: "0 1px 3px oklch(0% 0 0 / 0.3)", margin: 0 }}>
-              {q ? "Nothing on the wall matches your search." : filter === "all" ? "The board is empty — pin the first note!" : "No notes in this category yet."}
+              {q ? "Nothing on the notice board matches your search." : filter === "all" ? "The board is empty — pin the first note!" : "No notes in this category yet."}
             </p>
           </div>
         ) : (
@@ -611,7 +640,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
                     </p>
                   )}
                   {/* Footer: author + date */}
-                  <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: "1px dashed oklch(0% 0 0 / 0.15)", paddingTop: 8, marginTop: 2 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, borderTop: "1px dashed oklch(0% 0 0 / 0.15)", paddingTop: 8, marginTop: 2, flexWrap: "wrap" }}>
                     <Link href={`/${post.profile?.handle}`} style={{ display: "flex", alignItems: "center", gap: 6, textDecoration: "none", minWidth: 0 }}>
                       <ProfileAvatar name={post.profile?.displayName || post.profile?.handle || "?"} url={post.profile?.avatarUrl} size={20} />
                       <span style={{ fontSize: 12, color: "oklch(38% 0.03 60)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{post.profile?.handle}</span>
@@ -620,7 +649,7 @@ function NoticeBoardTab({ festivalId, myProfileId, coverUrl }: { festivalId: str
                       {new Date(post.createdAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}
                     </span>
                     {post.profileId === myProfileId && (
-                      <button onClick={() => deletePost(post.id)} title="Remove note" style={{ fontSize: 12, color: "oklch(45% 0.03 60)", background: "none", border: "none", cursor: "pointer", padding: 0, flexShrink: 0 }}>✕</button>
+                      <NoticeDeleteControl postId={post.id} onDeleted={fetchPosts} />
                     )}
                   </div>
                   {/* Reactions */}
@@ -755,7 +784,7 @@ export default function FestivalPage() {
   const TABS = [
     { key: "info", label: "Info" },
     { key: "going", label: "Who's Going" },
-    { key: "board", label: "The Wall" },
+    { key: "board", label: "Notice Board" },
   ] as const;
 
   return (

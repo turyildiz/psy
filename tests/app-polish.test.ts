@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
@@ -79,6 +79,41 @@ test("festival RSVP change and remove controls have a visible interactive treatm
   assert.match(rsvpControls, /border: "1px solid oklch\(100% 0 0 \/ 0\.18\)"/);
   assert.match(rsvpControls, />\s*Change\s*<\/button>/);
   assert.match(rsvpControls, />\s*Remove\s*<\/button>/);
+});
+
+test("festival wall user-facing copy is renamed to Notice Board", () => {
+  assert.match(festivalPage, />Notice Board<\/h2>/);
+  assert.match(festivalPage, /label: "Notice Board"/);
+  assert.match(festivalPage, /placeholder="Search the notice board…"/);
+  assert.match(festivalPage, /"Nothing on the notice board matches your search\."/);
+  assert.doesNotMatch(festivalPage, />The Wall<\/h2>/);
+  assert.doesNotMatch(festivalPage, /label: "The Wall"/);
+});
+
+test("festival notice deletion uses an isolated per-note confirmation and error flow", () => {
+  const deleteControl = festivalPage.slice(
+    festivalPage.indexOf("function NoticeDeleteControl"),
+    festivalPage.indexOf("function NoticeBoardTab")
+  );
+
+  assert.match(deleteControl, /const \[confirmDelete, setConfirmDelete\] = useState\(false\)/);
+  assert.match(deleteControl, /const \[deleting, setDeleting\] = useState\(false\)/);
+  assert.match(deleteControl, /<span>Delete permanently\?<\/span>/);
+  assert.match(deleteControl, /deleting \? "Deleting…" : "Yes, delete"/);
+  assert.match(deleteControl, />Keep<\/button>/);
+  assert.match(deleteControl, /disabled=\{deleting\}/);
+  assert.match(deleteControl, /deleteError && <p role="alert"/);
+  assert.match(festivalPage, /<NoticeDeleteControl postId=\{post\.id\} onDeleted=\{fetchPosts\} \/>/);
+  assert.doesNotMatch(festivalPage, /confirmDeleteId|deletingId/);
+  assert.doesNotMatch(festivalPage, /onClick=\{\(\) => deletePost\(post\.id\)\} title="Remove note"/);
+});
+
+test("legacy reset-password route preserves query and hash when forwarding", () => {
+  const resetPasswordPath = new URL("../app/reset-password/page.tsx", import.meta.url);
+  assert.equal(existsSync(resetPasswordPath), true);
+  const resetPasswordPage = readFileSync(resetPasswordPath, "utf8");
+
+  assert.match(resetPasswordPage, /router\.replace\(`\/update-password\$\{window\.location\.search\}\$\{window\.location\.hash\}`\)/);
 });
 
 test("QA handover keeps credential entry and submission with Turgay", () => {
