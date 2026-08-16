@@ -92,6 +92,30 @@
 
 **Evidence required:** date/environment, test account/profile matrix without credentials, screenshots, DOM/network/Realtime/email observations, active-profile transitions, sibling interaction results, deletion/account-deletion outcomes, public unlinkability findings, and legal approval reference.
 
+## 5. Full-site mobile pass on a real phone
+
+**Method:** This is a launch gate walked on a real phone. Cover home, categories, listing detail, search, profile (**Wall**, **Listings**, **Inbox**), Stream, festival calendar and festival detail (**Info**, **Who's Going**, **Notice Board**), auth screens, and messages.
+
+- [ ] Check tap-target sizes throughout the complete route set.
+- [ ] Check every page for horizontal overflow.
+- [ ] Check sticky headers and overlay behavior on each relevant route and tab.
+- [ ] Confirm the invisible header search panel no longer occupies excess width.
+- [ ] Confirm the desktop header collapses before it can overflow at mobile widths.
+- [ ] Confirm drawer close buttons have accessible labels.
+- [ ] Prove touch behavior on a real phone.
+- [ ] Prove the complete pass in iOS Safari.
+
+An emulated sweep on 2026-08-16 found approximately 15 px of sideways scroll on every page because the invisible header search panel still occupied width; the desktop header did not collapse until below approximately 660 px and overflowed by 94 px; several tap targets were well under the approximately 44 px guideline; and drawer close buttons lacked accessible labels. Touch behavior and iOS Safari remain **UNPROVEN**.
+
+**Evidence required:** date, environment, real phone and browser, route/tab matrix, screenshots or recordings of failures and corrected states, measured overflow and tap-target findings, sticky-header and overlay results, and final touch/iOS Safari results.
+
+## 6. Exact-route and wiring-aware QA descriptions
+
+- [ ] For every QA checklist item, name the exact route and the exact function or table it exercises.
+- [ ] Verify each item's real wiring through the catalog or browser network evidence; never infer the exercised database surface from appearance or a shared UI label alone.
+
+**Evidence required:** the dated checklist or test script, exact route-to-function/table mapping, and the catalog or network evidence used to confirm each mapping.
+
 ## Execution records
 
 Add dated execution records below. Do not replace the checklist above.
