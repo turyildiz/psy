@@ -589,11 +589,8 @@ function HighlightedPostsRow({ posts, onOpen }: { posts: Post[]; onOpen: (post: 
   if (posts.length === 0) return null;
   return (
     <section className="post-highlights" aria-label="Highlighted posts">
-      <div className="post-highlights-heading">
-        <span aria-hidden="true" />
-        <h2>Highlights</h2>
-      </div>
       <div className="post-highlights-row">
+        <h2>Highlights</h2>
         {posts.map((post) => {
           const preview = getPostHighlightPreview(post.body);
           return (
@@ -661,18 +658,20 @@ function HighlightedPostOverlay({
   if (!portalTarget) return null;
   return createPortal(
     <div className="post-highlight-overlay" role="dialog" aria-modal="true" aria-label="Highlighted post" onClick={onClose}>
-      <button type="button" className="post-highlight-overlay-close" aria-label="Close highlighted post" onClick={onClose}>✕</button>
       <div className="post-highlight-overlay-panel" onClick={(event) => event.stopPropagation()}>
-        <PostCard
-          post={post}
-          profile={profile}
-          isOwner={isOwner}
-          viewerProfileId={viewerProfileId}
-          onLoginRequested={onLoginRequested}
-          onUpdated={onUpdated}
-          onDeleted={onDeleted}
-          onHighlightChanged={onHighlightChanged}
-        />
+        <button type="button" className="post-highlight-overlay-close" aria-label="Close highlighted post" onClick={onClose}>✕</button>
+        <div className="post-highlight-overlay-content">
+          <PostCard
+            post={post}
+            profile={profile}
+            isOwner={isOwner}
+            viewerProfileId={viewerProfileId}
+            onLoginRequested={onLoginRequested}
+            onUpdated={onUpdated}
+            onDeleted={onDeleted}
+            onHighlightChanged={onHighlightChanged}
+          />
+        </div>
       </div>
     </div>,
     portalTarget,
@@ -891,10 +890,8 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
       <style>{`
         .profile-wall { max-width: 680px; margin: 0 auto; padding: 32px 0 80px; }
         .post-highlights { width: 100%; margin: 0 0 24px; }
-        .post-highlights-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 14px; }
-        .post-highlights-heading > span { width: 26px; height: 2px; flex-shrink: 0; background: var(--rust); }
-        .post-highlights-heading h2 { margin: 0; color: var(--text); font: 700 20px 'Bricolage Grotesque', var(--font-bricolage); letter-spacing: -.02em; }
         .post-highlights-row { width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; padding: 14px 16px; background: var(--white); border: 1px solid var(--sand); border-radius: 12px; }
+        .post-highlights-row h2 { grid-column: 1 / -1; margin: 0 0 2px; color: var(--text); font: 700 14px 'Bricolage Grotesque', var(--font-bricolage); letter-spacing: -.01em; }
         .post-highlight-circle { position: relative; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer; }
         .post-highlight-circle-frame { display: flex; width: clamp(52px, 9vw, 82px); max-width: 100%; aspect-ratio: 1; margin: 0 auto; align-items: center; justify-content: center; overflow: hidden; border: 3px solid var(--white); border-radius: 50%; outline: 2px solid var(--rust); background: linear-gradient(145deg, var(--rust), #7c4250); box-shadow: 0 3px 12px oklch(0% 0 0 / .12); }
         .post-highlight-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
@@ -904,8 +901,9 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         .post-highlight-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--text-mid); font-size: 11px; font-weight: 650; cursor: pointer; }
         .post-highlight-toggle input { accent-color: var(--rust); }
         .post-highlight-overlay { position: fixed; inset: 0; z-index: 1800; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 20px; box-sizing: border-box; background: oklch(0% 0 0 / .72); }
-        .post-highlight-overlay-panel { position: relative; width: min(680px, 100%); max-height: calc(100dvh - 40px); overflow-y: auto; border-radius: 12px; }
-        .post-highlight-overlay-close { position: absolute; z-index: 2; top: 20px; right: 20px; width: 44px; height: 44px; border: 1px solid var(--sand); border-radius: 50%; background: var(--white); color: var(--text); font-size: 16px; cursor: pointer; box-shadow: 0 2px 10px oklch(0% 0 0 / .14); }
+        .post-highlight-overlay-panel { position: relative; width: min(680px, 100%); max-height: calc(100dvh - 40px); border-radius: 12px; }
+        .post-highlight-overlay-content { max-height: inherit; overflow-y: auto; border-radius: inherit; }
+        .post-highlight-overlay-close { position: absolute; z-index: 2; top: 12px; right: 12px; width: 44px; height: 44px; border: 1px solid var(--sand); border-radius: 50%; background: var(--white); color: var(--text); font-size: 16px; cursor: pointer; box-shadow: 0 2px 10px oklch(0% 0 0 / .14); }
         .post-editor, .post-card { background: var(--white); border: 1px solid var(--sand); border-radius: 12px; padding: 20px; }
         .post-editor { margin-bottom: 24px; }
         .post-editor-inline { margin-bottom: 0; }
@@ -966,7 +964,7 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
           .post-highlight-text { padding: 6px; font-size: 8px; }
           .post-highlight-overlay { padding: 10px; }
           .post-highlight-overlay-panel { max-height: calc(100dvh - 20px); }
-          .post-highlight-overlay-close { top: 14px; right: 14px; }
+          .post-highlight-overlay-close { top: 8px; right: 8px; }
           .post-editor, .post-card { padding: 15px; border-radius: 10px; }
           .post-editor-previews { grid-template-columns: repeat(3, 1fr); }
           .post-images button { height: 190px; }
