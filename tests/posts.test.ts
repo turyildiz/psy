@@ -195,7 +195,7 @@ test("Wall highlights use the trusted toggle, RLS-backed circles, and a portalle
   assert.match(wall, /className="post-highlight-toggle"/);
   assert.match(wall, /className="post-highlights"/);
   assert.match(wall, /if \(posts\.length === 0\) return null;[\s\S]*?className="post-highlights-row"[\s\S]*?<h2>Highlights<\/h2>/);
-  assert.match(wall, /\.post-highlights-row h2 \{[^}]*grid-column: 1 \/ -1;[^}]*font: 700 14px/);
+  assert.match(wall, /\.post-highlights-row h2 \{[^}]*grid-column: 1 \/ -1;[^}]*font: 700 20px/);
   assert.match(wall, /className="post-highlight-circle"/);
   assert.match(wall, /getPostHighlightPreview\(post\.body\)/);
   assert.match(wall, /post\.images\[0\]/);
@@ -204,9 +204,10 @@ test("Wall highlights use the trusted toggle, RLS-backed circles, and a portalle
   assert.match(wall, /e\.key === "Escape"/);
   assert.match(wall, /\.post-highlight-overlay \{[^}]*display: flex;[^}]*align-items: center;[^}]*justify-content: center;/);
   assert.match(wall, /className="post-highlight-overlay-panel"[\s\S]*?className="post-highlight-overlay-close"[\s\S]*?className="post-highlight-overlay-content"/);
-  assert.match(wall, /\.post-highlight-overlay-panel \{[^}]*max-height: calc\(100dvh - 40px\);/);
-  assert.match(wall, /\.post-highlight-overlay-content \{[^}]*max-height: inherit;[^}]*overflow-y: auto;/);
+  assert.match(wall, /\.post-highlight-overlay-panel \{[^}]*max-height: calc\(100dvh - 40px\);[^}]*padding-top: 64px;[^}]*box-sizing: border-box;/);
+  assert.match(wall, /\.post-highlight-overlay-content \{[^}]*max-height: calc\(100dvh - 104px\);[^}]*overflow-y: auto;/);
   assert.match(wall, /\.post-highlight-overlay-close \{[^}]*position: absolute;[^}]*top: 12px;[^}]*right: 12px;/);
+  assert.match(wall, /@media \(max-width: 640px\) \{[\s\S]*?\.post-highlight-overlay-content \{ max-height: calc\(100dvh - 84px\); \}/);
   assert.doesNotMatch(stream, /\.eq\("is_highlighted"|\.order\("highlighted_at"|toggle_post_highlight/);
 });
 
