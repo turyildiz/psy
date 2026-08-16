@@ -58,7 +58,7 @@
 
 13. **Complete launch SEO, navigation, and dead-UI repair — M**
     Repair dead links, add production `metadataBase`, canonical URLs, dynamic listing/profile/festival metadata, Open Graph data, robots policy, and sitemap; ensure `psy.market` is used consistently. Remove or wire up dead UI controls before launch; specifically, the **Save Draft** buttons in `components/NewListingModal.tsx` and `app/listings/new/page.tsx` are currently `type="button"` with no `onClick` handler and do nothing.
-    - `/update-password` is a retired legacy guard page: it accepts no token, creates no session, changes no password, and nothing links to it. It is a candidate for removal during this cleanup, not as part of the current auth-page presentation work.
+    - `/update-password` is the active recovery-flow target. `/reset-password` now redirects to it; do not treat `/update-password` as a retired legacy page or remove it during this cleanup.
 
 14. **Prepare Vercel Pro production operations — M**  
     Configure environment variables and secret separation, Vercel build/deploy settings, error monitoring, health checks, runtime pinning, lint/tests, R2 CORS/public domain, Supabase production URLs, and operational logging. The VPS remains staging only until retired.

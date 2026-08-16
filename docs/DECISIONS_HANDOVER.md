@@ -145,7 +145,7 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 
 ### Wall post highlights — V1 scope, sequenced
 
-- **Status:** Turgay's idea; design fixed 15 Aug 2026. This is a V1 scope and sequencing decision, **not an implementation claim and not built now**.
+- **Status (2026-08-16):** The database foundation is live and verified. The app slice — toggle, circles row, and overlay — is the remaining work. Detailed record: [`WALL_HIGHLIGHTS_FOUNDATION_VERIFICATION.md`](WALL_HIGHLIGHTS_FOUNDATION_VERIFICATION.md).
 - **Per-profile cap and control:** Each profile can highlight up to five of its own Wall posts through a simple **Highlight** checkbox/toggle on the post.
 - **Wall presentation:** At the top of the profile's Wall, show one row of up to five circles in a story-highlight style, visually like the profile picture. The row's total width equals the post-column width below it. An image post uses its first image cropped into the circle; a text-only post uses a styled text fallback. Most-recently-highlighted appears first.
 - **Desktop hover:** Show a small popup with approximately the first 80 characters of the post, derived automatically from its body. There is no separate highlight-caption field.
@@ -174,6 +174,17 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 
 - Click-rounds on staging are driven by the wingman through the browser QA tester.
 - Turgay's gates are approval for the staging rebuild and approval for the push. He may click through staging himself whenever he wants.
+
+### Launch legal pages and staging gate
+
+- Impressum, Datenschutzerklärung, AGB, and safety pages are deliberately scheduled shortly before launch (Turgay, 2026-08-16).
+- The staging access gate remains in place. Its removal is reserved for Turgay personally.
+
+### PRIORITY — Email spam and DKIM
+
+- All-Inkl confirmed on 2026-08-16 that its outgoing servers sign mail. Selector `kas202604191039` is published in Cloudflare from a byte-verified KAS copy and resolves worldwide through `1.1.1.1` and `8.8.8.8`.
+- The current key was issued 2026-04-19 with 180-day validity. Around 2026-10-16, and every 180 days thereafter, the rotated selector/key must be copied manually from KAS to Cloudflare or DKIM verification will begin failing.
+- The Supabase-to-KAS submission path still needs a live header test proving `DKIM-Signature` and `dkim=pass`. DMARC stays at `p=none` until that proof, then hardening follows. If the path does not sign, the fallback is Cloudflare Email Service, the sending product in public beta with auto-managed keys, not inbound-only Email Routing.
 
 ### Standing bridge rules
 

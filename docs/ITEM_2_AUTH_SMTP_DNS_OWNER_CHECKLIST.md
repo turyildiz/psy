@@ -102,7 +102,7 @@ After saving:
 
 Supabase Custom SMTP covers Supabase Auth mail such as signup confirmations and password recovery. The future V1 “new message” notification is application mail, not an Auth template; its server-side sender must separately use All-Inkl SMTP from server-only, environment-scoped Vercel secrets. Whether it reuses the Auth mailbox credential or uses a separately rotatable mailbox must be an explicit blast-radius decision. Those credentials must never be exposed to browser code.
 
-## E. Current read-only DNS snapshot — 2026-07-27
+## E. Current read-only DNS snapshot — updated 2026-08-16
 
 Authoritative DNS is currently Cloudflare:
 
@@ -119,7 +119,7 @@ Observed mail records:
 _dmarc  TXT "v=DMARC1; p=none;"
 ```
 
-No DKIM TXT record was found at the common selectors checked (`default`, `selector1`, `selector2`, `dkim`, `mail`, `smtp`, `allinkl`, `k1`, or `s1`). This is not proof that no unknown selector exists; a delivered message’s `DKIM-Signature` header or All-Inkl KAS/support must identify the authoritative selector.
+All-Inkl support confirmed on 2026-08-16 that its servers sign outgoing mail and that the domain key is published in the KAS DNS zone view. The current selector is `kas202604191039`, issued 2026-04-19 with 180-day validity. The matching `kas202604191039._domainkey` TXT record was published in Cloudflare on 2026-08-16 from a byte-verified copy and confirmed resolving through both `1.1.1.1` and `8.8.8.8`.
 
 `mail.psy.market` currently resolves to Cloudflare anycast web addresses. Do **not** enter `mail.psy.market` as the SMTP host or proxy SMTP through Cloudflare; use the KAS-provided `*.kasserver.com` host.
 
@@ -141,14 +141,18 @@ v=spf1 a mx include:spf.kasserver.com ~all
 
 ### DKIM
 
-DKIM cannot be completed by inventing a DNS key. The sending All-Inkl server must sign messages and provide the matching selector/public key.
+**DKIM state recorded 2026-08-16:** All-Inkl support confirmed that its servers sign outgoing mail and that the domain key is available in KAS. Selector `kas202604191039` was issued on 2026-04-19 with 180-day validity. Its `kas202604191039._domainkey` TXT record is published at Cloudflare from a byte-verified KAS copy and resolves through `1.1.1.1` and `8.8.8.8`.
 
-- [ ] Ask All-Inkl/KAS whether outbound authenticated SMTP for this mailbox is DKIM-signed for `psy.market`.
-- [ ] Obtain the exact selector and TXT value from All-Inkl.
-- [ ] Publish exactly the supplied record at `<selector>._domainkey.psy.market` as DNS-only TXT.
-- [ ] Verify a real delivered message contains `DKIM-Signature: ... d=psy.market; s=<selector>` and returns `dkim=pass`.
+The key rotates approximately 2026-10-16 and every 180 days after that. This is a manual maintenance duty: each replacement selector/key must be copied from KAS to Cloudflare and byte-verified, or DKIM verification will begin failing.
 
-If All-Inkl cannot DKIM-sign authenticated SMTP as `psy.market`, record that as a launch deliverability blocker or explicitly accept SPF-only alignment. Adding a public DKIM TXT record without matching server-side signing does nothing.
+**OPEN:** The Supabase-to-KAS authenticated SMTP submission path is not yet proven to receive an All-Inkl DKIM signature. Keep this item open until a live delivered-message header shows a `DKIM-Signature` and `dkim=pass` for the path actually used by signup and recovery mail.
+
+- [x] Confirm All-Inkl outgoing signing and obtain the current selector/key from KAS.
+- [x] Publish the exact supplied `kas202604191039._domainkey` TXT record in Cloudflare and verify it through `1.1.1.1` and `8.8.8.8`.
+- [ ] Run a live Supabase-to-KAS header test and require `DKIM-Signature` with `dkim=pass`.
+- [ ] Around 2026-10-16, and every 180 days thereafter, copy the rotated selector/key from KAS to Cloudflare and byte-verify it.
+
+DMARC remains at `p=none` until the signed Supabase-to-KAS flow is proven; hardening follows only after that proof. If the live submission path does not sign, the fallback is **Cloudflare Email Service**, its sending product currently in public beta with auto-managed keys. This is distinct from Cloudflare's inbound-only Email Routing product.
 
 ### DMARC
 
@@ -208,7 +212,7 @@ Changing the apex A/CNAME for Vercel does not replace MX records. Changing autho
 - [ ] Signup confirmation arrives at an external inbox.
 - [ ] Recovery email arrives at an external inbox.
 - [ ] SPF passes and aligns.
-- [ ] DKIM status is identified; if signing is available, record the selector and require `dkim=pass`, otherwise record the explicitly accepted SPF-only decision.
+- [ ] The Supabase-to-KAS live header test shows `DKIM-Signature` and `dkim=pass` for selector `kas202604191039` (or its current 180-day replacement); otherwise use the approved fallback decision.
 - [ ] DMARC passes in delivered headers.
 - [ ] Same-browser and cross-browser recovery work.
 - [ ] Expired and reused recovery links fail safely.

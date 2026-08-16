@@ -51,7 +51,7 @@ These rules are not optional:
 - **Database execution belongs only to Turgay.** Turgay runs reviewed SQL in the Supabase SQL Editor, one artifact at a time, using the package's preflight/apply/verify/rollback ritual. Run rollback only when the reviewed procedure and Turgay's decision call for it. Never execute write SQL yourself.
 - **Stop on an unsafe result.** Do not continue past `STOP`, unexpected `UNPROVEN`, drift, an unexplained exception or a result that does not match the reviewed expectation. Investigate first and send any correction back to Psy.
 - **Your database access is read-only.** Use only the `audit_readonly` role and read-only transactions. Never use, request or expose service-role credentials.
-- **Application slices require staging acceptance.** Turgay must complete the agreed staging click-round and explicitly approve the result before any push.
+- **Application slices require staging acceptance.** Staging click-rounds are driven by the wingman through the browser QA tester. Turgay's gates are explicit approval for the staging rebuild and explicit approval for the push, as recorded in `DECISIONS_HANDOVER.md` §13; he may also click through staging himself whenever he wants.
 - **Never amend a commit already presented for review.** A correction must be a new commit so the reviewed history remains auditable.
 - **Never push without Turgay's explicit approval.** Approval must identify the commit or exact approved history. Do not rebase, squash or otherwise change approved commits before pushing.
 - **`psy.market` is not a valid target until launch.** Do not deploy to it, link it, test against it or treat it as live. Use only the currently approved staging target when a task requires browser verification.
