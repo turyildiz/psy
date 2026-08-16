@@ -9,6 +9,28 @@ import {
   tokenizePostBody,
   validatePostBody,
 } from "../lib/posts/validation.ts";
+import {
+  POST_HIGHLIGHT_LIMIT_MESSAGE,
+  getPostHighlightErrorMessage,
+  getPostHighlightPreview,
+} from "../lib/posts/highlights.ts";
+
+test("highlight helpers preserve the exact cap message and derive a compact preview", () => {
+  assert.equal(
+    getPostHighlightErrorMessage({ code: "P0001", message: POST_HIGHLIGHT_LIMIT_MESSAGE }),
+    POST_HIGHLIGHT_LIMIT_MESSAGE,
+  );
+  assert.equal(
+    getPostHighlightErrorMessage({ code: "P0001", message: "Post write burst limit reached" }),
+    "You’re changing highlights too quickly. Please wait a few minutes and try again.",
+  );
+  assert.equal(
+    getPostHighlightErrorMessage({ code: "P0001", message: "another database error" }),
+    "Could not update this highlight. Please try again.",
+  );
+  assert.equal(getPostHighlightPreview("  A short\n\npost  "), "A short post");
+  assert.equal(getPostHighlightPreview("🌀".repeat(81)), `${"🌀".repeat(80)}…`);
+});
 
 test("post body validation matches the database's 1 to 2,000 character rule", () => {
   assert.equal(POST_BODY_MAX, 2000);
@@ -156,6 +178,29 @@ test("post and listing galleries reuse one keyboard and swipe-capable image ligh
   assert.match(wall, /onClick=\{\(\) => onOpen\(index\)\}/);
   assert.match(wall, /<ImageLightbox[\s\S]*?initialIndex=\{lightbox\.index\}/);
   assert.match(stream, /className="stagger-item"[\s\S]*?<PostCard/);
+});
+
+test("Wall highlights use the trusted toggle, RLS-backed circles, and a portalled post overlay", () => {
+  const wall = readFileSync("components/ProfileWall.tsx", "utf8");
+  const stream = readFileSync("components/StreamPageClient.tsx", "utf8");
+
+  assert.match(wall, /isHighlighted: boolean/);
+  assert.match(wall, /highlightedAt: string \| null/);
+  assert.match(wall, /is_highlighted, highlighted_at/);
+  assert.match(wall, /\.eq\("is_highlighted", true\)/);
+  assert.match(wall, /\.order\("highlighted_at", \{ ascending: false \}\)/);
+  assert.match(wall, /\.limit\(5\)/);
+  assert.match(wall, /\.rpc\("toggle_post_highlight", \{[\s\S]*?target_post_id: post\.id,[\s\S]*?should_highlight: nextHighlighted/);
+  assert.match(wall, /getPostHighlightErrorMessage\(error\)/);
+  assert.match(wall, /className="post-highlight-toggle"/);
+  assert.match(wall, /className="post-highlights"/);
+  assert.match(wall, /className="post-highlight-circle"/);
+  assert.match(wall, /getPostHighlightPreview\(post\.body\)/);
+  assert.match(wall, /post\.images\[0\]/);
+  assert.match(wall, /createPortal\(/);
+  assert.match(wall, /aria-label="Highlighted post"/);
+  assert.match(wall, /e\.key === "Escape"/);
+  assert.doesNotMatch(stream, /\.eq\("is_highlighted"|\.order\("highlighted_at"|toggle_post_highlight/);
 });
 
 test("Wall remains a centered constrained reading column", () => {

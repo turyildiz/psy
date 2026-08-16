@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ChangeEvent } from "react";
+import { createPortal } from "react-dom";
 import Link from "next/link";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ImageLightbox from "@/components/ImageLightbox";
@@ -36,6 +37,7 @@ import {
   type PostReactionRow,
 } from "@/lib/posts/reactions";
 import { useReactionViewerProfileId } from "@/lib/posts/use-reaction-viewer";
+import { getPostHighlightErrorMessage, getPostHighlightPreview } from "@/lib/posts/highlights";
 
 export const POST_PAGE_SIZE = 10;
 const POST_IMAGE_LIMIT = getUploadPolicy("post-image").maxCount;
@@ -48,6 +50,8 @@ export type Post = {
   showInStream: boolean;
   createdAt: string;
   updatedAt: string;
+  isHighlighted: boolean;
+  highlightedAt: string | null;
   reactions: PostReactionRow[];
 };
 
@@ -76,6 +80,8 @@ export function toPost(row: Record<string, unknown>): Post {
     showInStream: row.show_in_stream !== false,
     createdAt: String(row.created_at),
     updatedAt: String(row.updated_at),
+    isHighlighted: row.is_highlighted === true,
+    highlightedAt: typeof row.highlighted_at === "string" ? row.highlighted_at : null,
     reactions: toPostReactionRows(row.post_reactions),
   };
 }
@@ -452,7 +458,7 @@ function PostReactionBar({
   );
 }
 
-export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginRequested, onUpdated, onDeleted }: {
+export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginRequested, onUpdated, onDeleted, onHighlightChanged }: {
   post: Post;
   profile: PostAuthor;
   isOwner: boolean;
@@ -460,12 +466,46 @@ export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginReque
   onLoginRequested: () => void;
   onUpdated: (post: Post) => void;
   onDeleted: (id: string) => void;
+  onHighlightChanged?: (post: Post) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [lightbox, setLightbox] = useState<{ index: number } | null>(null);
+  const [highlightMutating, setHighlightMutating] = useState(false);
+  const [highlightError, setHighlightError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setHighlightMutating(false);
+    setHighlightError(null);
+  }, [post.id, post.isHighlighted]);
+
+  const toggleHighlight = async () => {
+    if (highlightMutating) return;
+    const nextHighlighted = !post.isHighlighted;
+    setHighlightMutating(true);
+    setHighlightError(null);
+    try {
+      const { error } = await createClient().rpc("toggle_post_highlight", {
+        target_post_id: post.id,
+        should_highlight: nextHighlighted,
+      });
+      if (error) {
+        setHighlightError(getPostHighlightErrorMessage(error));
+        setHighlightMutating(false);
+        return;
+      }
+      onHighlightChanged?.({
+        ...post,
+        isHighlighted: nextHighlighted,
+        highlightedAt: nextHighlighted ? new Date().toISOString() : null,
+      });
+    } catch (error) {
+      setHighlightError(getPostHighlightErrorMessage(error));
+      setHighlightMutating(false);
+    }
+  };
 
   const deletePost = async () => {
     setDeleting(true);
@@ -505,6 +545,15 @@ export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginReque
         </Link>
         {isOwner && (
           <div className="post-author-actions">
+            <label className="post-highlight-toggle">
+              <input
+                type="checkbox"
+                checked={post.isHighlighted}
+                onChange={() => void toggleHighlight()}
+                disabled={highlightMutating}
+              />
+              {highlightMutating ? "Updating…" : "Highlight"}
+            </label>
             <button type="button" onClick={() => setEditing(true)}>Edit</button>
             {!confirmDelete ? (
               <button type="button" onClick={() => setConfirmDelete(true)}>Delete</button>
@@ -522,6 +571,7 @@ export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginReque
       <PostImages images={post.images} onOpen={(index) => setLightbox({ index })} />
       <PostReactionBar post={post} viewerProfileId={viewerProfileId} onLoginRequested={onLoginRequested} />
       {!post.showInStream && isOwner && <span className="post-stream-note">Members only</span>}
+      {highlightError && <p className="post-form-error" role="alert">{highlightError}</p>}
       {deleteError && <p className="post-form-error" role="alert">{deleteError}</p>}
       {lightbox && (
         <ImageLightbox
@@ -535,9 +585,100 @@ export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginReque
   );
 }
 
+function HighlightedPostsRow({ posts, onOpen }: { posts: Post[]; onOpen: (post: Post) => void }) {
+  if (posts.length === 0) return null;
+  return (
+    <section className="post-highlights" aria-label="Highlighted posts">
+      {posts.map((post) => {
+        const preview = getPostHighlightPreview(post.body);
+        return (
+          <button
+            key={post.id}
+            type="button"
+            className="post-highlight-circle"
+            data-highlight-preview={preview}
+            aria-label={`Open highlighted post: ${preview}`}
+            onClick={() => onOpen(post)}
+          >
+            <span className="post-highlight-circle-frame">
+              {post.images[0] ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={post.images[0]} alt="" />
+              ) : (
+                <span className="post-highlight-text" aria-hidden="true">{preview}</span>
+              )}
+            </span>
+          </button>
+        );
+      })}
+    </section>
+  );
+}
+
+function HighlightedPostOverlay({
+  post,
+  profile,
+  isOwner,
+  viewerProfileId,
+  onClose,
+  onLoginRequested,
+  onUpdated,
+  onDeleted,
+  onHighlightChanged,
+}: {
+  post: Post;
+  profile: PostAuthor;
+  isOwner: boolean;
+  viewerProfileId: string | null | undefined;
+  onClose: () => void;
+  onLoginRequested: () => void;
+  onUpdated: (post: Post) => void;
+  onDeleted: (id: string) => void;
+  onHighlightChanged: (post: Post) => void;
+}) {
+  const [portalTarget, setPortalTarget] = useState<HTMLElement | null>(null);
+
+  useEffect(() => {
+    setPortalTarget(document.body);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
+  if (!portalTarget) return null;
+  return createPortal(
+    <div className="post-highlight-overlay" role="dialog" aria-modal="true" aria-label="Highlighted post" onClick={onClose}>
+      <div className="post-highlight-overlay-panel" onClick={(event) => event.stopPropagation()}>
+        <button type="button" className="post-highlight-overlay-close" aria-label="Close highlighted post" onClick={onClose}>✕</button>
+        <PostCard
+          post={post}
+          profile={profile}
+          isOwner={isOwner}
+          viewerProfileId={viewerProfileId}
+          onLoginRequested={onLoginRequested}
+          onUpdated={onUpdated}
+          onDeleted={onDeleted}
+          onHighlightChanged={onHighlightChanged}
+        />
+      </div>
+    </div>,
+    portalTarget,
+  );
+}
+
 export default function ProfileWall({ profile, isOwner }: { profile: Profile; isOwner: boolean }) {
   const viewerProfileId = useReactionViewerProfileId();
   const [posts, setPosts] = useState<Post[]>([]);
+  const [highlightedPosts, setHighlightedPosts] = useState<Post[]>([]);
+  const [highlightLoadError, setHighlightLoadError] = useState<string | null>(null);
+  const [openHighlight, setOpenHighlight] = useState<Post | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMore, setHasMore] = useState(false);
@@ -550,6 +691,30 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
     reset: boolean,
     options?: { silent?: boolean }
   ) => Promise<void>>(async () => undefined);
+
+  const loadHighlights = useCallback(async (requestId: number) => {
+    setHighlightLoadError(null);
+    try {
+      const { data, error } = await createClient()
+        .from("posts")
+        .select("id, profile_id, body, images, show_in_stream, created_at, updated_at, is_highlighted, highlighted_at, post_reactions(profile_id, reaction_code)")
+        .eq("profile_id", profile.id)
+        .eq("is_highlighted", true)
+        .order("highlighted_at", { ascending: false })
+        .order("id", { ascending: false })
+        .limit(5);
+      if (requestId !== requestGeneration.current) return;
+      if (error) {
+        setHighlightLoadError("Could not load highlighted posts. Please try again.");
+        return;
+      }
+      setHighlightedPosts((data ?? []).map((row) => toPost(row as Record<string, unknown>)));
+    } catch {
+      if (requestId === requestGeneration.current) {
+        setHighlightLoadError("Could not load highlighted posts. Please try again.");
+      }
+    }
+  }, [profile.id]);
 
   const loadPosts = useCallback(async (
     reset: boolean,
@@ -570,7 +735,7 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
 
     let query = createClient()
       .from("posts")
-      .select("id, profile_id, body, images, show_in_stream, created_at, updated_at, post_reactions(profile_id, reaction_code)")
+      .select("id, profile_id, body, images, show_in_stream, created_at, updated_at, is_highlighted, highlighted_at, post_reactions(profile_id, reaction_code)")
       .eq("profile_id", profile.id)
       .order("created_at", { ascending: false })
       .order("id", { ascending: false })
@@ -582,7 +747,9 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
     }
 
     try {
+      const highlightsRequest = reset ? loadHighlights(requestId) : Promise.resolve();
       const { data, error } = await query;
+      await highlightsRequest;
       if (requestId !== requestGeneration.current) return;
       if (error) {
         setLoadError("Could not load this Wall. Please try again.");
@@ -602,7 +769,7 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         setLoadingMore(false);
       }
     }
-  }, [posts, profile.id]);
+  }, [loadHighlights, posts, profile.id]);
 
   useEffect(() => {
     loadPostsRef.current = (reset, options) => loadPosts(reset, options);
@@ -616,6 +783,8 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
     const refreshCoordinator = createWallAuthRefreshCoordinator({
       clearSensitiveRows: () => {
         setPosts([]);
+        setHighlightedPosts([]);
+        setOpenHighlight(null);
         setHasMore(false);
       },
       refresh: ({ silent }) => loadPostsRef.current(true, { silent }),
@@ -645,8 +814,28 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
     };
   }, [profile.id]);
 
+  const updatePost = (updated: Post) => {
+    setPosts((current) => current.map((item) => item.id === updated.id ? updated : item));
+    setHighlightedPosts((current) => {
+      const withoutUpdated = current.filter((item) => item.id !== updated.id);
+      if (!updated.isHighlighted) return withoutUpdated;
+      return [updated, ...withoutUpdated]
+        .sort((left, right) => (right.highlightedAt ?? "").localeCompare(left.highlightedAt ?? ""))
+        .slice(0, 5);
+    });
+    setOpenHighlight((current) => current?.id === updated.id ? updated : current);
+  };
+
+  const removePost = (id: string) => {
+    setPosts((current) => current.filter((item) => item.id !== id));
+    setHighlightedPosts((current) => current.filter((item) => item.id !== id));
+    setOpenHighlight((current) => current?.id === id ? null : current);
+  };
+
   return (
     <div className="profile-wall">
+      <HighlightedPostsRow posts={highlightedPosts} onOpen={setOpenHighlight} />
+      {highlightLoadError && <p className="post-form-error post-highlight-load-error" role="alert">{highlightLoadError}</p>}
       {isOwner && <PostEditor profileId={profile.id} onSaved={() => void loadPosts(true)} />}
 
       {loading ? (
@@ -668,8 +857,9 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
               isOwner={isOwner}
               viewerProfileId={viewerProfileId}
               onLoginRequested={() => setReactionLoginOpen(true)}
-              onUpdated={(updated) => setPosts((current) => current.map((item) => item.id === updated.id ? updated : item))}
-              onDeleted={(id) => setPosts((current) => current.filter((item) => item.id !== id))}
+              onUpdated={updatePost}
+              onDeleted={removePost}
+              onHighlightChanged={updatePost}
             />
           ))}
           {loadError && <p className="post-form-error" role="alert">{loadError}</p>}
@@ -678,9 +868,34 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
       )}
 
       {reactionLoginOpen && <AuthModal initial="login" onClose={() => setReactionLoginOpen(false)} />}
+      {openHighlight && (
+        <HighlightedPostOverlay
+          post={openHighlight}
+          profile={profile}
+          isOwner={isOwner}
+          viewerProfileId={viewerProfileId}
+          onClose={() => setOpenHighlight(null)}
+          onLoginRequested={() => setReactionLoginOpen(true)}
+          onUpdated={updatePost}
+          onDeleted={removePost}
+          onHighlightChanged={updatePost}
+        />
+      )}
 
       <style>{`
         .profile-wall { max-width: 680px; margin: 0 auto; padding: 32px 0 80px; }
+        .post-highlights { width: 100%; box-sizing: border-box; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; margin: 0 0 24px; padding: 14px 16px; background: var(--white); border: 1px solid var(--sand); border-radius: 12px; }
+        .post-highlight-circle { position: relative; min-width: 0; padding: 0; border: 0; background: transparent; cursor: pointer; }
+        .post-highlight-circle-frame { display: flex; width: clamp(52px, 9vw, 82px); max-width: 100%; aspect-ratio: 1; margin: 0 auto; align-items: center; justify-content: center; overflow: hidden; border: 3px solid var(--white); border-radius: 50%; outline: 2px solid var(--rust); background: linear-gradient(145deg, var(--rust), #7c4250); box-shadow: 0 3px 12px oklch(0% 0 0 / .12); }
+        .post-highlight-circle img { width: 100%; height: 100%; object-fit: cover; display: block; }
+        .post-highlight-text { display: -webkit-box; padding: 8px; overflow: hidden; color: white; font: 700 9px/1.2 Manrope, var(--font-manrope); text-align: center; overflow-wrap: anywhere; -webkit-box-orient: vertical; -webkit-line-clamp: 4; }
+        .post-highlight-circle:focus-visible { outline: 2px solid var(--rust); outline-offset: 5px; border-radius: 50%; }
+        .post-highlight-load-error { margin: -12px 0 20px; }
+        .post-highlight-toggle { display: inline-flex; align-items: center; gap: 5px; color: var(--text-mid); font-size: 11px; font-weight: 650; cursor: pointer; }
+        .post-highlight-toggle input { accent-color: var(--rust); }
+        .post-highlight-overlay { position: fixed; inset: 0; z-index: 1800; overflow-y: auto; padding: 64px 20px; box-sizing: border-box; background: oklch(0% 0 0 / .72); }
+        .post-highlight-overlay-panel { position: relative; width: min(680px, 100%); margin: 0 auto; }
+        .post-highlight-overlay-close { position: absolute; z-index: 1; top: -50px; right: 0; width: 44px; height: 44px; border: 1px solid var(--sand); border-radius: 50%; background: var(--white); color: var(--text); font-size: 16px; cursor: pointer; box-shadow: 0 2px 10px oklch(0% 0 0 / .14); }
         .post-editor, .post-card { background: var(--white); border: 1px solid var(--sand); border-radius: 12px; padding: 20px; }
         .post-editor { margin-bottom: 24px; }
         .post-editor-inline { margin-bottom: 0; }
@@ -730,8 +945,17 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         .post-empty h2 { margin: 0 0 7px; color: var(--text); font: 700 20px 'Bricolage Grotesque', var(--font-bricolage); }
         .post-empty p { margin: 0 0 16px; font-size: 13px; }
         .post-skeleton { height: 210px; border-radius: 12px; }
+        @media (hover: hover) and (pointer: fine) {
+          .post-highlight-circle::after { content: attr(data-highlight-preview); position: absolute; z-index: 3; left: 50%; bottom: calc(100% + 10px); width: min(240px, 36vw); padding: 8px 10px; border-radius: 7px; background: var(--text); color: var(--white); font-size: 11px; line-height: 1.4; text-align: left; opacity: 0; pointer-events: none; transform: translate(-50%, 4px); transition: opacity .14s ease, transform .14s ease; }
+          .post-highlight-circle:hover::after, .post-highlight-circle:focus-visible::after { opacity: 1; transform: translate(-50%, 0); }
+        }
         @media (max-width: 640px) {
           .profile-wall { padding-top: 20px; }
+          .post-highlights { gap: 8px; padding: 12px 10px; border-radius: 10px; }
+          .post-highlight-circle-frame { width: clamp(48px, 15vw, 68px); }
+          .post-highlight-text { padding: 6px; font-size: 8px; }
+          .post-highlight-overlay { padding: 48px 10px 24px; }
+          .post-highlight-overlay-close { top: -42px; right: 0; }
           .post-editor, .post-card { padding: 15px; border-radius: 10px; }
           .post-editor-previews { grid-template-columns: repeat(3, 1fr); }
           .post-images button { height: 190px; }
