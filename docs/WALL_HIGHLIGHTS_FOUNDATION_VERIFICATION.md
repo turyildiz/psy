@@ -23,7 +23,7 @@ The Wall highlights package installs the database foundation for profile-owned h
 - the partial `posts_profile_highlighted_id_idx` index for newest-first highlight circles; and
 - a symmetric rollback.
 
-This package is the database foundation only. The application toggle, circles row, and post overlay remain separate app work.
+This package was the database foundation only. The application toggle, circles row, and post overlay were delivered in the subsequent app slice recorded below.
 
 ## Authoring and independent review history
 
@@ -68,6 +68,24 @@ The owner sitting took place on 2026-08-16.
 - The disposable lifecycle ran on PostgreSQL 16.
 - The live target is PostgreSQL 17.6, and every after-state pin was independently verified against that live target.
 
+## App slice — feature complete (2026-08-16)
+
+Card `t_2959a6e5` delivered the visible feature:
+
+- an owner-only **Highlight** toggle calling `toggle_post_highlight`;
+- a **Highlights** circles row at the top of the profile Wall, fed by its own `is_highlighted` query ordered newest-first and limited to five, matching the partial index;
+- first-image circle crops for image posts and styled text circles for text-only posts;
+- a row and heading that both hide when the profile has zero highlights;
+- desktop hover previews of approximately 80 characters;
+- click/tap opening the post in a centered overlay with internal scrolling and a panel-pinned close button; and
+- the exact cap message shown verbatim on the sixth attempt, with the burst-limit case mapped to a friendly wait message through an exported pure helper covered by behavioral unit tests.
+
+Three owner-feedback rounds refined the presentation. The heading was added, then moved inside the card and sized to match the composer heading; the overlay was centered; close-button clearance was added for the owner's action row; and universal top headroom was accepted by the owner as consistent chrome.
+
+The wingman staging click-round verified create, highlight, hover, overlay, unhighlight, and the sixth-attempt message. Turgay also tested and accepted the feature personally. The app-slice commits were `c283e38`, `9da25c7`, `aeec2a5`, `84f0574`, and `8e2c82f`; they were pushed within merge `ef2f61f` on 2026-08-16.
+
+The full test suite is now wired to one runner: `npm test`, using `node --test` over `tests/`. This closes the independent audit's MAJ-1 wiring finding. The suite stood at 159 passing tests at highlight completion and 172 after the search slice.
+
 ## Conclusion
 
-The Wall highlights database foundation is live and verified as of 2026-08-16. The remaining work is the application slice: toggle control, circles row, and overlay.
+The Wall highlights foundation and app slice are live, verified, and feature-complete as of 2026-08-16.

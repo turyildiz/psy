@@ -145,7 +145,7 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 
 ### Wall post highlights — V1 scope, sequenced
 
-- **Status (2026-08-16):** The database foundation is live and verified. The app slice — toggle, circles row, and overlay — is the remaining work. Detailed record: [`WALL_HIGHLIGHTS_FOUNDATION_VERIFICATION.md`](WALL_HIGHLIGHTS_FOUNDATION_VERIFICATION.md).
+- **Status (2026-08-16): COMPLETE.** The database foundation and app slice — toggle, circles row, and overlay — are live and verified. Detailed record: [`WALL_HIGHLIGHTS_FOUNDATION_VERIFICATION.md`](WALL_HIGHLIGHTS_FOUNDATION_VERIFICATION.md).
 - **Per-profile cap and control:** Each profile can highlight up to five of its own Wall posts through a simple **Highlight** checkbox/toggle on the post.
 - **Wall presentation:** At the top of the profile's Wall, show one row of up to five circles in a story-highlight style, visually like the profile picture. The row's total width equals the post-column width below it. An image post uses its first image cropped into the circle; a text-only post uses a styled text fallback. Most-recently-highlighted appears first.
 - **Desktop hover:** Show a small popup with approximately the first 80 characters of the post, derived automatically from its body. There is no separate highlight-caption field.
@@ -180,14 +180,28 @@ Fixed product decisions (recorded in `docs/MULTI_PROFILE_PROPOSAL.md` as Resolve
 - Impressum, Datenschutzerklärung, AGB, and safety pages are deliberately scheduled shortly before launch (Turgay, 2026-08-16).
 - The staging access gate remains in place. Its removal is reserved for Turgay personally.
 
-### PRIORITY — Email spam and DKIM
+### PRIORITY — Email spam and DKIM — SOLVED STRUCTURALLY
 
 - All-Inkl confirmed on 2026-08-16 that its outgoing servers sign mail. Selector `kas202604191039` is published in Cloudflare from a byte-verified KAS copy and resolves worldwide through `1.1.1.1` and `8.8.8.8`.
-- The current key was issued 2026-04-19 with 180-day validity. Around 2026-10-16, and every 180 days thereafter, the rotated selector/key must be copied manually from KAS to Cloudflare or DKIM verification will begin failing.
-- The Supabase-to-KAS submission path still needs a live header test proving `DKIM-Signature` and `dkim=pass`. DMARC stays at `p=none` until that proof, then hardening follows. If the path does not sign, the fallback is Cloudflare Email Service, the sending product in public beta with auto-managed keys, not inbound-only Email Routing.
+- Live password-reset proof on 2026-08-17 confirmed the Supabase-to-All-Inkl SMTP path signs: the message carried `DKIM-Signature` with `d=psy.market` and `s=kas202604191039`; the receiver reported `dkim=pass`, `spf=pass`, and `dmarc=pass`; and the message landed in the inbox rather than spam. See [`ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md`](ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md).
+- Remaining duties are DMARC hardening before launch, Gmail verification through the planned test-mailbox journey, and manual key rotation around 2026-10-16 and every 180 days thereafter.
 
 ### Standing bridge rules
 
 - Never exit with background subtasks running: await them, or block the card first, and always close the card with `kanban_complete` or `kanban_block` before exiting.
 - A delegated reviewer returns its verdict to the author and must never complete, close or block the reviewed card. Only the author closes its own card.
 - Board serialization is not repository serialization: only one repository-touching card may be eligible at a time.
+
+## 14. Additions — decided 17 Aug 2026
+
+### Search and browse
+
+- **Live:** `/browse` implements full-text search over `listings.search_vector`, data-driven category chips, price ranges, sorts, URL-backed shareable state, keyset pagination, and honest empty, loading, and error states. Results are limited to active listings. Commits `62a145e` and `1902e76` were pushed within merge `50d6571` on 2026-08-17.
+- **Entry-path decisions:** There is no main-menu entry for `/browse`; the header search is its entry path. The category-chip row was removed from the header search dropdown because it duplicated the main menu.
+- **Category dependency:** Category chips on `/browse` are derived from live data pending the still-open category-taxonomy decision in punch-list item 5.
+- **OPEN — visual design:** Turgay is not yet satisfied with `/browse` visually. The apparel-page-consistency re-skin shipped, and a dedicated design round is planned for a later day.
+
+### PRIORITY email entry — SOLVED STRUCTURALLY
+
+- Live-path DKIM proof now records `dkim=pass` and inbox placement; see [`ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md`](ITEM_2_AUTH_SMTP_DNS_OWNER_CHECKLIST.md).
+- Remaining duties are DMARC hardening before launch, Gmail verification through the planned test-mailbox journey, and manual key rotation around 2026-10-16.

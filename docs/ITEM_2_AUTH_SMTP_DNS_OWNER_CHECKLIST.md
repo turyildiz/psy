@@ -145,14 +145,14 @@ v=spf1 a mx include:spf.kasserver.com ~all
 
 The key rotates approximately 2026-10-16 and every 180 days after that. This is a manual maintenance duty: each replacement selector/key must be copied from KAS to Cloudflare and byte-verified, or DKIM verification will begin failing.
 
-**OPEN:** The Supabase-to-KAS authenticated SMTP submission path is not yet proven to receive an All-Inkl DKIM signature. Keep this item open until a live delivered-message header shows a `DKIM-Signature` and `dkim=pass` for the path actually used by signup and recovery mail.
+**Live-path proof recorded 2026-08-17:** A live password-reset message carried `DKIM-Signature` with `d=psy.market` and `s=kas202604191039`. The receiving server reported `dkim=pass`, `spf=pass`, and `dmarc=pass`, and the message landed in the inbox rather than spam. The Supabase-to-All-Inkl authenticated SMTP path signs.
 
 - [x] Confirm All-Inkl outgoing signing and obtain the current selector/key from KAS.
 - [x] Publish the exact supplied `kas202604191039._domainkey` TXT record in Cloudflare and verify it through `1.1.1.1` and `8.8.8.8`.
-- [ ] Run a live Supabase-to-KAS header test and require `DKIM-Signature` with `dkim=pass`.
+- [x] Run a live Supabase-to-All-Inkl header test and require `DKIM-Signature` with `dkim=pass`.
 - [ ] Around 2026-10-16, and every 180 days thereafter, copy the rotated selector/key from KAS to Cloudflare and byte-verify it.
 
-DMARC remains at `p=none` until the signed Supabase-to-KAS flow is proven; hardening follows only after that proof. If the live submission path does not sign, the fallback is **Cloudflare Email Service**, its sending product currently in public beta with auto-managed keys. This is distinct from Cloudflare's inbound-only Email Routing product.
+Remaining email duties are unchanged: harden DMARC before launch after observing the signed flow, verify Gmail inbox placement through the planned test-mailbox journey, and rotate the key manually around 2026-10-16 and every 180 days thereafter.
 
 ### DMARC
 
@@ -212,7 +212,7 @@ Changing the apex A/CNAME for Vercel does not replace MX records. Changing autho
 - [ ] Signup confirmation arrives at an external inbox.
 - [ ] Recovery email arrives at an external inbox.
 - [ ] SPF passes and aligns.
-- [ ] The Supabase-to-KAS live header test shows `DKIM-Signature` and `dkim=pass` for selector `kas202604191039` (or its current 180-day replacement); otherwise use the approved fallback decision.
+- [x] The Supabase-to-All-Inkl live header test shows `DKIM-Signature` and `dkim=pass` for selector `kas202604191039` (or its current 180-day replacement).
 - [ ] DMARC passes in delivered headers.
 - [ ] Same-browser and cross-browser recovery work.
 - [ ] Expired and reused recovery links fail safely.
