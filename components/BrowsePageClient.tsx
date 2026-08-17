@@ -8,6 +8,7 @@ import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import {
+  BROWSE_CATEGORIES,
   BROWSE_PAGE_SIZE,
   buildBrowseHref,
   createBrowseQueryPlan,
@@ -95,29 +96,17 @@ async function fetchListings(state: BrowseState, cursor?: BrowseCursor) {
 
 async function fetchActiveCategories(): Promise<string[]> {
   const supabase = createClient();
-  const categories = new Set<string>();
-  let afterId: string | undefined;
-
-  while (true) {
-    let query = supabase
+  const counts = await Promise.all(BROWSE_CATEGORIES.map(async (category) => {
+    const { count, error } = await supabase
       .from("listings")
-      .select("id, category")
+      .select("id", { count: "exact", head: true })
       .eq("status", "active")
-      .order("id", { ascending: true })
-      .limit(1000);
-    if (afterId) query = query.gt("id", afterId);
-
-    const { data, error } = await query;
+      .eq("category", category);
     if (error) throw error;
-    const rows = data ?? [];
-    for (const row of rows) {
-      if (row.category) categories.add(row.category as string);
-    }
-    if (rows.length < 1000) break;
-    afterId = rows[rows.length - 1].id as string;
-  }
+    return count && count > 0 ? category : null;
+  }));
 
-  return Array.from(categories).sort();
+  return counts.filter((category): category is (typeof BROWSE_CATEGORIES)[number] => category !== null);
 }
 
 export default function BrowsePageClient() {

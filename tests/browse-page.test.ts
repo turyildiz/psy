@@ -2,9 +2,12 @@ import assert from "node:assert/strict";
 import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
+const read = (path: string) => readFileSync(new URL(`../${path}`, import.meta.url), "utf8");
+const exists = (path: string) => existsSync(new URL(`../${path}`, import.meta.url));
+
 test("browse page wires URL state into full-text search, filters, sorting, and keyset loading", () => {
-  assert.equal(existsSync("components/BrowsePageClient.tsx"), true);
-  const source = readFileSync("components/BrowsePageClient.tsx", "utf8");
+  assert.equal(exists("components/BrowsePageClient.tsx"), true);
+  const source = read("components/BrowsePageClient.tsx");
 
   assert.match(source, /useSearchParams\(\)/);
   assert.match(source, /router\.replace\(/);
@@ -18,15 +21,16 @@ test("browse page wires URL state into full-text search, filters, sorting, and k
   assert.match(source, /"Load more"/);
 });
 
-test("browse categories come from active listing data rather than a hard-coded taxonomy", () => {
-  const source = readFileSync("components/BrowsePageClient.tsx", "utf8");
-  assert.match(source, /\.select\("id, category"\)/);
+test("browse category chips use bounded enum-backed active-listing checks", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  assert.match(source, /BROWSE_CATEGORIES\.map/);
+  assert.match(source, /\.select\("id", \{ count: "exact", head: true \}\)/);
   assert.match(source, /setCategories/);
-  assert.doesNotMatch(source, /CATEGORY_OPTIONS/);
+  assert.doesNotMatch(source, /while \(true\)|\.limit\(1000\)/);
 });
 
 test("browse exposes loading, query-specific empty, error retry, count, and clear states", () => {
-  const source = readFileSync("components/BrowsePageClient.tsx", "utf8");
+  const source = read("components/BrowsePageClient.tsx");
   assert.match(source, /Loading listings…/);
   assert.match(source, /Nothing found for/);
   assert.match(source, /role="alert"/);
@@ -36,13 +40,13 @@ test("browse exposes loading, query-specific empty, error retry, count, and clea
 });
 
 test("browse route provides a suspense boundary for URL-backed client state", () => {
-  const source = readFileSync("app/browse/page.tsx", "utf8");
+  const source = read("app/browse/page.tsx");
   assert.match(source, /<Suspense/);
   assert.match(source, /<BrowsePageClient \/>/);
 });
 
 test("header search panel contains search controls without duplicate category shortcuts", () => {
-  const source = readFileSync("components/layout/Header.tsx", "utf8");
+  const source = read("components/layout/Header.tsx");
   assert.doesNotMatch(source, /QUICK_LINKS/);
   assert.doesNotMatch(source, /Browse categories/i);
   assert.match(source, /placeholder="Search apparel, art, gear, tickets…"/);

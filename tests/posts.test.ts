@@ -11,6 +11,7 @@ import {
 } from "../lib/posts/validation.ts";
 import {
   POST_HIGHLIGHT_LIMIT_MESSAGE,
+  compareHighlightedAtDescending,
   getPostHighlightErrorMessage,
   getPostHighlightPreview,
 } from "../lib/posts/highlights.ts";
@@ -30,6 +31,11 @@ test("highlight helpers preserve the exact cap message and derive a compact prev
   );
   assert.equal(getPostHighlightPreview("  A short\n\npost  "), "A short post");
   assert.equal(getPostHighlightPreview("🌀".repeat(81)), `${"🌀".repeat(80)}…`);
+});
+
+test("highlight timestamps are ordered by instant across database timestamp formats", () => {
+  assert.ok(compareHighlightedAtDescending("2026-08-17T10:00:00.9Z", "2026-08-17T10:00:00.10+00:00") < 0);
+  assert.ok(compareHighlightedAtDescending(null, "2026-08-17T10:00:00Z") > 0);
 });
 
 test("post body validation matches the database's 1 to 2,000 character rule", () => {
@@ -192,6 +198,11 @@ test("Wall highlights use the trusted toggle, RLS-backed circles, and a portalle
   assert.match(wall, /\.limit\(5\)/);
   assert.match(wall, /\.rpc\("toggle_post_highlight", \{[\s\S]*?target_post_id: post\.id,[\s\S]*?should_highlight: nextHighlighted/);
   assert.match(wall, /getPostHighlightErrorMessage\(error\)/);
+  const toggle = wall.slice(wall.indexOf("const toggleHighlight"), wall.indexOf("const deletePost"));
+  assert.doesNotMatch(toggle, /new Date\(\)\.toISOString\(\)/);
+  assert.match(wall, /onHighlightChanged=\{refreshHighlightsAfterToggle\}/);
+  assert.match(wall, /await loadHighlights\(requestGeneration\.current\)/);
+  assert.match(wall, /compareHighlightedAtDescending\(left\.highlightedAt, right\.highlightedAt\)/);
   assert.match(wall, /className="post-highlight-toggle"/);
   assert.match(wall, /className="post-highlights"/);
   assert.match(wall, /if \(posts\.length === 0\) return null;[\s\S]*?className="post-highlights-row"[\s\S]*?<h2>Highlights<\/h2>/);

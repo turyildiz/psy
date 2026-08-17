@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  BROWSE_CATEGORIES,
   buildBrowseHref,
   createBrowseQueryPlan,
   formatCategoryLabel,
@@ -9,15 +10,15 @@ import {
   parseBrowseParams,
 } from "../lib/browse-state.ts";
 
-test("browse URL state trims search and accepts data-provided category, price, and sort values", () => {
+test("browse URL state trims search and accepts enum-backed category, price, and sort values", () => {
   assert.deepEqual(parseBrowseParams(new URLSearchParams({
     q: "  psychedelic jacket  ",
-    category: "vinyl_records",
+    category: "ticket",
     price: "50-100",
     sort: "price-asc",
   })), {
     query: "psychedelic jacket",
-    category: "vinyl_records",
+    category: "ticket",
     price: "50-100",
     sort: "price-asc",
   });
@@ -37,9 +38,17 @@ test("browse URL state treats empty search and malformed filters as safe default
   });
 });
 
+test("browse categories exactly mirror the listing_category enum and reject unknown enum inputs", () => {
+  assert.deepEqual(BROWSE_CATEGORIES, ["clothing", "accessories", "gear", "art", "other", "ticket"]);
+  assert.equal(
+    parseBrowseParams(new URLSearchParams({ category: "vinyl_records" })).category,
+    "all",
+  );
+});
+
 test("browse URL updates preserve all other filters", () => {
   const current = parseBrowseParams(new URLSearchParams("q=art&category=gear&price=200-plus&sort=price-desc"));
-  assert.equal(buildBrowseHref(current, { category: "wall_art" }), "/browse?q=art&category=wall_art&price=200-plus&sort=price-desc");
+  assert.equal(buildBrowseHref(current, { category: "wall_art" }), "/browse?q=art&price=200-plus&sort=price-desc");
   assert.equal(buildBrowseHref(current, { query: "  " }), "/browse?category=gear&price=200-plus&sort=price-desc");
 });
 
