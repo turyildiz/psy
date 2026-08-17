@@ -40,3 +40,11 @@ test("browse route provides a suspense boundary for URL-backed client state", ()
   assert.match(source, /<Suspense/);
   assert.match(source, /<BrowsePageClient \/>/);
 });
+
+test("header search panel contains search controls without duplicate category shortcuts", () => {
+  const source = readFileSync("components/layout/Header.tsx", "utf8");
+  assert.doesNotMatch(source, /QUICK_LINKS/);
+  assert.doesNotMatch(source, /Browse categories/i);
+  assert.match(source, /placeholder="Search apparel, art, gear, tickets…"/);
+  assert.match(source, />\s*Search\s*<\/button>/);
+});
