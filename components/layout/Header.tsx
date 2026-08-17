@@ -22,15 +22,6 @@ const CATEGORIES = [
   { label: "New Arrivals", href: "/new-arrivals" },
 ];
 
-const QUICK_LINKS = [
-  { label: "Apparel", href: "/apparel", icon: "👕" },
-  { label: "Music Gear", href: "/music", icon: "🎹" },
-  { label: "Jewellery", href: "/jewellery", icon: "💎" },
-  { label: "Tickets", href: null, icon: "🎪" },
-  { label: "Vintage", href: null, icon: "✨" },
-  { label: "New Arrivals", href: null, icon: "🆕" },
-];
-
 export default function Header() {
   const router = useRouter();
   const pathname = usePathname();
@@ -292,7 +283,7 @@ export default function Header() {
           <div style={{ background: "oklch(12% 0.015 55 / 0.98)", backdropFilter: "blur(20px)", WebkitBackdropFilter: "blur(20px)", borderBottom: "1px solid oklch(100% 0 0 / 0.1)", boxShadow: "0 24px 48px oklch(0% 0 0 / 0.5)" }}>
             <div className="site-shell" style={{ paddingTop: "28px", paddingBottom: "28px" }}>
               {/* Search input */}
-              <div style={{ display: "flex", gap: "12px", marginBottom: "24px" }}>
+              <div style={{ display: "flex", gap: "12px" }}>
                 <div style={{ flex: 1, display: "flex", alignItems: "center", gap: "12px", background: "oklch(100% 0 0 / 0.07)", border: "1px solid oklch(100% 0 0 / 0.15)", borderRadius: "10px", padding: "14px 18px" }}>
                   <svg width="18" height="18" viewBox="0 0 18 18" fill="none" style={{ flexShrink: 0 }}>
                     <circle cx="8" cy="8" r="5.5" stroke="oklch(60% 0.01 70)" strokeWidth="1.6" />
@@ -320,23 +311,6 @@ export default function Header() {
                 </button>
               </div>
 
-              {/* Quick links */}
-              <div>
-                <p style={{ fontSize: "10px", fontWeight: 700, letterSpacing: "0.1em", textTransform: "uppercase", color: "oklch(50% 0.01 70)", marginBottom: "12px" }}>
-                  Browse categories
-                </p>
-                <div style={{ display: "flex", flexWrap: "wrap", gap: "8px" }}>
-                  {QUICK_LINKS.map(({ label, href, icon }) => (
-                    href
-                      ? <Link key={label} href={href} style={{ display: "flex", alignItems: "center", gap: "7px", background: "oklch(100% 0 0 / 0.06)", border: "1px solid oklch(100% 0 0 / 0.12)", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", color: "oklch(80% 0.01 70)", textDecoration: "none", fontWeight: 500, transition: "all 0.15s", fontFamily: "Manrope, var(--font-manrope)" }}>
-                          <span>{icon}</span>{label}
-                        </Link>
-                      : <span key={label} style={{ display: "flex", alignItems: "center", gap: "7px", background: "oklch(100% 0 0 / 0.06)", border: "1px solid oklch(100% 0 0 / 0.12)", borderRadius: "8px", padding: "8px 14px", fontSize: "13px", color: "oklch(80% 0.01 70)", fontWeight: 500, fontFamily: "Manrope, var(--font-manrope)", cursor: "default" }}>
-                          <span>{icon}</span>{label}
-                        </span>
-                  ))}
-                </div>
-              </div>
             </div>
           </div>
           {/* Backdrop */}
