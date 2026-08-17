@@ -40,6 +40,7 @@
 
 7. **Finish database-backed browse and discovery — M**  
    Implement title search, category and price filters, stable pagination, URL-backed state, and clear empty/error states across normal listings including tickets. Remove or defer controls not supported by the frozen lean scope.
+   - **Status — 2026-08-17:** Title search, category and price filters, sort, stable pagination, URL-backed state, and empty/error states are implemented and live. Remaining under this item: owner-requested `/browse` visual polish and the category-taxonomy dependency from item 5.
 
 8. **Repair V1 messaging and soft-delete semantics — M**  
    Fix active-profile contact-to-thread navigation, inbox/unread state, text-message validation, and Realtime behavior. Replace shared-row deletion with per-profile hidden state; block same-account profile contact with no row/email side effect; preserve surviving history under neutral **Deleted profile** presentation. Defer message images, automatic link rendering, and full read receipts to V1.1.
