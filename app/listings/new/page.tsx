@@ -9,6 +9,8 @@ import { conditionLabels, categoryLabels } from "@/lib/constants";
 import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
+import { moveItemToFront } from "@/lib/listings/images";
+import { parsePriceInput } from "@/lib/listings/price";
 import { getMyProfiles, getOnlyProfileForCurrentAccount } from "@/lib/db";
 
 const CONDITIONS = [
@@ -117,6 +119,10 @@ function ImageUploader({ images, imageFiles, onChange, onUnsupportedType }: { im
     });
   }, [images, imageFiles, onChange, onUnsupportedType]);
 
+  const makeCover = (index: number) => {
+    onChange(moveItemToFront(images, index), moveItemToFront(imageFiles, index));
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       {/* Drop zone */}
@@ -146,7 +152,9 @@ function ImageUploader({ images, imageFiles, onChange, onUnsupportedType }: { im
             <div key={i} style={{ position: "relative", aspectRatio: "4/5", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--sand)" }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              {i === 0 && <span style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "2px 7px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.06em" }}>COVER</span>}
+              {i === 0
+                ? <span style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "2px 7px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.06em" }}>COVER</span>
+                : <button type="button" onClick={() => makeCover(i)} style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "3px 7px", borderRadius: "3px", border: "none", fontWeight: 700, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>Make cover</button>}
               <button type="button" onClick={() => onChange(images.filter((_, j) => j !== i), imageFiles.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
           ))}
@@ -216,7 +224,8 @@ export default function NewListingPage() {
     if (descriptionError) e.description = descriptionError;
     if (!category) e.category = "Select a category";
     if (!condition) e.condition = "Select a condition";
-    if (!price || isNaN(Number(price)) || Number(price) <= 0) e.price = "Enter a valid price";
+    const parsedPrice = parsePriceInput(price);
+    if (parsedPrice === null || parsedPrice <= 0) e.price = "Enter a valid price";
     if (shipsTo.length === 0) e.shipsTo = "Select at least one destination";
     setErrors1(e);
     return Object.keys(e).length === 0;
@@ -239,6 +248,12 @@ export default function NewListingPage() {
     const descriptionError = validateListingDescription(description);
     if (descriptionError) {
       setErrors1((current) => ({ ...current, description: descriptionError }));
+      setStep(1);
+      return;
+    }
+    const parsedPrice = parsePriceInput(price);
+    if (parsedPrice === null || parsedPrice <= 0) {
+      setErrors1((current) => ({ ...current, price: "Enter a valid price" }));
       setStep(1);
       return;
     }
@@ -270,7 +285,7 @@ export default function NewListingPage() {
       profile_id: profile.id,
       title,
       description: description.trim(),
-      price: Math.round(Number(price) * 100),
+      price: Math.round(parsedPrice * 100),
       condition,
       category,
       size: size || "One Size",
@@ -367,7 +382,7 @@ export default function NewListingPage() {
               <F label="Price (EUR)" required error={errors1.price}>
                 <div style={{ position: "relative" }}>
                   <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "16px", color: "var(--text-mid)", fontWeight: 600 }}>€</span>
-                  <input type="number" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" min="1" step="0.01" style={{ ...IS, paddingLeft: "32px", borderColor: errors1.price ? "var(--rust-dim)" : undefined }} />
+                  <input type="text" inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="0.00" style={{ ...IS, paddingLeft: "32px", borderColor: errors1.price ? "var(--rust-dim)" : undefined }} />
                 </div>
               </F>
 
@@ -406,21 +421,16 @@ export default function NewListingPage() {
                 <ORow label="Category" value={catLabel} />
                 <ORow label="Condition" value={condLabel} />
                 {size && <ORow label="Size" value={size} />}
-                <ORow label="Price" value={<span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "18px", fontWeight: 700, color: "var(--rust)" }}>€{Number(price).toFixed(0)}</span>} />
+                <ORow label="Price" value={<span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "18px", fontWeight: 700, color: "var(--rust)" }}>€{parsePriceInput(price)?.toFixed(2)}</span>} />
                 {tags.length > 0 && <ORow label="Tags" value={<div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{tags.map((t) => <span key={t} style={{ fontSize: "12px", padding: "3px 10px", borderRadius: "20px", background: "oklch(92% 0.04 55)", color: "var(--rust)", fontWeight: 600 }}>#{t}</span>)}</div>} />}
                 <ORow label="Ships to" value={shipsTo.join(", ")} />
                 <ORow label="Photos" value={`${images.length} photo${images.length > 1 ? "s" : ""}`} />
               </div>
 
               {publishError && <p style={{ fontSize: "13px", color: "var(--rust)", margin: 0 }}>{publishError}</p>}
-              <div style={{ display: "flex", gap: "12px" }}>
-                <button type="button" style={{ flex: 1, padding: "13px", border: "1.5px solid var(--dark)", background: "transparent", borderRadius: "8px", fontSize: "14px", fontWeight: 600, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", color: "var(--dark)", opacity: publishing ? 0.5 : 1 }} disabled={publishing}>
-                  Save Draft
-                </button>
-                <button type="button" onClick={publish} disabled={publishing} style={{ flex: 2, padding: "13px", background: "var(--rust)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", fontFamily: "Manrope, var(--font-manrope)", opacity: publishing ? 0.7 : 1 }}>
-                  {publishing ? "Publishing…" : "Publish Listing"}
-                </button>
-              </div>
+              <button type="button" onClick={publish} disabled={publishing} style={{ width: "100%", padding: "13px", background: "var(--rust)", color: "white", border: "none", borderRadius: "8px", fontSize: "15px", fontWeight: 700, cursor: publishing ? "not-allowed" : "pointer", fontFamily: "Manrope, var(--font-manrope)", opacity: publishing ? 0.7 : 1 }}>
+                {publishing ? "Publishing…" : "Publish Listing"}
+              </button>
             </>}
 
           </form>

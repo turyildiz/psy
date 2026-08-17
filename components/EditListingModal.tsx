@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/client";
 import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
+import { moveItemToFront } from "@/lib/listings/images";
 import type { Listing } from "@/types/marketplace";
 
 const CONDITIONS = [
@@ -80,10 +81,11 @@ function ShipsTo({ selected, onChange }: { selected: string[]; onChange: (s: str
   );
 }
 
-function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onChangeNew, onUnsupportedType }: {
-  existingUrls: string[]; newImages: string[]; newFiles: File[];
+function ImageManager({ existingUrls, newImages, newFiles, newCover, onChangeExisting, onChangeNew, onChangeNewCover, onUnsupportedType }: {
+  existingUrls: string[]; newImages: string[]; newFiles: File[]; newCover: boolean;
   onChangeExisting: (urls: string[]) => void;
   onChangeNew: (imgs: string[], files: File[]) => void;
+  onChangeNewCover: (selected: boolean) => void;
   onUnsupportedType: (found: boolean) => void;
 }) {
   const [dragging, setDragging] = useState(false);
@@ -107,24 +109,42 @@ function ImageManager({ existingUrls, newImages, newFiles, onChangeExisting, onC
     });
   }, [total, newImages, newFiles, onChangeNew, onUnsupportedType]);
 
+  const makeExistingCover = (index: number) => {
+    onChangeExisting(moveItemToFront(existingUrls, index));
+    onChangeNewCover(false);
+  };
+  const makeNewCover = (index: number) => {
+    onChangeNew(moveItemToFront(newImages, index), moveItemToFront(newFiles, index));
+    onChangeNewCover(true);
+  };
+  const removeNew = (index: number) => {
+    const remainingImages = newImages.filter((_, current) => current !== index);
+    onChangeNew(remainingImages, newFiles.filter((_, current) => current !== index));
+    if (newCover && index === 0 && remainingImages.length === 0) onChangeNewCover(false);
+  };
+
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
       {total > 0 && (
         <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
           {existingUrls.map((src, i) => (
-            <div key={`ex-${i}`} style={{ position: "relative", aspectRatio: "4/5", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--sand)" }}>
+            <div key={`ex-${i}`} style={{ position: "relative", aspectRatio: "4/5", borderRadius: "8px", overflow: "hidden", border: "1px solid var(--sand)", order: newCover ? 0 : undefined }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              {i === 0 && <span style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "2px 7px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.06em" }}>COVER</span>}
+              {!newCover && i === 0
+                ? <span style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "2px 7px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.06em" }}>COVER</span>
+                : <button type="button" onClick={() => makeExistingCover(i)} style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "3px 7px", borderRadius: "3px", border: "none", fontWeight: 700, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>Make cover</button>}
               <button type="button" onClick={() => onChangeExisting(existingUrls.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
           ))}
           {newImages.map((src, i) => (
-            <div key={`new-${i}`} style={{ position: "relative", aspectRatio: "4/5", borderRadius: "8px", overflow: "hidden", border: "2px solid var(--rust)" }}>
+            <div key={`new-${i}`} style={{ position: "relative", aspectRatio: "4/5", borderRadius: "8px", overflow: "hidden", border: "2px solid var(--rust)", order: newCover && i === 0 ? -1 : undefined }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={src} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", display: "block" }} />
-              <span style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--rust)", color: "white", fontSize: "9px", padding: "2px 7px", borderRadius: "3px", fontWeight: 700 }}>NEW</span>
-              <button type="button" onClick={() => onChangeNew(newImages.filter((_, j) => j !== i), newFiles.filter((_, j) => j !== i))} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
+              {(newCover || existingUrls.length === 0) && i === 0
+                ? <span style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "2px 7px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.06em" }}>COVER</span>
+                : <button type="button" onClick={() => makeNewCover(i)} style={{ position: "absolute", bottom: "6px", left: "6px", background: "var(--dark)", color: "white", fontSize: "9px", padding: "3px 7px", borderRadius: "3px", border: "none", fontWeight: 700, cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)" }}>Make cover</button>}
+              <button type="button" onClick={() => removeNew(i)} style={{ position: "absolute", top: "5px", right: "5px", width: "22px", height: "22px", borderRadius: "50%", background: "oklch(0% 0 0 / 0.6)", border: "none", color: "white", fontSize: "14px", lineHeight: 1, cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}>×</button>
             </div>
           ))}
           {total < 5 && <div onClick={() => inputRef.current?.click()} style={{ aspectRatio: "4/5", borderRadius: "8px", border: "2px dashed var(--sand)", background: "var(--cream)", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}><span style={{ fontSize: "22px", color: "var(--text-light)" }}>+</span></div>}
@@ -162,6 +182,7 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
   const [existingUrls, setExistingUrls] = useState<string[]>(listing.images);
   const [newImages, setNewImages]       = useState<string[]>([]);
   const [newFiles, setNewFiles]         = useState<File[]>([]);
+  const [newCover, setNewCover]         = useState(false);
 
   const validate = () => {
     const e: Record<string, string> = {};
@@ -200,7 +221,9 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
       return;
     }
 
-    const finalImages = [...existingUrls, ...uploadedUrls];
+    const finalImages = newCover && uploadedUrls.length > 0
+      ? [uploadedUrls[0], ...existingUrls, ...uploadedUrls.slice(1)]
+      : [...existingUrls, ...uploadedUrls];
     const { error: updateError } = await supabase.from("listings").update({
       title: title.trim(),
       description: description.trim(),
@@ -270,7 +293,7 @@ export default function EditListingModal({ listing, profileId, onClose, onSaved 
           </F>
 
           <F label="Photos" error={errors.images}>
-            <ImageManager existingUrls={existingUrls} newImages={newImages} newFiles={newFiles} onChangeExisting={setExistingUrls} onChangeNew={(imgs, files) => { setNewImages(imgs); setNewFiles(files); }} onUnsupportedType={(found) => setErrors((current) => ({ ...current, images: found ? UNSUPPORTED_IMAGE_TYPE_MESSAGE : "" }))} />
+            <ImageManager existingUrls={existingUrls} newImages={newImages} newFiles={newFiles} newCover={newCover} onChangeExisting={setExistingUrls} onChangeNew={(imgs, files) => { setNewImages(imgs); setNewFiles(files); }} onChangeNewCover={setNewCover} onUnsupportedType={(found) => setErrors((current) => ({ ...current, images: found ? UNSUPPORTED_IMAGE_TYPE_MESSAGE : "" }))} />
           </F>
 
           {error && <div style={{ background: "oklch(95% 0.02 20)", border: "1px solid oklch(80% 0.08 20)", borderRadius: "8px", padding: "12px 14px" }}><p style={{ fontSize: "13px", color: "#c0392b", margin: 0 }}>{error}</p></div>}
