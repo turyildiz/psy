@@ -193,21 +193,16 @@ export default function BrowsePageClient() {
     paginationInFlight.current = false;
     setLoadingMore(false);
   };
-  const hasFilters = Boolean(state.query || state.category !== "all" || state.price !== "any" || state.sort !== "newest");
+  const hasNonSearchFilters = Boolean(state.category !== "all" || state.price !== "any" || state.sort !== "newest");
 
   return (
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
       <Header />
       <main>
-        <section style={{ position: "relative", background: "var(--dark)", overflow: "hidden", minHeight: "300px", display: "flex", alignItems: "center" }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="https://images.psy.market/listings/ai-generated/1780562083573.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% 30%" }} />
-          <div style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, oklch(10% 0.01 55 / 0.92) 0%, oklch(10% 0.01 55 / 0.6) 45%, oklch(10% 0.01 55 / 0.05) 100%)" }} />
-          <div className="stagger-item site-shell" style={{ "--i": 0, position: "relative", zIndex: 1, paddingTop: "52px", paddingBottom: "52px" } as CSSProperties}>
-            <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--rust)", marginBottom: "10px" }}>Marketplace</p>
-            <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "white", margin: "0 0 10px", letterSpacing: "-0.03em", lineHeight: 1.1 }}>Browse the marketplace</h1>
-            <p style={{ fontSize: "15px", color: "oklch(72% 0.01 70)", maxWidth: "460px", lineHeight: 1.6, margin: 0 }}>Search active listings from across Psy.market.</p>
-          </div>
+        <section className="stagger-item site-shell" style={{ "--i": 0, boxSizing: "border-box", minHeight: "120px", paddingTop: "14px", paddingBottom: "14px", display: "flex", flexDirection: "column", justifyContent: "center" } as CSSProperties}>
+          <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--rust)", margin: "0 0 4px" }}>Marketplace</p>
+          <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "40px", fontWeight: 800, color: "var(--text)", margin: "0 0 4px", letterSpacing: "-0.03em", lineHeight: 1.05 }}>Browse</h1>
+          <p style={{ fontSize: "14px", color: "var(--text-mid)", lineHeight: 1.5, margin: 0 }}>Every active listing from the tribe — apparel, art, sound and tickets.</p>
         </section>
 
         <section className="browse-filter-sticky stagger-item" style={{ "--i": 1 } as CSSProperties} aria-label="Listing filters">
@@ -248,12 +243,19 @@ export default function BrowsePageClient() {
         </section>
 
         <section className="site-shell" style={{ paddingTop: "48px", paddingBottom: "80px" }} aria-live="polite">
-          <div style={{ display: "flex", alignItems: "center", gap: "14px", marginBottom: "24px", flexWrap: "wrap" }}>
-            <div style={{ width: "26px", height: "2px", background: "var(--rust)", flexShrink: 0 }} />
-            <h2 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "20px", fontWeight: 700, color: "var(--text)", margin: 0, letterSpacing: "-0.02em" }}>All Listings</h2>
-            <p style={{ margin: 0, color: "var(--text-light)", fontSize: "13px" }}>{loading ? "Loading listings…" : `${total} ${total === 1 ? "result" : "results"}`}{state.query ? ` for “${state.query}”` : ""}</p>
+          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
+            {loading ? (
+              <p style={{ margin: 0, color: "var(--text-light)", fontSize: "13px" }}>Loading listings…</p>
+            ) : state.query ? (
+              <>
+                <p style={{ margin: 0, color: "var(--text-mid)", fontSize: "13px" }}><strong style={{ color: "var(--text)", fontWeight: 700 }}>{total}</strong> {total === 1 ? "result" : "results"} for &quot;<strong style={{ color: "var(--rust)", fontWeight: 700 }}>{state.query}</strong>&quot;</p>
+                <Link href={buildBrowseHref(state, { query: "" })} style={{ color: "var(--rust)", fontSize: "12px", fontWeight: 700 }}>Clear</Link>
+              </>
+            ) : (
+              <p style={{ margin: 0, color: "var(--text-light)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>{total} listings</p>
+            )}
             <div style={{ flex: 1 }} />
-            {hasFilters && <Link href="/browse" style={{ color: "var(--rust)", fontSize: "13px", fontWeight: 700 }}>Clear filters</Link>}
+            {hasNonSearchFilters && <Link href="/browse" style={{ color: "var(--rust)", fontSize: "13px", fontWeight: 700 }}>Clear filters</Link>}
           </div>
 
           {loading ? (
