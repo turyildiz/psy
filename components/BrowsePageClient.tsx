@@ -247,41 +247,38 @@ export default function BrowsePageClient() {
               <form onSubmit={submitSearch} className="browse-toolbar-search">
                 <label htmlFor="browse-search" className="sr-only">Search listings</label>
                 <input id="browse-search" type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search listings, sellers, festivals…" maxLength={120} />
-                <button type="submit">Search</button>
               </form>
 
-              <div className="browse-toolbar-filters">
-                <div className="browse-filter-menu">
-                  <button type="button" className={`browse-filter-trigger${state.category !== "all" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "category"} aria-controls="browse-category-popover" onClick={() => setOpenPopover((current) => current === "category" ? null : "category")}>
-                    <span className="browse-filter-key">CATEGORY</span><span className="browse-filter-value">{state.category === "all" ? "All" : formatCategoryLabel(state.category)}</span><FilterChevron open={openPopover === "category"} />
-                  </button>
-                  {openPopover === "category" && <div id="browse-category-popover" className="browse-filter-popover browse-category-popover" role="group" aria-label="Choose a category">
-                    <button type="button" aria-pressed={state.category === "all"} onClick={() => chooseFilter({ category: "all" })}><span className="browse-option-check" aria-hidden="true">{state.category === "all" ? "✓" : ""}</span><span className="browse-option-label">All</span><span className="browse-category-count">{allCategoryCount}</span></button>
-                    {BROWSE_CATEGORIES.map((category) => {
-                      const count = categoryCounts[category] ?? 0;
-                      return <button key={category} type="button" aria-pressed={state.category === category} disabled={count === 0} onClick={() => chooseFilter({ category })}><span className="browse-option-check" aria-hidden="true">{state.category === category ? "✓" : ""}</span><span className="browse-option-label">{formatCategoryLabel(category)}</span><span className="browse-category-count">{count}</span></button>;
-                    })}
-                    {categoriesError && <button type="button" className="browse-filter-retry" onClick={() => setRetryKey((value) => value + 1)}>Retry categories</button>}
-                  </div>}
-                </div>
+              <div className="browse-filter-menu">
+                <button type="button" className={`browse-filter-trigger${state.category !== "all" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "category"} aria-controls="browse-category-popover" onClick={() => setOpenPopover((current) => current === "category" ? null : "category")}>
+                  <span className="browse-filter-key">CATEGORY</span><span className="browse-filter-value">{state.category === "all" ? "All" : formatCategoryLabel(state.category)}</span><FilterChevron open={openPopover === "category"} />
+                </button>
+                {openPopover === "category" && <div id="browse-category-popover" className="browse-filter-popover browse-category-popover" role="group" aria-label="Choose a category">
+                  <button type="button" aria-pressed={state.category === "all"} onClick={() => chooseFilter({ category: "all" })}><span className="browse-option-check" aria-hidden="true">{state.category === "all" ? "✓" : ""}</span><span className="browse-option-label">All</span><span className="browse-category-count">{allCategoryCount}</span></button>
+                  {BROWSE_CATEGORIES.map((category) => {
+                    const count = categoryCounts[category] ?? 0;
+                    return <button key={category} type="button" aria-pressed={state.category === category} disabled={count === 0} onClick={() => chooseFilter({ category })}><span className="browse-option-check" aria-hidden="true">{state.category === category ? "✓" : ""}</span><span className="browse-option-label">{formatCategoryLabel(category)}</span><span className="browse-category-count">{count}</span></button>;
+                  })}
+                  {categoriesError && <button type="button" className="browse-filter-retry" onClick={() => setRetryKey((value) => value + 1)}>Retry categories</button>}
+                </div>}
+              </div>
 
-                <div className="browse-filter-menu">
-                  <button type="button" className={`browse-filter-trigger${state.sort !== "newest" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "sort"} aria-controls="browse-sort-popover" onClick={() => setOpenPopover((current) => current === "sort" ? null : "sort")}>
-                    <span className="browse-filter-key">SORT</span><span className="browse-filter-value">{selectedSortLabel}</span><FilterChevron open={openPopover === "sort"} />
-                  </button>
-                  {openPopover === "sort" && <div id="browse-sort-popover" className="browse-filter-popover browse-sort-popover" role="group" aria-label="Sort listings">
-                    {SORT_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.sort === option.value} onClick={() => chooseFilter({ sort: option.value })}><span className="browse-option-check" aria-hidden="true">{state.sort === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
-                  </div>}
-                </div>
+              <div className="browse-filter-menu">
+                <button type="button" className={`browse-filter-trigger${state.sort !== "newest" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "sort"} aria-controls="browse-sort-popover" onClick={() => setOpenPopover((current) => current === "sort" ? null : "sort")}>
+                  <span className="browse-filter-key">SORT</span><span className="browse-filter-value">{selectedSortLabel}</span><FilterChevron open={openPopover === "sort"} />
+                </button>
+                {openPopover === "sort" && <div id="browse-sort-popover" className="browse-filter-popover browse-sort-popover" role="group" aria-label="Sort listings">
+                  {SORT_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.sort === option.value} onClick={() => chooseFilter({ sort: option.value })}><span className="browse-option-check" aria-hidden="true">{state.sort === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
+                </div>}
+              </div>
 
-                <div className="browse-filter-menu">
-                  <button type="button" className={`browse-filter-trigger${state.price !== "any" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "price"} aria-controls="browse-price-popover" onClick={() => setOpenPopover((current) => current === "price" ? null : "price")}>
-                    <span className="browse-filter-key">PRICE</span><span className="browse-filter-value">{selectedPriceLabel}</span><FilterChevron open={openPopover === "price"} />
-                  </button>
-                  {openPopover === "price" && <div id="browse-price-popover" className="browse-filter-popover" role="group" aria-label="Choose a price range">
-                    {PRICE_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.price === option.value} onClick={() => chooseFilter({ price: option.value })}><span className="browse-option-check" aria-hidden="true">{state.price === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
-                  </div>}
-                </div>
+              <div className="browse-filter-menu">
+                <button type="button" className={`browse-filter-trigger${state.price !== "any" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "price"} aria-controls="browse-price-popover" onClick={() => setOpenPopover((current) => current === "price" ? null : "price")}>
+                  <span className="browse-filter-key">PRICE</span><span className="browse-filter-value">{selectedPriceLabel}</span><FilterChevron open={openPopover === "price"} />
+                </button>
+                {openPopover === "price" && <div id="browse-price-popover" className="browse-filter-popover" role="group" aria-label="Choose a price range">
+                  {PRICE_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.price === option.value} onClick={() => chooseFilter({ price: option.value })}><span className="browse-option-check" aria-hidden="true">{state.price === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
+                </div>}
               </div>
             </div>
 
