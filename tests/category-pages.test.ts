@@ -91,6 +91,37 @@ test("featured category cards keep responsive images contained above equal-heigh
   assert.ok(imageIndex < titleIndex && titleIndex < descriptionIndex && descriptionIndex < priceIndex && priceIndex < sellerIndex);
 });
 
+test("legacy category featured cards use the same contained equal-height vertical stack", () => {
+  for (const { path, prefix } of [
+    { path: "app/apparel/page.tsx", prefix: "apparel" },
+    { path: "app/jewellery/page.tsx", prefix: "jewellery" },
+    { path: "app/music/page.tsx", prefix: "music" },
+  ]) {
+    const source = readFileSync(path, "utf8");
+
+    for (const element of ["link", "card", "image", "image-element", "content", "title", "description", "price-row", "price", "condition", "seller-row", "seller-handle"]) {
+      assert.match(source, new RegExp(`className="${prefix}-featured-${element}"`), `${path} must identify its ${element}`);
+    }
+
+    assert.match(source, new RegExp(`\\.${prefix}-featured-card\\s*\\{[^}]*display:\\s*flex;[^}]*flex-direction:\\s*column;[^}]*height:\\s*100%;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-image\\s*\\{[^}]*position:\\s*relative;[^}]*aspect-ratio:\\s*4\\s*\\/\\s*3;[^}]*overflow:\\s*hidden;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-image-element\\s*\\{[^}]*width:\\s*100%;[^}]*height:\\s*100%;[^}]*object-fit:\\s*cover;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-content\\s*\\{[^}]*display:\\s*flex;[^}]*flex-direction:\\s*column;[^}]*flex:\\s*1;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-price-row\\s*\\{[^}]*margin-top:\\s*auto;[^}]*flex-wrap:\\s*wrap;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-price\\s*\\{[^}]*overflow-wrap:\\s*anywhere;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-condition\\s*\\{[^}]*flex-shrink:\\s*0;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-seller-handle\\s*\\{[^}]*overflow-wrap:\\s*anywhere;`));
+    assert.match(source, new RegExp(`\\.${prefix}-featured-grid\\s*>\\s*\\.stagger-item\\s*\\{[^}]*height:\\s*100%;`));
+
+    const imageIndex = source.indexOf(`className="${prefix}-featured-image"`);
+    const titleIndex = source.indexOf(`className="${prefix}-featured-title"`);
+    const descriptionIndex = source.indexOf(`className="${prefix}-featured-description"`);
+    const priceIndex = source.indexOf(`className="${prefix}-featured-price-row"`);
+    const sellerIndex = source.indexOf(`className="${prefix}-featured-seller-row"`);
+    assert.ok(imageIndex < titleIndex && titleIndex < descriptionIndex && descriptionIndex < priceIndex && priceIndex < sellerIndex, `${path} must stack image, title, description, price, and seller in order`);
+  }
+});
+
 test("new category nav entries share desktop/mobile route-active treatment", () => {
   const header = readFileSync("components/layout/Header.tsx", "utf8");
   for (const [label, href] of [["Art & Decor", "/art"], ["Tickets", "/tickets"], ["Vintage", "/vintage"]]) {
