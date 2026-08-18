@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 
 type FilterOption = {
   value: string;
@@ -55,7 +55,7 @@ export default function CategoryFilterToolbar({
   const [canScrollRight, setCanScrollRight] = useState(false);
   const [isStuck, setIsStuck] = useState(false);
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const rail = railRef.current;
     if (!rail) return;
 
@@ -63,13 +63,22 @@ export default function CategoryFilterToolbar({
       const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
       setCanScrollLeft(rail.scrollLeft > 1);
       setCanScrollRight(maxScrollLeft - rail.scrollLeft > 1);
+
+      const railRect = rail.getBoundingClientRect();
+      for (const child of Array.from(rail.children) as HTMLElement[]) {
+        const childRect = child.getBoundingClientRect();
+        const fullyVisible = childRect.left >= railRect.left - 1 && childRect.right <= railRect.right + 1;
+        child.dataset.railVisible = String(fullyVisible);
+      }
     };
 
     updateOverflow();
     rail.addEventListener("scroll", updateOverflow, { passive: true });
     const resizeObserver = new ResizeObserver(updateOverflow);
     resizeObserver.observe(rail);
-    for (const child of Array.from(rail.children)) resizeObserver.observe(child);
+    for (let index = 0; index < rail.children.length; index += 1) {
+      resizeObserver.observe(rail.children.item(index)!);
+    }
 
     return () => {
       rail.removeEventListener("scroll", updateOverflow);

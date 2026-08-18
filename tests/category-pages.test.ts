@@ -165,8 +165,19 @@ test("every category route uses the shared browse-style filter toolbar without c
   assert.match(styles, /\.category-rail-arrow \{[^}]*position: absolute;[^}]*top: 50%;/);
   assert.doesNotMatch(styles, /\.category-rail-arrow \{[^}]*flex:/);
   assert.match(styles, /\.category-filter-popover \{[^}]*border-radius: 12px;/);
-  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.category-rail-arrow \{ display: none;/);
-  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.category-filter-menu \+ \.category-filter-menu \{ border-left: 0; \}/);
+  const categoryMobileStyles = styles.slice(styles.lastIndexOf("@media (max-width: 640px)"));
+  assert.match(categoryMobileStyles, /\.category-filter-toolbar-main \{[^}]*height: 88px;[^}]*display: grid;[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);[^}]*grid-template-rows: repeat\(2, 44px\);/);
+  assert.match(categoryMobileStyles, /\.category-type-segment \{[^}]*grid-column: 1 \/ -1;[^}]*border-bottom: 1px solid var\(--sand\);/);
+  assert.match(categoryMobileStyles, /\.category-filter-menu,[\s\S]*?\.category-filter-menu:last-child \{[^}]*position: static;[^}]*width: 100%;/);
+  assert.match(categoryMobileStyles, /\.category-filter-trigger \.browse-filter-key \{ display: none; \}/);
+  assert.match(categoryMobileStyles, /\.category-filter-trigger \.browse-filter-value \{[^}]*overflow: visible;[^}]*text-overflow: clip;/);
+  assert.match(categoryMobileStyles, /\.category-filter-popover \{[^}]*left: 0;[^}]*right: 0;[^}]*top: calc\(100% \+ 8px\);[^}]*width: auto;/);
+  assert.match(categoryMobileStyles, /\.category-rail-arrow \{ display: none;/);
+  assert.match(categoryMobileStyles, /\.category-filter-menu \+ \.category-filter-menu \{ border-left: 1px solid var\(--sand\); \}/);
+  assert.match(toolbar, /child\.dataset\.railVisible = String\(fullyVisible\)/);
+  assert.match(categoryMobileStyles, /\.category-type-pill\[data-rail-visible="false"\] \{ visibility: hidden; \}/);
+  assert.match(categoryMobileStyles, /\.category-type-rail \{[^}]*scroll-snap-type: x mandatory;/);
+  assert.match(categoryMobileStyles, /\.category-type-pill \{[^}]*scroll-snap-align: start;/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.category-filter-trigger svg/);
 });
 
