@@ -37,7 +37,11 @@ import {
   type PostReactionRow,
 } from "@/lib/posts/reactions";
 import { useReactionViewerProfileId } from "@/lib/posts/use-reaction-viewer";
-import { getPostHighlightErrorMessage, getPostHighlightPreview } from "@/lib/posts/highlights";
+import {
+  compareHighlightedAtDescending,
+  getPostHighlightErrorMessage,
+  getPostHighlightPreview,
+} from "@/lib/posts/highlights";
 
 export const POST_PAGE_SIZE = 10;
 const POST_IMAGE_LIMIT = getUploadPolicy("post-image").maxCount;
@@ -466,7 +470,7 @@ export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginReque
   onLoginRequested: () => void;
   onUpdated: (post: Post) => void;
   onDeleted: (id: string) => void;
-  onHighlightChanged?: (post: Post) => void;
+  onHighlightChanged?: (post: Post) => void | Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -499,7 +503,7 @@ export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginReque
       onHighlightChanged?.({
         ...post,
         isHighlighted: nextHighlighted,
-        highlightedAt: nextHighlighted ? new Date().toISOString() : null,
+        highlightedAt: nextHighlighted ? post.highlightedAt : null,
       });
     } catch (error) {
       setHighlightError(getPostHighlightErrorMessage(error));
@@ -697,7 +701,7 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
     options?: { silent?: boolean }
   ) => Promise<void>>(async () => undefined);
 
-  const loadHighlights = useCallback(async (requestId: number) => {
+  const loadHighlights = useCallback(async (requestId: number): Promise<Post[] | null> => {
     setHighlightLoadError(null);
     try {
       const { data, error } = await createClient()
@@ -708,16 +712,19 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
         .order("highlighted_at", { ascending: false })
         .order("id", { ascending: false })
         .limit(5);
-      if (requestId !== requestGeneration.current) return;
+      if (requestId !== requestGeneration.current) return null;
       if (error) {
         setHighlightLoadError("Could not load highlighted posts. Please try again.");
-        return;
+        return null;
       }
-      setHighlightedPosts((data ?? []).map((row) => toPost(row as Record<string, unknown>)));
+      const next = (data ?? []).map((row) => toPost(row as Record<string, unknown>));
+      setHighlightedPosts(next);
+      return next;
     } catch {
       if (requestId === requestGeneration.current) {
         setHighlightLoadError("Could not load highlighted posts. Please try again.");
       }
+      return null;
     }
   }, [profile.id]);
 
@@ -825,10 +832,21 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
       const withoutUpdated = current.filter((item) => item.id !== updated.id);
       if (!updated.isHighlighted) return withoutUpdated;
       return [updated, ...withoutUpdated]
-        .sort((left, right) => (right.highlightedAt ?? "").localeCompare(left.highlightedAt ?? ""))
+        .sort((left, right) => compareHighlightedAtDescending(left.highlightedAt, right.highlightedAt))
         .slice(0, 5);
     });
     setOpenHighlight((current) => current?.id === updated.id ? updated : current);
+  };
+
+  const refreshHighlightsAfterToggle = async (updated: Post) => {
+    setPosts((current) => current.map((item) => item.id === updated.id ? updated : item));
+    setOpenHighlight((current) => current?.id === updated.id ? updated : current);
+
+    const refreshed = await loadHighlights(requestGeneration.current);
+    const authoritative = refreshed?.find((item) => item.id === updated.id);
+    if (!authoritative) return;
+    setPosts((current) => current.map((item) => item.id === authoritative.id ? authoritative : item));
+    setOpenHighlight((current) => current?.id === authoritative.id ? authoritative : current);
   };
 
   const removePost = (id: string) => {
@@ -864,7 +882,7 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
               onLoginRequested={() => setReactionLoginOpen(true)}
               onUpdated={updatePost}
               onDeleted={removePost}
-              onHighlightChanged={updatePost}
+              onHighlightChanged={refreshHighlightsAfterToggle}
             />
           ))}
           {loadError && <p className="post-form-error" role="alert">{loadError}</p>}
@@ -883,7 +901,7 @@ export default function ProfileWall({ profile, isOwner }: { profile: Profile; is
           onLoginRequested={() => setReactionLoginOpen(true)}
           onUpdated={updatePost}
           onDeleted={removePost}
-          onHighlightChanged={updatePost}
+          onHighlightChanged={refreshHighlightsAfterToggle}
         />
       )}
 

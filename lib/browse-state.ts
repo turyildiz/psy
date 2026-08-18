@@ -1,5 +1,8 @@
 export const BROWSE_PAGE_SIZE = 24;
 
+// Mirrors the PostgreSQL listing_category enum. Keep this list in sync with the database enum.
+export const BROWSE_CATEGORIES = ["clothing", "accessories", "gear", "art", "other", "ticket"] as const;
+
 export const BROWSE_PRICES = ["any", "under-50", "50-100", "100-200", "200-plus"] as const;
 export type BrowsePrice = (typeof BROWSE_PRICES)[number];
 
@@ -34,7 +37,7 @@ function isOneOf<T extends string>(value: string | null, values: readonly T[]): 
 
 function normalizeCategory(value: string | null): string {
   const category = (value ?? "").trim().toLowerCase();
-  return category && category.length <= 64 && /^[a-z0-9_-]+$/.test(category) ? category : "all";
+  return isOneOf(category, BROWSE_CATEGORIES) ? category : "all";
 }
 
 export function parseBrowseParams(params: URLSearchParams): BrowseState {

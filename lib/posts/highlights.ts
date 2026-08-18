@@ -1,5 +1,11 @@
 export const POST_HIGHLIGHT_LIMIT_MESSAGE = "You can highlight up to 5 posts; unhighlight one first.";
 
+export function compareHighlightedAtDescending(left: string | null, right: string | null) {
+  const leftTime = left === null ? Number.NEGATIVE_INFINITY : Date.parse(left);
+  const rightTime = right === null ? Number.NEGATIVE_INFINITY : Date.parse(right);
+  return rightTime - leftTime;
+}
+
 export function getPostHighlightErrorMessage(error: unknown) {
   const record = typeof error === "object" && error !== null
     ? error as Record<string, unknown>
