@@ -101,19 +101,24 @@ async function fetchListings(state: BrowseState, cursor?: BrowseCursor) {
   return query.limit(BROWSE_PAGE_SIZE + 1);
 }
 
-async function fetchActiveCategories(): Promise<string[]> {
+async function fetchCategoryCounts(state: BrowseState): Promise<Record<string, number>> {
+  const plan = createBrowseQueryPlan({ ...state, category: "all", sort: "newest" });
   const supabase = createClient();
   const counts = await Promise.all(BROWSE_CATEGORIES.map(async (category) => {
-    const { count, error } = await supabase
+    let query = supabase
       .from("listings")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
       .eq("category", category);
+    if (plan.textSearch) query = query.textSearch("search_vector", plan.textSearch, { type: "websearch" });
+    if (plan.minPrice !== undefined) query = query.gte("price", plan.minPrice);
+    if (plan.maxPrice !== undefined) query = query.lte("price", plan.maxPrice);
+    const { count, error } = await query;
     if (error) throw error;
-    return count && count > 0 ? category : null;
+    return [category, count ?? 0] as const;
   }));
 
-  return counts.filter((category): category is (typeof BROWSE_CATEGORIES)[number] => category !== null);
+  return Object.fromEntries(counts);
 }
 
 export default function BrowsePageClient() {
@@ -125,7 +130,7 @@ export default function BrowsePageClient() {
   const paginationInFlight = useRef(false);
   const toolbarRef = useRef<HTMLDivElement>(null);
   const [searchDraft, setSearchDraft] = useState(state.query);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [categoriesError, setCategoriesError] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
@@ -157,9 +162,9 @@ export default function BrowsePageClient() {
   useEffect(() => {
     let cancelled = false;
     setCategoriesError(false);
-    void fetchActiveCategories()
+    void fetchCategoryCounts(state)
       .then((values) => {
-        if (!cancelled) setCategories(values);
+        if (!cancelled) setCategoryCounts(values);
       })
       .catch(() => {
         if (!cancelled) {
@@ -167,7 +172,7 @@ export default function BrowsePageClient() {
         }
       });
     return () => { cancelled = true; };
-  }, [retryKey]);
+  }, [state.query, state.price, retryKey]);
 
   useEffect(() => {
     const currentRequest = ++requestId.current;
@@ -217,7 +222,8 @@ export default function BrowsePageClient() {
     paginationInFlight.current = false;
     setLoadingMore(false);
   };
-  const hasNonSearchFilters = Boolean(state.category !== "all" || state.price !== "any" || state.sort !== "newest");
+  const hasActiveFilters = Boolean(state.query || state.category !== "all" || state.price !== "any" || state.sort !== "newest");
+  const allCategoryCount = BROWSE_CATEGORIES.reduce((sum, category) => sum + (categoryCounts[category] ?? 0), 0);
   const selectedPriceLabel = PRICE_OPTIONS.find((option) => option.value === state.price)?.label ?? "Any price";
   const selectedSortLabel = SORT_OPTIONS.find((option) => option.value === state.sort)?.label ?? "Newest first";
   const chooseFilter = (patch: Partial<BrowseState>) => {
@@ -240,48 +246,45 @@ export default function BrowsePageClient() {
             <div className="browse-marketplace-toolbar-main">
               <form onSubmit={submitSearch} className="browse-toolbar-search">
                 <label htmlFor="browse-search" className="sr-only">Search listings</label>
-                <input id="browse-search" type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search listings" maxLength={120} />
+                <input id="browse-search" type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search listings, sellers, festivals…" maxLength={120} />
                 <button type="submit">Search</button>
               </form>
 
               <div className="browse-toolbar-filters">
                 <div className="browse-filter-menu">
                   <button type="button" className={`browse-filter-trigger${state.category !== "all" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "category"} aria-controls="browse-category-popover" onClick={() => setOpenPopover((current) => current === "category" ? null : "category")}>
-                    <span>{state.category === "all" ? "Category" : formatCategoryLabel(state.category)}</span><FilterChevron open={openPopover === "category"} />
+                    <span className="browse-filter-key">CATEGORY</span><span className="browse-filter-value">{state.category === "all" ? "All" : formatCategoryLabel(state.category)}</span><FilterChevron open={openPopover === "category"} />
                   </button>
-                  {openPopover === "category" && <div id="browse-category-popover" className="browse-filter-popover" role="group" aria-label="Choose a category">
-                    <button type="button" aria-pressed={state.category === "all"} onClick={() => chooseFilter({ category: "all" })}><span>All categories</span>{state.category === "all" && <span aria-hidden="true">✓</span>}</button>
-                    {categories.map((category) => <button key={category} type="button" aria-pressed={state.category === category} onClick={() => chooseFilter({ category })}><span>{formatCategoryLabel(category)}</span>{state.category === category && <span aria-hidden="true">✓</span>}</button>)}
+                  {openPopover === "category" && <div id="browse-category-popover" className="browse-filter-popover browse-category-popover" role="group" aria-label="Choose a category">
+                    <button type="button" aria-pressed={state.category === "all"} onClick={() => chooseFilter({ category: "all" })}><span className="browse-option-check" aria-hidden="true">{state.category === "all" ? "✓" : ""}</span><span className="browse-option-label">All</span><span className="browse-category-count">{allCategoryCount}</span></button>
+                    {BROWSE_CATEGORIES.map((category) => {
+                      const count = categoryCounts[category] ?? 0;
+                      return <button key={category} type="button" aria-pressed={state.category === category} disabled={count === 0} onClick={() => chooseFilter({ category })}><span className="browse-option-check" aria-hidden="true">{state.category === category ? "✓" : ""}</span><span className="browse-option-label">{formatCategoryLabel(category)}</span><span className="browse-category-count">{count}</span></button>;
+                    })}
                     {categoriesError && <button type="button" className="browse-filter-retry" onClick={() => setRetryKey((value) => value + 1)}>Retry categories</button>}
                   </div>}
                 </div>
 
                 <div className="browse-filter-menu">
-                  <button type="button" className={`browse-filter-trigger${state.price !== "any" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "price"} aria-controls="browse-price-popover" onClick={() => setOpenPopover((current) => current === "price" ? null : "price")}>
-                    <span>{state.price === "any" ? "Price" : selectedPriceLabel}</span><FilterChevron open={openPopover === "price"} />
+                  <button type="button" className={`browse-filter-trigger${state.sort !== "newest" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "sort"} aria-controls="browse-sort-popover" onClick={() => setOpenPopover((current) => current === "sort" ? null : "sort")}>
+                    <span className="browse-filter-key">SORT</span><span className="browse-filter-value">{selectedSortLabel}</span><FilterChevron open={openPopover === "sort"} />
                   </button>
-                  {openPopover === "price" && <div id="browse-price-popover" className="browse-filter-popover" role="group" aria-label="Choose a price range">
-                    {PRICE_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.price === option.value} onClick={() => chooseFilter({ price: option.value })}><span>{option.label}</span>{state.price === option.value && <span aria-hidden="true">✓</span>}</button>)}
+                  {openPopover === "sort" && <div id="browse-sort-popover" className="browse-filter-popover browse-sort-popover" role="group" aria-label="Sort listings">
+                    {SORT_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.sort === option.value} onClick={() => chooseFilter({ sort: option.value })}><span className="browse-option-check" aria-hidden="true">{state.sort === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
                   </div>}
                 </div>
 
                 <div className="browse-filter-menu">
-                  <button type="button" className={`browse-filter-trigger${state.sort !== "newest" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "sort"} aria-controls="browse-sort-popover" onClick={() => setOpenPopover((current) => current === "sort" ? null : "sort")}>
-                    <span>{selectedSortLabel}</span><FilterChevron open={openPopover === "sort"} />
+                  <button type="button" className={`browse-filter-trigger${state.price !== "any" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "price"} aria-controls="browse-price-popover" onClick={() => setOpenPopover((current) => current === "price" ? null : "price")}>
+                    <span className="browse-filter-key">PRICE</span><span className="browse-filter-value">{selectedPriceLabel}</span><FilterChevron open={openPopover === "price"} />
                   </button>
-                  {openPopover === "sort" && <div id="browse-sort-popover" className="browse-filter-popover browse-sort-popover" role="group" aria-label="Sort listings">
-                    {SORT_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.sort === option.value} onClick={() => chooseFilter({ sort: option.value })}><span>{option.label}</span>{state.sort === option.value && <span aria-hidden="true">✓</span>}</button>)}
+                  {openPopover === "price" && <div id="browse-price-popover" className="browse-filter-popover" role="group" aria-label="Choose a price range">
+                    {PRICE_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.price === option.value} onClick={() => chooseFilter({ price: option.value })}><span className="browse-option-check" aria-hidden="true">{state.price === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
                   </div>}
                 </div>
               </div>
             </div>
 
-            {(state.category !== "all" || state.price !== "any") && <div className="browse-active-filters" aria-label="Active filters">
-              <span className="browse-active-label">Filtered by</span>
-              {state.category !== "all" && <button type="button" onClick={() => navigate({ category: "all" })}>{formatCategoryLabel(state.category)} <span aria-hidden="true">×</span><span className="sr-only">Remove category filter</span></button>}
-              {state.price !== "any" && <button type="button" onClick={() => navigate({ price: "any" })}>{selectedPriceLabel} <span aria-hidden="true">×</span><span className="sr-only">Remove price filter</span></button>}
-              <button type="button" className="browse-clear-filter-chips" onClick={() => navigate({ category: "all", price: "any" })}>Clear all</button>
-            </div>}
           </div>
         </section>
 
@@ -290,15 +293,16 @@ export default function BrowsePageClient() {
             {loading ? (
               <p style={{ margin: 0, color: "var(--text-light)", fontSize: "13px" }}>Loading listings…</p>
             ) : state.query ? (
-              <>
-                <p style={{ margin: 0, color: "var(--text-mid)", fontSize: "13px" }}><strong style={{ color: "var(--text)", fontWeight: 700 }}>{total}</strong> {total === 1 ? "result" : "results"} for &quot;<strong style={{ color: "var(--rust)", fontWeight: 700 }}>{state.query}</strong>&quot;</p>
-                <Link href={buildBrowseHref(state, { query: "" })} style={{ color: "var(--rust)", fontSize: "12px", fontWeight: 700 }}>Clear</Link>
-              </>
+              <p style={{ margin: 0, color: "var(--text-mid)", fontSize: "13px" }}><strong style={{ color: "var(--text)", fontWeight: 700 }}>{total}</strong> {total === 1 ? "result" : "results"} for &quot;<strong style={{ color: "var(--rust)", fontWeight: 700 }}>{state.query}</strong>&quot;</p>
             ) : (
               <p style={{ margin: 0, color: "var(--text-light)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>{total} listings</p>
             )}
+            {(state.category !== "all" || state.price !== "any") && <div className="browse-active-filters" aria-label="Active filters">
+              {state.category !== "all" && <button type="button" onClick={() => navigate({ category: "all" })}><span className="browse-active-chip-key">CAT</span><span>{formatCategoryLabel(state.category)}</span><span aria-hidden="true">×</span><span className="sr-only">Remove category filter</span></button>}
+              {state.price !== "any" && <button type="button" onClick={() => navigate({ price: "any" })}><span className="browse-active-chip-key">PRICE</span><span>{selectedPriceLabel}</span><span aria-hidden="true">×</span><span className="sr-only">Remove price filter</span></button>}
+            </div>}
             <div style={{ flex: 1 }} />
-            {hasNonSearchFilters && <Link href="/browse" style={{ color: "var(--rust)", fontSize: "13px", fontWeight: 700 }}>Clear filters</Link>}
+            {hasActiveFilters && <Link href="/browse" className="browse-clear-filters">Clear filters</Link>}
           </div>
 
           {loading ? (

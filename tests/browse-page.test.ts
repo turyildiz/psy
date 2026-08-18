@@ -63,6 +63,38 @@ test("browse filters use one sticky toolbar with accessible popovers and removab
   assert.doesNotMatch(source, /<select/);
 });
 
+test("browse toolbar renders the commissioned labels, active chips, and quiet reset", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const styles = read("app/globals.css");
+
+  assert.match(source, /placeholder="Search listings, sellers, festivals…"/);
+  assert.match(source, /browse-filter-key">CATEGORY/);
+  assert.match(source, /browse-filter-key">SORT/);
+  assert.match(source, /browse-filter-key">PRICE/);
+  assert.ok(source.indexOf('browse-filter-key">CATEGORY') < source.indexOf('browse-filter-key">SORT'));
+  assert.ok(source.indexOf('browse-filter-key">SORT') < source.indexOf('browse-filter-key">PRICE'));
+  assert.match(source, /browse-active-chip-key">CAT/);
+  assert.match(source, /browse-active-chip-key">PRICE/);
+  assert.doesNotMatch(source, />Clear all<\/button>/);
+  assert.match(source, /className="browse-clear-filters"/);
+  assert.match(styles, /\.browse-clear-filters \{[^}]*color: var\(--text-light\)/);
+});
+
+test("browse category popover counts the current search and price result set", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const styles = read("app/globals.css");
+  const categoryCountSource = source.slice(source.indexOf("async function fetchCategoryCounts"), source.indexOf("export default function BrowsePageClient"));
+
+  assert.match(source, /async function fetchCategoryCounts\(state: BrowseState\)/);
+  assert.match(categoryCountSource, /\.textSearch\("search_vector", plan\.textSearch, \{ type: "websearch" \}\)/);
+  assert.match(categoryCountSource, /\.gte\("price", plan\.minPrice\)/);
+  assert.match(categoryCountSource, /\.lte\("price", plan\.maxPrice\)/);
+  assert.match(source, /disabled=\{count === 0\}/);
+  assert.match(source, /browse-category-count/);
+  assert.match(styles, /\.browse-category-popover \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.browse-filter-popover button\[aria-pressed="true"\] \{[^}]*background: oklch\(96% 0\.025 55\);[^}]*color: var\(--rust\)/);
+});
+
 test("browse route provides a suspense boundary for URL-backed client state", () => {
   const source = read("app/browse/page.tsx");
   assert.match(source, /<Suspense/);
