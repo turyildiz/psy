@@ -94,6 +94,25 @@ test("browse toolbar is one four-segment bar without a Search button", () => {
   assert.doesNotMatch(styles, /\.browse-marketplace-toolbar-main \{[^}]*flex-direction: column/);
 });
 
+test("browse mobile toolbar and grid keep the commissioned compact two-row layout", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const styles = read("app/globals.css");
+
+  assert.match(source, /matchMedia\("\(max-width: 640px\)"\)\.matches/);
+  assert.match(source, /setTimeout\([\s\S]*?160\)/);
+  assert.match(source, /className="browse-search-clear"/);
+  assert.match(source, /aria-label="Clear search"/);
+  assert.match(source, /browse-filter-value-mobile/);
+  assert.match(source, /className="browse-results-meta"/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.browse-marketplace-toolbar-main \{[^}]*height: 88px;[^}]*grid-template-columns: repeat\(3, minmax\(0, 1fr\)\);[^}]*grid-template-rows: repeat\(2, 44px\);/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.browse-filter-menu \{[^}]*position: static;[^}]*flex: none;[^}]*width: 100%;/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.browse-filter-popover \{[^}]*left: 0;[^}]*right: 0;[^}]*width: auto;/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.browse-filter-key \{[^}]*display: none;/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.browse-active-filters \{[^}]*flex-wrap: wrap;[^}]*overflow: visible;/);
+  assert.match(source, /@media \(max-width: 640px\) \{ \.browse-results-grid \{ grid-template-columns: repeat\(2, minmax\(0, 1fr\)\); column-gap: 10px;/);
+  assert.match(source, /@media \(max-width: 379px\) \{ \.browse-results-grid \{ grid-template-columns: minmax\(0, 1fr\);/);
+});
+
 test("browse category popover counts the current search and price result set", () => {
   const source = read("components/BrowsePageClient.tsx");
   const styles = read("app/globals.css");
