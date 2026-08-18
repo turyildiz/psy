@@ -39,6 +39,12 @@ const SORT_OPTIONS: Array<{ value: BrowseSort; label: string }> = [
   { value: "price-desc", label: "Price: high to low" },
 ];
 
+const SORT_MOBILE_LABELS: Record<BrowseSort, string> = {
+  newest: "Newest",
+  "price-asc": "Low to high",
+  "price-desc": "High to low",
+};
+
 type BrowsePopover = "category" | "price" | "sort";
 
 function FilterChevron({ open }: { open: boolean }) {
@@ -144,6 +150,16 @@ export default function BrowsePageClient() {
   useEffect(() => setSearchDraft(state.query), [state.query]);
 
   useEffect(() => {
+    if (!window.matchMedia("(max-width: 640px)").matches) return;
+    const query = searchDraft.trim().slice(0, 120);
+    if (query === state.query) return;
+    const timeout = window.setTimeout(() => {
+      router.replace(buildBrowseHref(state, { query }), { scroll: false });
+    }, 160);
+    return () => window.clearTimeout(timeout);
+  }, [router, searchDraft, state]);
+
+  useEffect(() => {
     if (!openPopover) return;
     const closeOnOutsideClick = (event: PointerEvent) => {
       if (!toolbarRef.current?.contains(event.target as Node)) setOpenPopover(null);
@@ -226,6 +242,7 @@ export default function BrowsePageClient() {
   const allCategoryCount = BROWSE_CATEGORIES.reduce((sum, category) => sum + (categoryCounts[category] ?? 0), 0);
   const selectedPriceLabel = PRICE_OPTIONS.find((option) => option.value === state.price)?.label ?? "Any price";
   const selectedSortLabel = SORT_OPTIONS.find((option) => option.value === state.sort)?.label ?? "Newest first";
+  const selectedSortMobileLabel = SORT_MOBILE_LABELS[state.sort];
   const chooseFilter = (patch: Partial<BrowseState>) => {
     navigate(patch);
     setOpenPopover(null);
@@ -247,6 +264,7 @@ export default function BrowsePageClient() {
               <form onSubmit={submitSearch} className="browse-toolbar-search">
                 <label htmlFor="browse-search" className="sr-only">Search listings</label>
                 <input id="browse-search" type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search listings, sellers, festivals…" maxLength={120} />
+                {searchDraft && <button type="button" className="browse-search-clear" aria-label="Clear search" onClick={() => { setSearchDraft(""); navigate({ query: "" }); }}>×</button>}
               </form>
 
               <div className="browse-filter-menu">
@@ -265,7 +283,7 @@ export default function BrowsePageClient() {
 
               <div className="browse-filter-menu">
                 <button type="button" className={`browse-filter-trigger${state.sort !== "newest" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "sort"} aria-controls="browse-sort-popover" onClick={() => setOpenPopover((current) => current === "sort" ? null : "sort")}>
-                  <span className="browse-filter-key">SORT</span><span className="browse-filter-value">{selectedSortLabel}</span><FilterChevron open={openPopover === "sort"} />
+                  <span className="browse-filter-key">SORT</span><span className="browse-filter-value browse-filter-value-desktop">{selectedSortLabel}</span><span className="browse-filter-value browse-filter-value-mobile">{selectedSortMobileLabel}</span><FilterChevron open={openPopover === "sort"} />
                 </button>
                 {openPopover === "sort" && <div id="browse-sort-popover" className="browse-filter-popover browse-sort-popover" role="group" aria-label="Sort listings">
                   {SORT_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.sort === option.value} onClick={() => chooseFilter({ sort: option.value })}><span className="browse-option-check" aria-hidden="true">{state.sort === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
@@ -286,7 +304,7 @@ export default function BrowsePageClient() {
         </section>
 
         <section className="site-shell" style={{ paddingTop: "48px", paddingBottom: "80px" }} aria-live="polite">
-          <div style={{ display: "flex", alignItems: "center", gap: "10px", marginBottom: "24px", flexWrap: "wrap" }}>
+          <div className="browse-results-meta">
             {loading ? (
               <p style={{ margin: 0, color: "var(--text-light)", fontSize: "13px" }}>Loading listings…</p>
             ) : state.query ? (
@@ -298,7 +316,7 @@ export default function BrowsePageClient() {
               {state.category !== "all" && <button type="button" onClick={() => navigate({ category: "all" })}><span className="browse-active-chip-key">CAT</span><span>{formatCategoryLabel(state.category)}</span><span aria-hidden="true">×</span><span className="sr-only">Remove category filter</span></button>}
               {state.price !== "any" && <button type="button" onClick={() => navigate({ price: "any" })}><span className="browse-active-chip-key">PRICE</span><span>{selectedPriceLabel}</span><span aria-hidden="true">×</span><span className="sr-only">Remove price filter</span></button>}
             </div>}
-            <div style={{ flex: 1 }} />
+            <div className="browse-results-meta-spacer" />
             {hasActiveFilters && <Link href="/browse" className="browse-clear-filters">Clear filters</Link>}
           </div>
 
@@ -320,7 +338,8 @@ export default function BrowsePageClient() {
         .browse-results-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 26px; align-items: stretch; }
         @media (max-width: 1180px) { .browse-results-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 860px) { .browse-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 520px) { .browse-results-grid { grid-template-columns: minmax(0, 1fr); } }
+        @media (max-width: 640px) { .browse-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 379px) { .browse-results-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
   );

@@ -705,6 +705,8 @@ input:autofill {
 
 .browse-toolbar-search input:focus { background: oklch(99% 0.006 75); }
 
+.browse-search-clear { display: none; }
+
 .browse-filter-menu { position: relative; flex: 0 1 190px; }
 
 .browse-filter-trigger {
@@ -733,6 +735,7 @@ input:autofill {
 .browse-filter-trigger.is-active { background: oklch(96% 0.025 55); color: var(--rust); }
 .browse-filter-trigger.is-active .browse-filter-key { color: var(--text-light); }
 .browse-filter-trigger.is-active .browse-filter-value { color: var(--rust); }
+.browse-filter-value-mobile { display: none; }
 
 .browse-filter-popover {
   position: absolute;
@@ -786,6 +789,8 @@ input:autofill {
 .browse-active-chip-key { font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
 .browse-clear-filters { color: var(--text-light); font-size: 12px; font-weight: 500; text-decoration: none; }
 .browse-clear-filters:hover { color: var(--text-mid); text-decoration: underline; }
+.browse-results-meta { display: flex; align-items: center; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; }
+.browse-results-meta-spacer { flex: 1; }
 
 .browse-filter-inner {
   max-width: 1320px;
@@ -836,8 +841,70 @@ input:autofill {
 @media (max-width: 640px) {
   .browse-filter-sticky { top: 76px; }
 
-  .browse-marketplace-toolbar { padding: 10px 16px; }
-  .browse-active-filters { max-width: 100%; }
+  .browse-marketplace-toolbar { padding: 8px 16px; }
+  .browse-marketplace-toolbar-main {
+    height: 88px;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-rows: repeat(2, 44px);
+  }
+  .browse-marketplace-toolbar-main > * { height: 44px; }
+  .browse-marketplace-toolbar-main > * + *::before { display: none; }
+  .browse-toolbar-search {
+    grid-column: 1 / -1;
+    border-bottom: 1px solid var(--sand);
+  }
+  .browse-toolbar-search input {
+    border-radius: 15px 15px 0 0;
+    padding: 0 42px 0 13px;
+  }
+  .browse-toolbar-search input::-webkit-search-cancel-button { appearance: none; }
+  .browse-search-clear {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 24px;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transform: translateY(-50%);
+    border: 0;
+    border-radius: 50%;
+    background: var(--sand);
+    color: var(--text-mid);
+    padding: 0;
+    font: 600 15px/1 Manrope, var(--font-manrope);
+    cursor: pointer;
+  }
+  .browse-filter-menu { position: static; flex: none; width: 100%; }
+  .browse-filter-menu + .browse-filter-menu { border-left: 1px solid var(--sand); }
+  .browse-filter-trigger { gap: 6px; padding: 0 9px; }
+  .browse-filter-menu:first-of-type .browse-filter-trigger { border-radius: 0 0 0 15px; }
+  .browse-filter-menu:last-child .browse-filter-trigger { border-radius: 0 0 15px 0; }
+  .browse-filter-key { display: none; }
+  .browse-filter-value-desktop { display: none; }
+  .browse-filter-value-mobile { display: inline; }
+  .browse-filter-trigger .browse-filter-value {
+    min-width: 0;
+    flex: 1;
+    overflow: visible;
+    text-overflow: clip;
+    text-align: left;
+  }
+  .browse-filter-trigger svg { flex-shrink: 0; }
+  .browse-filter-popover {
+    left: 0;
+    right: 0;
+    top: calc(100% + 8px);
+    width: auto;
+    margin: 0;
+  }
+  .browse-category-popover { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .browse-active-filters { max-width: 100%; flex-wrap: wrap; overflow: visible; }
+  .browse-results-meta { align-items: flex-start; gap: 8px; }
+  .browse-results-meta-spacer { display: none; }
+  .browse-clear-filters { margin-left: auto; padding: 5px 0; }
 
   .browse-filter-inner {
     flex-direction: column;
@@ -1096,6 +1163,9 @@ input:autofill {
 }
 @media (prefers-reduced-motion: reduce) {
   .stagger-item { animation: none; }
+  .browse-filter-trigger svg,
+  .browse-results-grid article,
+  .browse-results-grid img { transition: none !important; transform: none !important; }
   .post-reaction-button.active { animation: none; }
   .post-reaction-button::after { transition: none; }
   .wall-note, .wall-tab { transition: none; }
