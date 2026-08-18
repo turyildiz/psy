@@ -66,7 +66,7 @@ function ProductCard({ item }: { item: Listing }) {
           <p style={{ fontSize: "10px", color: "var(--text-light)", letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 4px" }}>{formatCategoryLabel(item.category)}</p>
           <h2 style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", lineHeight: 1.3, margin: "0 0 4px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</h2>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
-            <span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)" }}>€{(item.priceCents / 100).toFixed(0)}</span>
+            <span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)" }}>€{(item.priceCents / 100).toFixed(2)}</span>
             <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "4px", background: `${conditionColor}18`, color: conditionColor, fontWeight: 600 }}>{conditionLabels[item.condition]}</span>
           </div>
           {item.sellerHandle && <div style={{ display: "flex", alignItems: "center", gap: "4px", paddingTop: "6px", borderTop: "1px solid var(--sand)" }}><ProfileAvatar name={item.sellerName || item.sellerHandle} url={item.sellerAvatar} size={16} /><span style={{ fontSize: "10px", color: "var(--text-light)", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>@{item.sellerHandle}</span></div>}
