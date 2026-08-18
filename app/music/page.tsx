@@ -9,6 +9,7 @@ import { conditionLabels } from "@/lib/constants";
 import type { Listing } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
 import { toListing } from "@/lib/db";
+import { formatPrice } from "@/lib/listings/price";
 
 const CONDITION_COLORS: Record<string, string> = {
   new: "#5a7c4a",
@@ -44,7 +45,7 @@ function FeaturedCard({ item }: { item: Listing }) {
           )}
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
             <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "22px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
-              €{(item.priceCents / 100).toFixed(0)}
+              {formatPrice(item.priceCents)}
             </p>
             <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "4px", background: `${condColor}18`, color: condColor, fontWeight: 600 }}>
               {conditionLabels[item.condition]}
@@ -78,7 +79,7 @@ function GearCard({ item }: { item: Listing }) {
         <div style={{ padding: "11px 13px 14px" }}>
           <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</p>
           <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
-            €{(item.priceCents / 100).toFixed(0)}
+            {formatPrice(item.priceCents)}
           </p>
           {item.sellerHandle && (
             <div style={{ display: "flex", alignItems: "center", gap: "4px", marginTop: "6px", paddingTop: "6px", borderTop: "1px solid var(--sand)" }}>

@@ -13,6 +13,7 @@ import MessagesInbox from "@/components/MessagesInbox";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ProfileWall from "@/components/ProfileWall";
 import { conditionLabels } from "@/lib/constants";
+import { formatPrice } from "@/lib/listings/price";
 import type { Listing, PublicProfile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
 import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
@@ -79,7 +80,7 @@ function ListingCard({ item, isOwner, onDeleted, onEdit }: { item: Listing; isOw
             <p style={{ fontSize: "14px", fontWeight: 500, color: "var(--text)", lineHeight: 1.3, marginBottom: "8px" }}>{item.title}</p>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
               <span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "17px", fontWeight: 700, color: "var(--rust)" }}>
-                €{(item.priceCents / 100).toFixed(0)}
+                {formatPrice(item.priceCents)}
               </span>
               <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "3px", background: `${condColor}18`, color: condColor, fontWeight: 600 }}>
                 {conditionLabels[item.condition]}

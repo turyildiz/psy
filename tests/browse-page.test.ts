@@ -29,10 +29,10 @@ test("browse category chips use bounded enum-backed active-listing checks", () =
   assert.doesNotMatch(source, /while \(true\)|\.limit\(1000\)/);
 });
 
-test("browse listing cards preserve cents in displayed prices", () => {
+test("browse listing cards preserve cents with the shared price formatter", () => {
   const source = read("components/BrowsePageClient.tsx");
-  assert.match(source, /item\.priceCents \/ 100\)\.toFixed\(2\)/);
-  assert.doesNotMatch(source, /item\.priceCents \/ 100\)\.toFixed\(0\)/);
+  assert.match(source, /formatPrice\(item\.priceCents\)/);
+  assert.doesNotMatch(source, /item\.priceCents \/ 100\)\.toFixed/);
 });
 
 test("browse exposes loading, query-specific empty, error retry, count, and clear states", () => {

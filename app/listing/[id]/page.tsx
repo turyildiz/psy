@@ -14,6 +14,7 @@ import type { Listing, PublicProfile } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
 import { createInitialAuthSnapshotGate } from "@/lib/auth/initial-snapshot-gate";
 import { registerAuthUiRefreshParticipant } from "@/lib/auth/ui-transition";
+import { formatPrice } from "@/lib/listings/price";
 import {
   getMyProfiles,
   getOnlyProfileForCurrentAccount,
@@ -21,12 +22,6 @@ import {
   toListing,
   toPublicProfile,
 } from "@/lib/db";
-
-/* ── Helpers ── */
-
-function formatPrice(cents: number) {
-  return (cents / 100).toLocaleString("en-IE", { style: "currency", currency: "EUR" });
-}
 
 const conditionColor: Record<string, string> = {
   new: "#5a7c4a",
