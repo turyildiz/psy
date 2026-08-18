@@ -327,13 +327,12 @@ export default function Header() {
 
       {/* Mobile category drawer */}
       <div className={`mobile-drawer mobile-drawer-left${leftOpen ? " open" : ""}`}>
-        <div className="mobile-drawer-header">
-          <span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "17px", fontWeight: 700, color: "white" }}>Categories</span>
+        <div className="mobile-drawer-header mobile-drawer-header-close-only">
           <button onClick={closeAll} className="mobile-drawer-close">✕</button>
         </div>
         <nav style={{ padding: "8px 0" }}>
           <Link href="/stream" onClick={closeAll} className={`mobile-drawer-link${isActivePath("/stream") ? " active" : ""}`} aria-current={isActivePath("/stream") ? "page" : undefined}>Stream</Link>
-          <div className="mobile-stream-divider" aria-hidden style={{ height: "1px", margin: "8px 20px", background: "oklch(100% 0 0 / 0.12)" }} />
+          <span className="mobile-drawer-section-label">Categories</span>
           {CATEGORIES.map(({ label, href }) => (
             href
               ? <Link key={label} href={href} onClick={closeAll} className={`mobile-drawer-link${isActivePath(href) ? " active" : ""}`} aria-current={isActivePath(href) ? "page" : undefined}>{label}</Link>
