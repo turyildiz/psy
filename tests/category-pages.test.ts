@@ -61,6 +61,36 @@ test("the shared category page preserves the Music page loading, filter, grid, a
   assert.match(source, /setLoading\(false\)/);
 });
 
+test("featured category cards keep responsive images contained above equal-height content", () => {
+  const source = readFileSync("components/StandardCategoryPage.tsx", "utf8");
+
+  assert.match(source, /className="standard-category-featured-card"/);
+  assert.match(source, /className="standard-category-featured-image"/);
+  assert.match(source, /className="standard-category-featured-image-element"/);
+  assert.match(source, /className="standard-category-featured-content"/);
+  assert.match(source, /className="standard-category-featured-price"/);
+  assert.match(source, /className="standard-category-featured-condition"/);
+  assert.match(source, /className="standard-category-featured-seller-row"/);
+  assert.match(source, /className="standard-category-featured-seller-handle"/);
+
+  assert.match(source, /\.standard-category-featured-card\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*height:\s*100%;/);
+  assert.match(source, /\.standard-category-featured-image\s*\{[^}]*position:\s*relative;[^}]*aspect-ratio:\s*4\s*\/\s*3;[^}]*overflow:\s*hidden;/);
+  assert.match(source, /\.standard-category-featured-image-element\s*\{[^}]*width:\s*100%;[^}]*height:\s*100%;[^}]*object-fit:\s*cover;/);
+  assert.match(source, /\.standard-category-featured-content\s*\{[^}]*display:\s*flex;[^}]*flex-direction:\s*column;[^}]*flex:\s*1;/);
+  assert.match(source, /\.standard-category-featured-price-row\s*\{[^}]*margin-top:\s*auto;[^}]*flex-wrap:\s*wrap;/);
+  assert.match(source, /\.standard-category-featured-price\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+  assert.match(source, /\.standard-category-featured-condition\s*\{[^}]*flex-shrink:\s*0;/);
+  assert.match(source, /\.standard-category-featured-seller-handle\s*\{[^}]*overflow-wrap:\s*anywhere;/);
+  assert.match(source, /\.standard-category-featured-grid\s*>\s*\.stagger-item\s*\{[^}]*height:\s*100%;/);
+
+  const imageIndex = source.indexOf('className="standard-category-featured-image"');
+  const titleIndex = source.indexOf('className="standard-category-featured-title"');
+  const descriptionIndex = source.indexOf('className="standard-category-featured-description"');
+  const priceIndex = source.indexOf('className="standard-category-featured-price-row"');
+  const sellerIndex = source.indexOf('className="standard-category-featured-seller-row"');
+  assert.ok(imageIndex < titleIndex && titleIndex < descriptionIndex && descriptionIndex < priceIndex && priceIndex < sellerIndex);
+});
+
 test("new category nav entries share desktop/mobile route-active treatment", () => {
   const header = readFileSync("components/layout/Header.tsx", "utf8");
   for (const [label, href] of [["Art & Decor", "/art"], ["Tickets", "/tickets"], ["Vintage", "/vintage"]]) {
