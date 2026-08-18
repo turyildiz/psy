@@ -58,20 +58,20 @@ function ProductCard({ item }: { item: Listing }) {
   const conditionColor = CONDITION_COLORS[item.condition] || "var(--text-light)";
 
   return (
-    <Link href={`/listing/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
+    <Link href={`/listing/${item.id}`} style={{ textDecoration: "none", display: "block", height: "100%", minWidth: 0 }}>
       <article
-        style={{ background: "var(--white)", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--sand)", boxShadow: hovered ? "0 10px 28px oklch(35% 0.06 55 / 0.14)" : "0 2px 8px oklch(0% 0 0 / 0.06)", transform: hovered ? "translateY(-3px)" : "none", transition: "all 0.25s ease" }}
+        style={{ background: "var(--white)", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--sand)", boxShadow: hovered ? "0 10px 28px oklch(35% 0.06 55 / 0.14)" : "0 2px 8px oklch(0% 0 0 / 0.06)", transform: hovered ? "translateY(-3px)" : "none", transition: "all 0.25s ease", display: "flex", flexDirection: "column", width: "100%", height: "100%", minWidth: 0 }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <div style={{ position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "relative", overflow: "hidden", aspectRatio: "1 / 1" }}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ width: "100%", height: "220px", objectFit: "cover", display: "block", transform: hovered ? "scale(1.05)" : "scale(1)", transition: "transform 0.5s ease" }} />
+          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ width: "100%", height: "100%", objectFit: "cover", display: "block", transform: hovered ? "scale(1.05)" : "scale(1)", transition: "transform 0.5s ease" }} />
           {item.isFeatured && <span style={{ position: "absolute", top: "10px", left: "10px", background: "var(--rust)", color: "white", fontSize: "9px", padding: "3px 8px", borderRadius: "3px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>Featured</span>}
         </div>
-        <div style={{ padding: "11px 13px 14px" }}>
+        <div style={{ padding: "11px 13px 14px", flex: 1, minWidth: 0 }}>
           <p style={{ fontSize: "10px", color: "var(--text-light)", letterSpacing: "0.06em", textTransform: "uppercase", margin: "0 0 4px" }}>{formatCategoryLabel(item.category)}</p>
-          <h2 style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", lineHeight: 1.3, margin: "0 0 4px", overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</h2>
+          <h2 style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", lineHeight: 1.3, margin: "0 0 4px", overflow: "hidden", textOverflow: "ellipsis", display: "-webkit-box", WebkitBoxOrient: "vertical", WebkitLineClamp: 2, minHeight: "2.6em" }}>{item.title}</h2>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
             <span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)" }}>{formatPrice(item.priceCents)}</span>
             <span style={{ fontSize: "9px", padding: "2px 6px", borderRadius: "4px", background: `${conditionColor}18`, color: conditionColor, fontWeight: 600 }}>{conditionLabels[item.condition]}</span>
@@ -306,13 +306,13 @@ export default function BrowsePageClient() {
           </div>
 
           {loading ? (
-            <div className="apparel-grid">{Array.from({ length: 10 }).map((_, index) => <div key={index} className="skeleton-block" style={{ height: "270px" }} />)}</div>
+            <div className="browse-results-grid">{Array.from({ length: 10 }).map((_, index) => <div key={index} className="skeleton-block" style={{ height: "270px" }} />)}</div>
           ) : error && listings.length === 0 ? (
             <div role="alert" style={{ textAlign: "center", padding: "70px 20px", color: "var(--text-mid)" }}><h2 style={{ color: "var(--text)", marginBottom: "8px" }}>Something went wrong</h2><p>{error}</p><button type="button" onClick={() => setRetryKey((value) => value + 1)} style={{ border: 0, borderRadius: "7px", background: "var(--dark)", color: "white", padding: "9px 18px", fontWeight: 700, cursor: "pointer" }}>Retry</button></div>
           ) : listings.length === 0 ? (
             <div style={{ textAlign: "center", padding: "70px 20px", color: "var(--text-light)" }}><h2 style={{ color: "var(--text)", marginBottom: "8px" }}>{state.query ? `Nothing found for '${state.query}'` : "No listings found"}</h2><p>Try adjusting your search or filters.</p><Link href="/browse" style={{ color: "var(--rust)", fontWeight: 700 }}>Clear all filters</Link></div>
           ) : (
-            <div className="apparel-grid">{listings.map((item, index) => <div key={item.id} className="stagger-item" style={{ "--i": Math.min(index, 9) } as CSSProperties}><ProductCard item={item} /></div>)}</div>
+            <div className="browse-results-grid">{listings.map((item, index) => <div key={item.id} className="stagger-item" style={{ "--i": Math.min(index, 9), minWidth: 0, height: "100%" } as CSSProperties}><ProductCard item={item} /></div>)}</div>
           )}
 
           {!loading && listings.length > 0 && <div style={{ textAlign: "center", marginTop: "42px" }}>{error && <p role="alert" style={{ color: "#a33" }}>{error}</p>}{hasMore && <button type="button" onClick={() => void loadMore()} disabled={loadingMore} style={{ border: "1px solid var(--dark)", borderRadius: "7px", background: "var(--white)", color: "var(--dark)", padding: "10px 22px", fontWeight: 700, cursor: loadingMore ? "default" : "pointer" }}>{loadingMore ? "Loading…" : "Load more"}</button>}{!hasMore && <p style={{ color: "var(--text-light)", fontSize: "13px" }}>All results loaded</p>}</div>}
@@ -320,9 +320,10 @@ export default function BrowsePageClient() {
       </main>
       <Footer />
       <style>{`
-        .apparel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-        @media (max-width: 1024px) { .apparel-grid { grid-template-columns: repeat(4, 1fr); } }
-        @media (max-width: 768px) { .apparel-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; } }
+        .browse-results-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 26px; align-items: stretch; }
+        @media (max-width: 1180px) { .browse-results-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 860px) { .browse-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+        @media (max-width: 520px) { .browse-results-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
   );
