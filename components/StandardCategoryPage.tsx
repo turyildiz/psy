@@ -4,6 +4,7 @@ import { useEffect, useState, type CSSProperties } from "react";
 import Link from "next/link";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import CategoryFilterToolbar from "@/components/CategoryFilterToolbar";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { conditionLabels } from "@/lib/constants";
 import { toListing } from "@/lib/db";
@@ -231,48 +232,20 @@ export default function StandardCategoryPage({
         </div>
       )}
 
-      <div className="browse-filter-sticky stagger-item" style={{ "--i": 1 } as CSSProperties}>
-        <div className="browse-filter-inner">
-          <div className="browse-filter-row">
-            <div className="browse-pills-group">
-              <button onClick={() => setActiveTags([])} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", background: activeTags.length === 0 ? "var(--rust)" : "transparent", border: `1px solid ${activeTags.length === 0 ? "var(--rust)" : "var(--sand)"}`, color: activeTags.length === 0 ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>
-                {allLabel}
-              </button>
-              {topTags.map((tag) => {
-                const active = activeTags.includes(tag);
-                const label = tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, " ");
-                return (
-                  <button key={tag} onClick={() => toggleTag(tag)} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", background: active ? "var(--rust)" : "transparent", border: `1px solid ${active ? "var(--rust)" : "var(--sand)"}`, color: active ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>
-                    {label}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-          <div className="browse-filter-row">
-            <div className="browse-filter-spacer" />
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-              <span style={{ fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Sort</span>
-              <div style={{ position: "relative" }}>
-                <select value={sort} onChange={(event) => setSort(event.target.value)} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 28px 5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}>
-                  {SORT_OPTIONS.map((option) => <option key={option}>{option}</option>)}
-                </select>
-                <svg style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
-              </div>
-            </div>
-            <div style={{ width: "1px", height: "20px", background: "var(--sand)", flexShrink: 0 }} />
-            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-              <span style={{ fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Price</span>
-              <div style={{ position: "relative" }}>
-                <select value={priceRange} onChange={(event) => setPriceRange(event.target.value)} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 28px 5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}>
-                  {PRICE_RANGES.map((range) => <option key={range}>{range}</option>)}
-                </select>
-                <svg style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+      <CategoryFilterToolbar
+        allLabel={allLabel}
+        tags={topTags.map((tag) => ({ value: tag, label: tag.charAt(0).toUpperCase() + tag.slice(1).replace(/-/g, " ") }))}
+        activeTags={activeTags}
+        onClearTags={() => setActiveTags([])}
+        onToggleTag={toggleTag}
+        sort={sort}
+        sortOptions={SORT_OPTIONS}
+        onSortChange={setSort}
+        priceRange={priceRange}
+        priceOptions={PRICE_RANGES}
+        onPriceChange={setPriceRange}
+        style={{ "--i": 1 } as CSSProperties}
+      />
 
       <div className="site-shell" style={{ paddingTop: "48px", paddingBottom: "80px" }}>
         {loading ? (
