@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { categoryLabels, conditionLabels } from "@/lib/constants";
+import { formatPrice } from "@/lib/listings/price";
 import type { Listing } from "@/types/marketplace";
 import ProfileAvatar from "@/components/ProfileAvatar";
 
@@ -113,7 +114,7 @@ export default function ProductCard({ item, fill, small }: Props) {
         </p>
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "8px" }}>
           <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "16px", fontWeight: 700, color: "var(--rust)" }}>
-            {(item.priceCents / 100).toLocaleString("en-IE", { style: "currency", currency: "EUR" })}
+            {formatPrice(item.priceCents)}
           </p>
           <span style={{ fontSize: "10px", color: "var(--text-light)", whiteSpace: "nowrap" }}>
             {conditionLabels[item.condition]}

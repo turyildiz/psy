@@ -23,13 +23,14 @@ test("parsePriceInput rejects ambiguous or unsupported price syntax", () => {
   }
 });
 
-test("create flows parse price input for validation, cents storage, and two-decimal previews", () => {
+test("create flows parse price input for validation, cents storage, and shared-format previews", () => {
   for (const file of ["../app/listings/new/page.tsx", "../components/NewListingModal.tsx"]) {
     const source = readFileSync(new URL(file, import.meta.url), "utf8");
     assert.match(source, /inputMode="decimal"/, file);
     assert.match(source, /const parsedPrice = parsePriceInput\(price\)/, file);
     assert.match(source, /price: Math\.round\(parsedPrice \* 100\)/, file);
-    assert.match(source, /parsePriceInput\(price\)\?\.toFixed\(2\)/, file);
+    assert.match(source, /formatPrice\(Math\.round\(/, file);
+    assert.doesNotMatch(source, /parsePriceInput\(price\)\?\.toFixed/, file);
     assert.doesNotMatch(source, /Save Draft/, file);
     assert.doesNotMatch(source, /Number\(price\)/, file);
   }

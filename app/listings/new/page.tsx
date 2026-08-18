@@ -10,7 +10,7 @@ import { uploadToR2 } from "@/lib/uploads/client";
 import { IMAGE_ACCEPT, selectAllowedImageFiles, UNSUPPORTED_IMAGE_TYPE_MESSAGE } from "@/lib/uploads/policy";
 import { LISTING_DESCRIPTION_MAX, getListingWriteErrorMessage, validateListingDescription } from "@/lib/listings/validation";
 import { moveItemToFront } from "@/lib/listings/images";
-import { parsePriceInput } from "@/lib/listings/price";
+import { formatPrice, parsePriceInput } from "@/lib/listings/price";
 import { getMyProfiles, getOnlyProfileForCurrentAccount } from "@/lib/db";
 
 const CONDITIONS = [
@@ -421,7 +421,7 @@ export default function NewListingPage() {
                 <ORow label="Category" value={catLabel} />
                 <ORow label="Condition" value={condLabel} />
                 {size && <ORow label="Size" value={size} />}
-                <ORow label="Price" value={<span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "18px", fontWeight: 700, color: "var(--rust)" }}>€{parsePriceInput(price)?.toFixed(2)}</span>} />
+                <ORow label="Price" value={<span style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "18px", fontWeight: 700, color: "var(--rust)" }}>{formatPrice(Math.round((parsePriceInput(price) ?? 0) * 100))}</span>} />
                 {tags.length > 0 && <ORow label="Tags" value={<div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>{tags.map((t) => <span key={t} style={{ fontSize: "12px", padding: "3px 10px", borderRadius: "20px", background: "oklch(92% 0.04 55)", color: "var(--rust)", fontWeight: 600 }}>#{t}</span>)}</div>} />}
                 <ORow label="Ships to" value={shipsTo.join(", ")} />
                 <ORow label="Photos" value={`${images.length} photo${images.length > 1 ? "s" : ""}`} />
