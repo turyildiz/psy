@@ -38,11 +38,41 @@ test("browse listing cards preserve cents with the shared price formatter", () =
 test("browse exposes loading, query-specific empty, error retry, count, and clear states", () => {
   const source = read("components/BrowsePageClient.tsx");
   assert.match(source, /Loading listings…/);
-  assert.match(source, /Nothing found for/);
+  assert.match(source, /Nothing in the tribe's stash for/);
+  assert.match(source, /Listings land daily\. Try a shorter word/);
+  assert.match(source, />Clear search<\/button>/);
+  assert.match(source, /const clearSearch = \(\) => \{/);
+  assert.match(source, /setSearchDraft\(""\);[\s\S]*?navigate\(\{ query: "" \}\);/);
+  assert.match(source, /onClick=\{clearSearch\}/);
   assert.match(source, /role="alert"/);
   assert.match(source, />Retry</);
-  assert.match(source, /Clear all filters/);
+  assert.match(source, />Browse all listings<\/Link>/);
   assert.match(source, /total === 1 \? "result" : "results"/);
+});
+
+test("waveform is a shared currentColor SVG with pulse, flat, and rule variants", () => {
+  assert.equal(exists("components/Waveform.tsx"), true);
+  const source = read("components/Waveform.tsx");
+
+  assert.match(source, /type WaveformVariant = "pulse" \| "flat" \| "rule"/);
+  assert.match(source, /variant = "pulse"/);
+  assert.match(source, /width = 180/);
+  assert.match(source, /viewBox="0 0 180 16"/);
+  assert.match(source, /stroke="currentColor"/);
+  assert.match(source, /variant === "rule"/);
+  assert.match(source, /variant === "flat"/);
+  assert.match(source, /aria-label=\{label\}/);
+  assert.match(source, /aria-hidden=\{label \? undefined : true\}/);
+});
+
+test("browse uses the shared waveform for terminal result counts including zero results", () => {
+  const source = read("components/BrowsePageClient.tsx");
+
+  assert.match(source, /import Waveform from "@\/components\/Waveform"/);
+  assert.match(source, /<Waveform label="End of results" \/>/);
+  assert.match(source, /END OF RESULTS · \{listings\.length\} OF \{total\}/);
+  assert.match(source, /!loading && !error && !hasMore/);
+  assert.doesNotMatch(source, /All results loaded/);
 });
 
 test("browse filters use one sticky toolbar with accessible popovers and removable chips", () => {

@@ -22,6 +22,10 @@ It is not yet fully aligned with the original PRD/SPEC and should not be treated
 - Cloudflare R2 presigned upload API exists in the app
 - npm with `package-lock.json`
 
+## Shared UI motif
+
+`components/Waveform.tsx` is the reusable psy.market line motif. Use `pulse` (the default) for positive terminal markers such as the end of a complete feed, `flat` for quiet “nothing here” states, and `rule` where only a plain hairline divider is appropriate. Set `width` to scale it, add `label` when the mark carries meaning, and recolour it from a parent with the `--waveform-color` custom property; otherwise it uses `--rust`. The component is static and does not rely on motion.
+
 ## Important docs for agents
 
 Before working on this repo, read:
