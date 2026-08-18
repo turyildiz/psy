@@ -39,6 +39,12 @@ const SORT_OPTIONS: Array<{ value: BrowseSort; label: string }> = [
   { value: "price-desc", label: "Price: high to low" },
 ];
 
+type BrowsePopover = "category" | "price" | "sort";
+
+function FilterChevron({ open }: { open: boolean }) {
+  return <svg aria-hidden="true" width="10" height="6" viewBox="0 0 10 6" style={{ transform: open ? "rotate(180deg)" : "none", transition: "transform 160ms ease" }}><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>;
+}
+
 const CONDITION_COLORS: Record<string, string> = {
   new: "#5a7c4a",
   like_new: "#4a7c6a",
@@ -95,19 +101,24 @@ async function fetchListings(state: BrowseState, cursor?: BrowseCursor) {
   return query.limit(BROWSE_PAGE_SIZE + 1);
 }
 
-async function fetchActiveCategories(): Promise<string[]> {
+async function fetchCategoryCounts(state: BrowseState): Promise<Record<string, number>> {
+  const plan = createBrowseQueryPlan({ ...state, category: "all", sort: "newest" });
   const supabase = createClient();
   const counts = await Promise.all(BROWSE_CATEGORIES.map(async (category) => {
-    const { count, error } = await supabase
+    let query = supabase
       .from("listings")
       .select("id", { count: "exact", head: true })
       .eq("status", "active")
       .eq("category", category);
+    if (plan.textSearch) query = query.textSearch("search_vector", plan.textSearch, { type: "websearch" });
+    if (plan.minPrice !== undefined) query = query.gte("price", plan.minPrice);
+    if (plan.maxPrice !== undefined) query = query.lte("price", plan.maxPrice);
+    const { count, error } = await query;
     if (error) throw error;
-    return count && count > 0 ? category : null;
+    return [category, count ?? 0] as const;
   }));
 
-  return counts.filter((category): category is (typeof BROWSE_CATEGORIES)[number] => category !== null);
+  return Object.fromEntries(counts);
 }
 
 export default function BrowsePageClient() {
@@ -117,8 +128,9 @@ export default function BrowsePageClient() {
   const state = useMemo(() => parseBrowseParams(new URLSearchParams(paramsKey)), [paramsKey]);
   const requestId = useRef(0);
   const paginationInFlight = useRef(false);
+  const toolbarRef = useRef<HTMLDivElement>(null);
   const [searchDraft, setSearchDraft] = useState(state.query);
-  const [categories, setCategories] = useState<string[]>([]);
+  const [categoryCounts, setCategoryCounts] = useState<Record<string, number>>({});
   const [categoriesError, setCategoriesError] = useState(false);
   const [listings, setListings] = useState<Listing[]>([]);
   const [total, setTotal] = useState(0);
@@ -127,15 +139,32 @@ export default function BrowsePageClient() {
   const [loadingMore, setLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [retryKey, setRetryKey] = useState(0);
+  const [openPopover, setOpenPopover] = useState<BrowsePopover | null>(null);
 
   useEffect(() => setSearchDraft(state.query), [state.query]);
 
   useEffect(() => {
+    if (!openPopover) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!toolbarRef.current?.contains(event.target as Node)) setOpenPopover(null);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setOpenPopover(null);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [openPopover]);
+
+  useEffect(() => {
     let cancelled = false;
     setCategoriesError(false);
-    void fetchActiveCategories()
+    void fetchCategoryCounts(state)
       .then((values) => {
-        if (!cancelled) setCategories(values);
+        if (!cancelled) setCategoryCounts(values);
       })
       .catch(() => {
         if (!cancelled) {
@@ -143,7 +172,7 @@ export default function BrowsePageClient() {
         }
       });
     return () => { cancelled = true; };
-  }, [retryKey]);
+  }, [state.query, state.price, retryKey]);
 
   useEffect(() => {
     const currentRequest = ++requestId.current;
@@ -193,7 +222,14 @@ export default function BrowsePageClient() {
     paginationInFlight.current = false;
     setLoadingMore(false);
   };
-  const hasNonSearchFilters = Boolean(state.category !== "all" || state.price !== "any" || state.sort !== "newest");
+  const hasActiveFilters = Boolean(state.query || state.category !== "all" || state.price !== "any" || state.sort !== "newest");
+  const allCategoryCount = BROWSE_CATEGORIES.reduce((sum, category) => sum + (categoryCounts[category] ?? 0), 0);
+  const selectedPriceLabel = PRICE_OPTIONS.find((option) => option.value === state.price)?.label ?? "Any price";
+  const selectedSortLabel = SORT_OPTIONS.find((option) => option.value === state.sort)?.label ?? "Newest first";
+  const chooseFilter = (patch: Partial<BrowseState>) => {
+    navigate(patch);
+    setOpenPopover(null);
+  };
 
   return (
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
@@ -206,39 +242,49 @@ export default function BrowsePageClient() {
         </section>
 
         <section className="browse-filter-sticky stagger-item" style={{ "--i": 1 } as CSSProperties} aria-label="Listing filters">
-          <div className="browse-filter-inner browse-marketplace-filter-inner">
-            <div className="browse-filter-row browse-marketplace-search-row">
-            <form onSubmit={submitSearch} style={{ display: "flex", flex: 1, gap: "8px", minWidth: 0 }}>
-              <label htmlFor="browse-search" className="sr-only">Search listings</label>
-              <input id="browse-search" type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search titles, descriptions and tags" maxLength={120} style={{ minWidth: 0, flex: 1, border: "1px solid var(--sand)", borderRadius: "6px", background: "transparent", color: "var(--text)", padding: "7px 10px", font: "inherit", fontSize: "13px", outline: "none" }} />
-              <button type="submit" style={{ border: 0, borderRadius: "6px", background: "var(--rust)", color: "white", padding: "7px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>Search</button>
-            </form>
-            </div>
-            <div className="browse-filter-row browse-marketplace-categories-row">
-              <div className="browse-pills-group" aria-label="Category">
-                <button type="button" onClick={() => navigate({ category: "all" })} aria-pressed={state.category === "all"} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", border: `1px solid ${state.category === "all" ? "var(--rust)" : "var(--sand)"}`, background: state.category === "all" ? "var(--rust)" : "transparent", color: state.category === "all" ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>All</button>
-                {categories.map((category) => <button key={category} type="button" onClick={() => navigate({ category })} aria-pressed={state.category === category} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", border: `1px solid ${state.category === category ? "var(--rust)" : "var(--sand)"}`, background: state.category === category ? "var(--rust)" : "transparent", color: state.category === category ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>{formatCategoryLabel(category)}</button>)}
-                {categoriesError && <button type="button" onClick={() => setRetryKey((value) => value + 1)} style={{ border: 0, background: "transparent", color: "var(--rust)", cursor: "pointer", fontWeight: 700 }}>Retry categories</button>}
-              </div>
-            </div>
-            <div className="browse-filter-row browse-marketplace-controls-row">
-              <div className="browse-filter-spacer" />
-              <div className="browse-select-group" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                <span style={{ fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Sort</span>
-                <div className="browse-select-wrap" style={{ position: "relative" }}>
-                  <select aria-label="Sort listings" value={state.sort} onChange={(event) => navigate({ sort: event.target.value as BrowseSort })} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}>{SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-                  <svg className="browse-select-chevron" style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+          <div ref={toolbarRef} className="browse-marketplace-toolbar site-shell">
+            <div className="browse-marketplace-toolbar-main">
+              <form onSubmit={submitSearch} className="browse-toolbar-search">
+                <label htmlFor="browse-search" className="sr-only">Search listings</label>
+                <input id="browse-search" type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search listings, sellers, festivals…" maxLength={120} />
+                <button type="submit">Search</button>
+              </form>
+
+              <div className="browse-toolbar-filters">
+                <div className="browse-filter-menu">
+                  <button type="button" className={`browse-filter-trigger${state.category !== "all" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "category"} aria-controls="browse-category-popover" onClick={() => setOpenPopover((current) => current === "category" ? null : "category")}>
+                    <span className="browse-filter-key">CATEGORY</span><span className="browse-filter-value">{state.category === "all" ? "All" : formatCategoryLabel(state.category)}</span><FilterChevron open={openPopover === "category"} />
+                  </button>
+                  {openPopover === "category" && <div id="browse-category-popover" className="browse-filter-popover browse-category-popover" role="group" aria-label="Choose a category">
+                    <button type="button" aria-pressed={state.category === "all"} onClick={() => chooseFilter({ category: "all" })}><span className="browse-option-check" aria-hidden="true">{state.category === "all" ? "✓" : ""}</span><span className="browse-option-label">All</span><span className="browse-category-count">{allCategoryCount}</span></button>
+                    {BROWSE_CATEGORIES.map((category) => {
+                      const count = categoryCounts[category] ?? 0;
+                      return <button key={category} type="button" aria-pressed={state.category === category} disabled={count === 0} onClick={() => chooseFilter({ category })}><span className="browse-option-check" aria-hidden="true">{state.category === category ? "✓" : ""}</span><span className="browse-option-label">{formatCategoryLabel(category)}</span><span className="browse-category-count">{count}</span></button>;
+                    })}
+                    {categoriesError && <button type="button" className="browse-filter-retry" onClick={() => setRetryKey((value) => value + 1)}>Retry categories</button>}
+                  </div>}
+                </div>
+
+                <div className="browse-filter-menu">
+                  <button type="button" className={`browse-filter-trigger${state.sort !== "newest" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "sort"} aria-controls="browse-sort-popover" onClick={() => setOpenPopover((current) => current === "sort" ? null : "sort")}>
+                    <span className="browse-filter-key">SORT</span><span className="browse-filter-value">{selectedSortLabel}</span><FilterChevron open={openPopover === "sort"} />
+                  </button>
+                  {openPopover === "sort" && <div id="browse-sort-popover" className="browse-filter-popover browse-sort-popover" role="group" aria-label="Sort listings">
+                    {SORT_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.sort === option.value} onClick={() => chooseFilter({ sort: option.value })}><span className="browse-option-check" aria-hidden="true">{state.sort === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
+                  </div>}
+                </div>
+
+                <div className="browse-filter-menu">
+                  <button type="button" className={`browse-filter-trigger${state.price !== "any" ? " is-active" : ""}`} aria-haspopup="true" aria-expanded={openPopover === "price"} aria-controls="browse-price-popover" onClick={() => setOpenPopover((current) => current === "price" ? null : "price")}>
+                    <span className="browse-filter-key">PRICE</span><span className="browse-filter-value">{selectedPriceLabel}</span><FilterChevron open={openPopover === "price"} />
+                  </button>
+                  {openPopover === "price" && <div id="browse-price-popover" className="browse-filter-popover" role="group" aria-label="Choose a price range">
+                    {PRICE_OPTIONS.map((option) => <button key={option.value} type="button" aria-pressed={state.price === option.value} onClick={() => chooseFilter({ price: option.value })}><span className="browse-option-check" aria-hidden="true">{state.price === option.value ? "✓" : ""}</span><span className="browse-option-label">{option.label}</span></button>)}
+                  </div>}
                 </div>
               </div>
-              <div style={{ width: "1px", height: "20px", background: "var(--sand)", flexShrink: 0 }} />
-              <div className="browse-select-group" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
-                <span style={{ fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Price</span>
-                <div className="browse-select-wrap" style={{ position: "relative" }}>
-                  <select aria-label="Price listings" value={state.price} onChange={(event) => navigate({ price: event.target.value as BrowsePrice })} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}>{PRICE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-                  <svg className="browse-select-chevron" style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
-                </div>
-              </div>
             </div>
+
           </div>
         </section>
 
@@ -247,15 +293,16 @@ export default function BrowsePageClient() {
             {loading ? (
               <p style={{ margin: 0, color: "var(--text-light)", fontSize: "13px" }}>Loading listings…</p>
             ) : state.query ? (
-              <>
-                <p style={{ margin: 0, color: "var(--text-mid)", fontSize: "13px" }}><strong style={{ color: "var(--text)", fontWeight: 700 }}>{total}</strong> {total === 1 ? "result" : "results"} for &quot;<strong style={{ color: "var(--rust)", fontWeight: 700 }}>{state.query}</strong>&quot;</p>
-                <Link href={buildBrowseHref(state, { query: "" })} style={{ color: "var(--rust)", fontSize: "12px", fontWeight: 700 }}>Clear</Link>
-              </>
+              <p style={{ margin: 0, color: "var(--text-mid)", fontSize: "13px" }}><strong style={{ color: "var(--text)", fontWeight: 700 }}>{total}</strong> {total === 1 ? "result" : "results"} for &quot;<strong style={{ color: "var(--rust)", fontWeight: 700 }}>{state.query}</strong>&quot;</p>
             ) : (
               <p style={{ margin: 0, color: "var(--text-light)", fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase" }}>{total} listings</p>
             )}
+            {(state.category !== "all" || state.price !== "any") && <div className="browse-active-filters" aria-label="Active filters">
+              {state.category !== "all" && <button type="button" onClick={() => navigate({ category: "all" })}><span className="browse-active-chip-key">CAT</span><span>{formatCategoryLabel(state.category)}</span><span aria-hidden="true">×</span><span className="sr-only">Remove category filter</span></button>}
+              {state.price !== "any" && <button type="button" onClick={() => navigate({ price: "any" })}><span className="browse-active-chip-key">PRICE</span><span>{selectedPriceLabel}</span><span aria-hidden="true">×</span><span className="sr-only">Remove price filter</span></button>}
+            </div>}
             <div style={{ flex: 1 }} />
-            {hasNonSearchFilters && <Link href="/browse" style={{ color: "var(--rust)", fontSize: "13px", fontWeight: 700 }}>Clear filters</Link>}
+            {hasActiveFilters && <Link href="/browse" className="browse-clear-filters">Clear filters</Link>}
           </div>
 
           {loading ? (

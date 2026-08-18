@@ -45,26 +45,54 @@ test("browse exposes loading, query-specific empty, error retry, count, and clea
   assert.match(source, /total === 1 \? "result" : "results"/);
 });
 
-test("browse mobile filters follow the category-page row and select patterns", () => {
+test("browse filters use one sticky toolbar with accessible popovers and removable chips", () => {
   const source = read("components/BrowsePageClient.tsx");
   const styles = read("app/globals.css");
-  const searchRow = source.indexOf("browse-marketplace-search-row");
-  const categoriesRow = source.indexOf("browse-marketplace-categories-row");
-  const controlsRow = source.indexOf("browse-marketplace-controls-row");
 
-  assert.ok(searchRow >= 0 && searchRow < categoriesRow && categoriesRow < controlsRow);
-  assert.match(source, /browse-marketplace-categories-row">\s*<div className="browse-pills-group"/);
-  assert.match(source, /browse-marketplace-controls-row">\s*<div className="browse-filter-spacer"/);
-  assert.equal(source.match(/<svg[^>]*width="10" height="6" viewBox="0 0 10 6">/g)?.length, 2);
-  assert.equal(source.match(/className="browse-select-group"/g)?.length, 2);
-  assert.equal(source.match(/className="browse-select-wrap"/g)?.length, 2);
-  assert.equal(source.match(/className="browse-select-chevron"/g)?.length, 2);
-  assert.equal(source.match(/aria-label="(?:Sort|Price) listings"/g)?.length, 2);
-  assert.match(styles, /\.browse-marketplace-controls-row \.browse-select-chevron \{ display: none; \}/);
-  assert.match(styles, /\.browse-pills-group \{[\s\S]*?overflow-x: auto;[\s\S]*?min-width: 0;/);
-  assert.match(styles, /\.browse-marketplace-controls-row \.browse-select-group \{ flex: 1; min-width: 0; \}/);
-  assert.match(styles, /\.browse-marketplace-controls-row select \{ width: 100%; min-width: 0; appearance: none; padding: 5px 28px 5px 10px !important; \}/);
-  assert.match(styles, /\.browse-marketplace-controls-row \.browse-select-chevron \{ display: block; \}/);
+  assert.match(source, /className="browse-marketplace-toolbar site-shell"/);
+  assert.equal(source.match(/aria-haspopup="true"/g)?.length, 3);
+  assert.equal(source.match(/aria-expanded=\{openPopover ===/g)?.length, 3);
+  assert.match(source, /event\.key === "Escape"/);
+  assert.match(source, /document\.addEventListener\("pointerdown"/);
+  assert.match(source, /aria-label="Active filters"/);
+  assert.match(source, /Remove category filter/);
+  assert.match(source, /Remove price filter/);
+  assert.match(styles, /\.browse-filter-sticky \{[\s\S]*?position: sticky;/);
+  assert.match(styles, /\.browse-filter-popover \{[\s\S]*?position: absolute;/);
+  assert.match(styles, /\.browse-active-filters \{[\s\S]*?overflow-x: auto;/);
+  assert.doesNotMatch(source, /<select/);
+});
+
+test("browse toolbar renders the commissioned labels, active chips, and quiet reset", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const styles = read("app/globals.css");
+
+  assert.match(source, /placeholder="Search listings, sellers, festivals…"/);
+  assert.match(source, /browse-filter-key">CATEGORY/);
+  assert.match(source, /browse-filter-key">SORT/);
+  assert.match(source, /browse-filter-key">PRICE/);
+  assert.ok(source.indexOf('browse-filter-key">CATEGORY') < source.indexOf('browse-filter-key">SORT'));
+  assert.ok(source.indexOf('browse-filter-key">SORT') < source.indexOf('browse-filter-key">PRICE'));
+  assert.match(source, /browse-active-chip-key">CAT/);
+  assert.match(source, /browse-active-chip-key">PRICE/);
+  assert.doesNotMatch(source, />Clear all<\/button>/);
+  assert.match(source, /className="browse-clear-filters"/);
+  assert.match(styles, /\.browse-clear-filters \{[^}]*color: var\(--text-light\)/);
+});
+
+test("browse category popover counts the current search and price result set", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const styles = read("app/globals.css");
+  const categoryCountSource = source.slice(source.indexOf("async function fetchCategoryCounts"), source.indexOf("export default function BrowsePageClient"));
+
+  assert.match(source, /async function fetchCategoryCounts\(state: BrowseState\)/);
+  assert.match(categoryCountSource, /\.textSearch\("search_vector", plan\.textSearch, \{ type: "websearch" \}\)/);
+  assert.match(categoryCountSource, /\.gte\("price", plan\.minPrice\)/);
+  assert.match(categoryCountSource, /\.lte\("price", plan\.maxPrice\)/);
+  assert.match(source, /disabled=\{count === 0\}/);
+  assert.match(source, /browse-category-count/);
+  assert.match(styles, /\.browse-category-popover \{[^}]*grid-template-columns: repeat\(2, minmax\(0, 1fr\)\)/);
+  assert.match(styles, /\.browse-filter-popover button\[aria-pressed="true"\] \{[^}]*background: oklch\(96% 0\.025 55\);[^}]*color: var\(--rust\)/);
 });
 
 test("browse route provides a suspense boundary for URL-backed client state", () => {
