@@ -654,57 +654,70 @@ input:autofill {
 }
 
 .browse-marketplace-toolbar-main {
+  position: relative;
+  box-sizing: border-box;
+  width: 100%;
+  height: 56px;
   display: flex;
   align-items: center;
-  gap: 12px;
+  border: 1px solid var(--sand);
+  border-radius: 16px;
+  background: var(--white);
+}
+
+.browse-marketplace-toolbar-main > * {
+  position: relative;
+  min-width: 0;
+  height: 100%;
+}
+
+.browse-marketplace-toolbar-main > * + *::before {
+  content: "";
+  position: absolute;
+  z-index: 2;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 1px;
+  background: var(--sand);
+  pointer-events: none;
 }
 
 .browse-toolbar-search {
   display: flex;
   flex: 1;
-  min-width: 260px;
-  gap: 8px;
+  align-items: center;
 }
 
 .browse-toolbar-search input {
   min-width: 0;
   flex: 1;
-  height: 40px;
-  border: 1px solid var(--sand);
-  border-radius: 8px;
-  background: var(--cream);
+  width: 100%;
+  height: 100%;
+  border: 0;
+  border-radius: 15px 0 0 15px;
+  background: transparent;
   color: var(--text);
-  padding: 0 12px;
+  padding: 0 16px;
   font: 500 13px Manrope, var(--font-manrope);
   outline: none;
 }
 
-.browse-toolbar-search input:focus { border-color: var(--rust); box-shadow: 0 0 0 3px oklch(54% 0.16 42 / .1); }
+.browse-toolbar-search input:focus { background: oklch(99% 0.006 75); }
 
-.browse-toolbar-search > button {
-  height: 40px;
-  border: 0;
-  border-radius: 8px;
-  background: var(--rust);
-  color: white;
-  padding: 0 18px;
-  font: 700 13px Manrope, var(--font-manrope);
-  cursor: pointer;
-}
-
-.browse-toolbar-filters { display: flex; align-items: center; gap: 8px; }
-.browse-filter-menu { position: relative; }
+.browse-filter-menu { position: relative; flex: 0 1 190px; }
 
 .browse-filter-trigger {
-  height: 40px;
-  max-width: 190px;
+  width: 100%;
+  height: 100%;
+  max-width: none;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid var(--sand);
-  border-radius: 999px;
-  background: var(--white);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
   color: var(--text-mid);
   padding: 0 14px;
   font: 600 13px Manrope, var(--font-manrope);
@@ -715,8 +728,9 @@ input:autofill {
 .browse-filter-trigger > span { overflow: hidden; text-overflow: ellipsis; }
 .browse-filter-trigger .browse-filter-key { flex-shrink: 0; color: var(--text-light); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
 .browse-filter-trigger .browse-filter-value { color: var(--text); }
-.browse-filter-trigger:hover, .browse-filter-trigger[aria-expanded="true"] { border-color: var(--rust-dim); color: var(--rust); }
-.browse-filter-trigger.is-active { border-color: var(--rust); background: oklch(96% 0.025 55); color: var(--rust); }
+.browse-filter-menu:last-child .browse-filter-trigger { border-radius: 0 15px 15px 0; }
+.browse-filter-trigger:hover, .browse-filter-trigger[aria-expanded="true"] { background: var(--cream); color: var(--rust); }
+.browse-filter-trigger.is-active { background: oklch(96% 0.025 55); color: var(--rust); }
 .browse-filter-trigger.is-active .browse-filter-key { color: var(--text-light); }
 .browse-filter-trigger.is-active .browse-filter-value { color: var(--rust); }
 
@@ -812,11 +826,9 @@ input:autofill {
 }
 
 @media (max-width: 900px) {
-  .browse-marketplace-toolbar-main { align-items: stretch; flex-direction: column; gap: 8px; }
-  .browse-toolbar-search { min-width: 0; width: 100%; }
-  .browse-toolbar-filters { position: relative; width: 100%; gap: 6px; }
-  .browse-filter-menu { position: static; min-width: 0; flex: 1; }
-  .browse-filter-trigger { width: 100%; max-width: none; height: 36px; padding: 0 10px; gap: 7px; font-size: 12px; }
+  .browse-toolbar-search { min-width: 0; }
+  .browse-filter-menu { min-width: 0; flex: 0 1 150px; }
+  .browse-filter-trigger { padding: 0 10px; gap: 7px; font-size: 12px; }
   .browse-filter-popover { left: 0; right: 0; top: calc(100% + 8px); width: auto; margin: 0; }
   .browse-category-popover { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }

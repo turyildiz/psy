@@ -80,6 +80,20 @@ test("browse toolbar renders the commissioned labels, active chips, and quiet re
   assert.match(styles, /\.browse-clear-filters \{[^}]*color: var\(--text-light\)/);
 });
 
+test("browse toolbar is one four-segment bar without a Search button", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const styles = read("app/globals.css");
+
+  assert.doesNotMatch(source, /<button type="submit">Search<\/button>/);
+  assert.doesNotMatch(source, /browse-toolbar-filters/);
+  assert.equal(source.match(/className="browse-filter-menu"/g)?.length, 3);
+  assert.match(styles, /\.browse-marketplace-toolbar-main \{[^}]*width: 100%;[^}]*height: 56px;[^}]*border: 1px solid var\(--sand\);[^}]*border-radius: 16px;[^}]*background: var\(--white\);/);
+  assert.match(styles, /\.browse-marketplace-toolbar-main > \* \+ \*::before \{[^}]*top: 12px;[^}]*bottom: 12px;[^}]*width: 1px;[^}]*background: var\(--sand\);/);
+  assert.match(styles, /\.browse-toolbar-search input \{[^}]*border: 0;/);
+  assert.match(styles, /\.browse-filter-trigger \{[^}]*border: 0;/);
+  assert.doesNotMatch(styles, /\.browse-marketplace-toolbar-main \{[^}]*flex-direction: column/);
+});
+
 test("browse category popover counts the current search and price result set", () => {
   const source = read("components/BrowsePageClient.tsx");
   const styles = read("app/globals.css");
