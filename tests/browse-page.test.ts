@@ -45,6 +45,28 @@ test("browse exposes loading, query-specific empty, error retry, count, and clea
   assert.match(source, /total === 1 \? "result" : "results"/);
 });
 
+test("browse mobile filters follow the category-page row and select patterns", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const styles = read("app/globals.css");
+  const searchRow = source.indexOf("browse-marketplace-search-row");
+  const categoriesRow = source.indexOf("browse-marketplace-categories-row");
+  const controlsRow = source.indexOf("browse-marketplace-controls-row");
+
+  assert.ok(searchRow >= 0 && searchRow < categoriesRow && categoriesRow < controlsRow);
+  assert.match(source, /browse-marketplace-categories-row">\s*<div className="browse-pills-group"/);
+  assert.match(source, /browse-marketplace-controls-row">\s*<div className="browse-filter-spacer"/);
+  assert.equal(source.match(/<svg[^>]*width="10" height="6" viewBox="0 0 10 6">/g)?.length, 2);
+  assert.equal(source.match(/className="browse-select-group"/g)?.length, 2);
+  assert.equal(source.match(/className="browse-select-wrap"/g)?.length, 2);
+  assert.equal(source.match(/className="browse-select-chevron"/g)?.length, 2);
+  assert.equal(source.match(/aria-label="(?:Sort|Price) listings"/g)?.length, 2);
+  assert.match(styles, /\.browse-marketplace-controls-row \.browse-select-chevron \{ display: none; \}/);
+  assert.match(styles, /\.browse-pills-group \{[\s\S]*?overflow-x: auto;[\s\S]*?min-width: 0;/);
+  assert.match(styles, /\.browse-marketplace-controls-row \.browse-select-group \{ flex: 1; min-width: 0; \}/);
+  assert.match(styles, /\.browse-marketplace-controls-row select \{ width: 100%; min-width: 0; appearance: none; padding: 5px 28px 5px 10px !important; \}/);
+  assert.match(styles, /\.browse-marketplace-controls-row \.browse-select-chevron \{ display: block; \}/);
+});
+
 test("browse route provides a suspense boundary for URL-backed client state", () => {
   const source = read("app/browse/page.tsx");
   assert.match(source, /<Suspense/);

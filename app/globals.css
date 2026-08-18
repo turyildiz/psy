@@ -334,6 +334,18 @@ input:autofill {
   flex-shrink: 0;
 }
 
+.mobile-drawer-header-close-only { justify-content: flex-end; }
+
+.mobile-drawer-section-label {
+  display: block;
+  padding: 18px 20px 7px;
+  color: oklch(60% 0.01 70);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
 .mobile-drawer-close {
   background: transparent;
   border: none;
@@ -665,6 +677,8 @@ input:autofill {
 
 .browse-filter-spacer { flex: 1; }
 
+.browse-marketplace-controls-row .browse-select-chevron { display: none; }
+
 /* mobile price select — hidden on desktop */
 
 @media (max-width: 1024px) {
@@ -692,6 +706,8 @@ input:autofill {
   .browse-pills-group {
     display: flex;
     overflow-x: auto;
+    min-width: 0;
+    flex: 1;
     gap: 6px;
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
@@ -700,6 +716,11 @@ input:autofill {
   }
   .browse-pills-group::-webkit-scrollbar { display: none; }
   .browse-pills-group > * { flex-shrink: 0; }
+
+  .browse-marketplace-controls-row .browse-select-group { flex: 1; min-width: 0; }
+  .browse-marketplace-controls-row .browse-select-wrap { flex: 1; min-width: 0; }
+  .browse-marketplace-controls-row select { width: 100%; min-width: 0; appearance: none; padding: 5px 28px 5px 10px !important; }
+  .browse-marketplace-controls-row .browse-select-chevron { display: block; }
 
   /* Category pages mobile — 1-col grid */
   .music-featured-grid, .apparel-featured-grid, .jewellery-featured-grid { grid-template-columns: 1fr !important; gap: 12px !important; }

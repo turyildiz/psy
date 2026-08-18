@@ -219,20 +219,30 @@ export default function BrowsePageClient() {
               <button type="submit" style={{ border: 0, borderRadius: "6px", background: "var(--rust)", color: "white", padding: "7px 18px", fontSize: "13px", fontWeight: 700, cursor: "pointer" }}>Search</button>
             </form>
             </div>
-            <div className="browse-filter-row browse-marketplace-options-row">
-            <div className="browse-pills-group" aria-label="Category">
-              <button type="button" onClick={() => navigate({ category: "all" })} aria-pressed={state.category === "all"} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", border: `1px solid ${state.category === "all" ? "var(--rust)" : "var(--sand)"}`, background: state.category === "all" ? "var(--rust)" : "transparent", color: state.category === "all" ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>All</button>
-              {categories.map((category) => <button key={category} type="button" onClick={() => navigate({ category })} aria-pressed={state.category === category} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", border: `1px solid ${state.category === category ? "var(--rust)" : "var(--sand)"}`, background: state.category === category ? "var(--rust)" : "transparent", color: state.category === category ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>{formatCategoryLabel(category)}</button>)}
-              {categoriesError && <button type="button" onClick={() => setRetryKey((value) => value + 1)} style={{ border: 0, background: "transparent", color: "var(--rust)", cursor: "pointer", fontWeight: 700 }}>Retry categories</button>}
+            <div className="browse-filter-row browse-marketplace-categories-row">
+              <div className="browse-pills-group" aria-label="Category">
+                <button type="button" onClick={() => navigate({ category: "all" })} aria-pressed={state.category === "all"} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", border: `1px solid ${state.category === "all" ? "var(--rust)" : "var(--sand)"}`, background: state.category === "all" ? "var(--rust)" : "transparent", color: state.category === "all" ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>All</button>
+                {categories.map((category) => <button key={category} type="button" onClick={() => navigate({ category })} aria-pressed={state.category === category} style={{ padding: "7px 18px", borderRadius: "20px", fontSize: "13px", cursor: "pointer", fontFamily: "Manrope, var(--font-manrope)", fontWeight: 500, transition: "all 0.2s", border: `1px solid ${state.category === category ? "var(--rust)" : "var(--sand)"}`, background: state.category === category ? "var(--rust)" : "transparent", color: state.category === category ? "white" : "var(--text-mid)", whiteSpace: "nowrap" }}>{formatCategoryLabel(category)}</button>)}
+                {categoriesError && <button type="button" onClick={() => setRetryKey((value) => value + 1)} style={{ border: 0, background: "transparent", color: "var(--rust)", cursor: "pointer", fontWeight: 700 }}>Retry categories</button>}
+              </div>
             </div>
-            <div className="browse-filter-spacer" />
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Sort
-              <select value={state.sort} onChange={(event) => navigate({ sort: event.target.value as BrowseSort })} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none", textTransform: "none", letterSpacing: 0 }}>{SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-            </label>
-            <div style={{ width: "1px", height: "20px", background: "var(--sand)", flexShrink: 0 }} />
-            <label style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0, fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Price
-              <select value={state.price} onChange={(event) => navigate({ price: event.target.value as BrowsePrice })} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none", textTransform: "none", letterSpacing: 0 }}>{PRICE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
-            </label>
+            <div className="browse-filter-row browse-marketplace-controls-row">
+              <div className="browse-filter-spacer" />
+              <div className="browse-select-group" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                <span style={{ fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Sort</span>
+                <div className="browse-select-wrap" style={{ position: "relative" }}>
+                  <select aria-label="Sort listings" value={state.sort} onChange={(event) => navigate({ sort: event.target.value as BrowseSort })} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}>{SORT_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+                  <svg className="browse-select-chevron" style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+                </div>
+              </div>
+              <div style={{ width: "1px", height: "20px", background: "var(--sand)", flexShrink: 0 }} />
+              <div className="browse-select-group" style={{ display: "flex", alignItems: "center", gap: "8px", flexShrink: 0 }}>
+                <span style={{ fontSize: "13px", color: "var(--text-light)", letterSpacing: "0.04em", textTransform: "uppercase" }}>Price</span>
+                <div className="browse-select-wrap" style={{ position: "relative" }}>
+                  <select aria-label="Price listings" value={state.price} onChange={(event) => navigate({ price: event.target.value as BrowsePrice })} style={{ background: "transparent", border: "1px solid var(--sand)", borderRadius: "6px", padding: "5px 10px", fontSize: "13px", color: "var(--text)", fontFamily: "Manrope, var(--font-manrope)", cursor: "pointer", outline: "none" }}>{PRICE_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}</select>
+                  <svg className="browse-select-chevron" style={{ position: "absolute", right: "8px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="10" height="6" viewBox="0 0 10 6"><path d="M1 1l4 4 4-4" stroke="var(--text-light)" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+                </div>
+              </div>
             </div>
           </div>
         </section>

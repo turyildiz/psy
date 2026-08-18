@@ -311,7 +311,7 @@ test("shared post cards link avatar, display name, and handle to the author prof
   assert.match(wall, /<ProfileAvatar[\s\S]*?<strong>\{profile\.displayName\}[\s\S]*?@\{profile\.handle\}/);
 });
 
-test("Stream navigation leads desktop categories and all routed category links share its active state", () => {
+test("Stream navigation leads desktop categories and the mobile Categories section", () => {
   const header = readFileSync("components/layout/Header.tsx", "utf8");
   const styles = readFileSync("app/globals.css", "utf8");
 
@@ -319,12 +319,14 @@ test("Stream navigation leads desktop categories and all routed category links s
   const desktopCategories = header.indexOf("{CATEGORIES.map");
   const mobileCategories = header.indexOf("mobile-drawer-left");
   const mobileStream = header.indexOf('<Link href="/stream" onClick={closeAll} className={`mobile-drawer-link');
-  const mobileDivider = header.indexOf('className="mobile-stream-divider"');
+  const mobileSectionHeading = header.indexOf('className="mobile-drawer-section-label"');
   const mobileCategoryList = header.indexOf("{CATEGORIES.map", mobileCategories);
   const mobileMenu = header.indexOf("mobile-drawer-right");
 
   assert.ok(desktopStream >= 0 && desktopStream < desktopCategories);
-  assert.ok(mobileStream > mobileCategories && mobileStream < mobileDivider && mobileDivider < mobileCategoryList);
+  assert.ok(mobileStream > mobileCategories && mobileStream < mobileSectionHeading && mobileSectionHeading < mobileCategoryList);
+  assert.match(header.slice(mobileCategories, mobileMenu), />Categories<\/span>/);
+  assert.doesNotMatch(header.slice(mobileCategories, mobileStream), />Categories<\/span>/);
   assert.equal(header.indexOf('href="/stream"', mobileMenu), -1);
   assert.equal(header.match(/href="\/stream"/g)?.length, 2);
   assert.match(header, /const isActivePath = \(href: string\) => pathname === href/);
@@ -332,4 +334,5 @@ test("Stream navigation leads desktop categories and all routed category links s
   assert.match(header, /key=\{label\} href=\{href\} onClick=\{closeAll\} className=\{`mobile-drawer-link\$\{isActivePath\(href\) \? " active" : ""\}`\} aria-current=\{isActivePath\(href\) \? "page" : undefined\}/);
   assert.match(styles, /\.header-category-link\.active/);
   assert.match(styles, /\.mobile-drawer-link\.active/);
+  assert.match(styles, /\.mobile-drawer-section-label/);
 });
