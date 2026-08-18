@@ -122,6 +122,54 @@ test("legacy category featured cards use the same contained equal-height vertica
   }
 });
 
+test("every category route uses the shared browse-style filter toolbar without changing tag state", () => {
+  const toolbarPath = "components/CategoryFilterToolbar.tsx";
+  assert.equal(existsSync(toolbarPath), true, "the visual filter toolbar must be shared across all category implementations");
+
+  const toolbar = readFileSync(toolbarPath, "utf8");
+  const styles = readFileSync("app/globals.css", "utf8");
+  const categorySources = [
+    "app/apparel/page.tsx",
+    "app/jewellery/page.tsx",
+    "app/music/page.tsx",
+    "components/StandardCategoryPage.tsx",
+  ].map((path) => ({ path, source: readFileSync(path, "utf8") }));
+
+  for (const { path, source } of categorySources) {
+    assert.match(source, /import CategoryFilterToolbar from "@\/components\/CategoryFilterToolbar";/, `${path} must import the shared toolbar`);
+    assert.equal(source.match(/<CategoryFilterToolbar/g)?.length, 1, `${path} must render exactly one shared toolbar`);
+    assert.match(source, /const \[activeTags, setActiveTags\] = useState<string\[\]>\(\[\]\);/, `${path} must retain its multi-select state`);
+    assert.match(source, /setActiveTags\(\((?:prev|current)\) => (?:prev|current)\.includes\(tag\) \? (?:prev|current)\.filter\(/, `${path} must retain additive tag toggling`);
+    assert.match(source, /onClearTags=\{\(\) => setActiveTags\(\[\]\)\}/, `${path} must preserve All-category clearing`);
+  }
+
+  assert.match(toolbar, /className=\{`category-filter-sticky/);
+  assert.match(toolbar, /className="category-filter-toolbar-main"/);
+  assert.match(toolbar, /className="category-type-rail"/);
+  assert.match(toolbar, /className="category-rail-fade category-rail-fade-left/);
+  assert.match(toolbar, /className="category-rail-fade category-rail-fade-right/);
+  assert.match(toolbar, /aria-label="Scroll types left"/);
+  assert.match(toolbar, /aria-label="Scroll types right"/);
+  assert.match(toolbar, /scrollBy\(\{ left: direction \* rail\.clientWidth/);
+  assert.match(toolbar, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(toolbar, /event\.key === "Escape"/);
+  assert.match(toolbar, /className="browse-filter-popover category-filter-popover"/);
+  assert.equal(toolbar.match(/className=\{`browse-filter-trigger/g)?.length, 2);
+  assert.ok(toolbar.indexOf("category-type-segment") < toolbar.indexOf('browse-filter-key">SORT'));
+  assert.ok(toolbar.indexOf('browse-filter-key">SORT') < toolbar.indexOf('browse-filter-key">PRICE'));
+
+  assert.match(styles, /\.category-filter-sticky \{[^}]*position: sticky;[^}]*background: var\(--white\);[^}]*border-bottom: 1px solid var\(--sand\);/);
+  assert.match(styles, /\.category-filter-toolbar-main \{[^}]*height: 56px;[^}]*border: 1px solid var\(--sand\);[^}]*border-radius: 16px;[^}]*background: var\(--white\);/);
+  assert.match(styles, /\.category-filter-toolbar-main > \* \+ \*::before \{[^}]*top: 12px;[^}]*bottom: 12px;[^}]*width: 1px;[^}]*background: var\(--sand\);/);
+  assert.match(styles, /\.category-type-rail \{[^}]*overflow-x: auto;[^}]*scrollbar-width: none;/);
+  assert.match(styles, /\.category-rail-arrow \{[^}]*position: absolute;[^}]*top: 50%;/);
+  assert.doesNotMatch(styles, /\.category-rail-arrow \{[^}]*flex:/);
+  assert.match(styles, /\.category-filter-popover \{[^}]*border-radius: 12px;/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.category-rail-arrow \{ display: none;/);
+  assert.match(styles, /@media \(max-width: 640px\) \{[\s\S]*?\.category-filter-menu \+ \.category-filter-menu \{ border-left: 0; \}/);
+  assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.category-filter-trigger svg/);
+});
+
 test("new category nav entries share desktop/mobile route-active treatment", () => {
   const header = readFileSync("components/layout/Header.tsx", "utf8");
   for (const [label, href] of [["Art & Decor", "/art"], ["Tickets", "/tickets"], ["Vintage", "/vintage"]]) {
@@ -138,7 +186,7 @@ test("Tickets shows the approved informational banner without a premature safety
 
   assert.ok(tickets.includes(`infoBanner="${wording}"`));
   assert.match(shared, /infoBanner &&/);
-  assert.ok(shared.indexOf("infoBanner &&") < shared.indexOf('className="browse-filter-sticky'));
+  assert.ok(shared.indexOf("infoBanner &&") < shared.indexOf("<CategoryFilterToolbar"));
   assert.doesNotMatch(tickets, /Read ticket safety tips/i);
 });
 
