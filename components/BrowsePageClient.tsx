@@ -7,6 +7,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } f
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import Waveform from "@/components/Waveform";
 import {
   BROWSE_CATEGORIES,
   BROWSE_PAGE_SIZE,
@@ -215,6 +216,10 @@ export default function BrowsePageClient() {
   }, [state, retryKey]);
 
   const navigate = (patch: Partial<BrowseState>) => router.replace(buildBrowseHref(state, patch), { scroll: false });
+  const clearSearch = () => {
+    setSearchDraft("");
+    navigate({ query: "" });
+  };
   const submitSearch = (event: FormEvent) => {
     event.preventDefault();
     navigate({ query: searchDraft.trim().slice(0, 120) });
@@ -264,7 +269,7 @@ export default function BrowsePageClient() {
               <form onSubmit={submitSearch} className="browse-toolbar-search">
                 <label htmlFor="browse-search" className="sr-only">Search listings</label>
                 <input id="browse-search" type="search" value={searchDraft} onChange={(event) => setSearchDraft(event.target.value)} placeholder="Search listings, sellers, festivals…" maxLength={120} />
-                {searchDraft && <button type="button" className="browse-search-clear" aria-label="Clear search" onClick={() => { setSearchDraft(""); navigate({ query: "" }); }}>×</button>}
+                {searchDraft && <button type="button" className="browse-search-clear" aria-label="Clear search" onClick={clearSearch}>×</button>}
               </form>
 
               <div className="browse-filter-menu">
@@ -325,20 +330,47 @@ export default function BrowsePageClient() {
           ) : error && listings.length === 0 ? (
             <div role="alert" style={{ textAlign: "center", padding: "70px 20px", color: "var(--text-mid)" }}><h2 style={{ color: "var(--text)", marginBottom: "8px" }}>Something went wrong</h2><p>{error}</p><button type="button" onClick={() => setRetryKey((value) => value + 1)} style={{ border: 0, borderRadius: "7px", background: "var(--dark)", color: "white", padding: "9px 18px", fontWeight: 700, cursor: "pointer" }}>Retry</button></div>
           ) : listings.length === 0 ? (
-            <div style={{ textAlign: "center", padding: "70px 20px", color: "var(--text-light)" }}><h2 style={{ color: "var(--text)", marginBottom: "8px" }}>{state.query ? `Nothing found for '${state.query}'` : "No listings found"}</h2><p>Try adjusting your search or filters.</p><Link href="/browse" style={{ color: "var(--rust)", fontWeight: 700 }}>Clear all filters</Link></div>
+            <div className="browse-zero-results">
+              <p className="browse-zero-title">
+                {state.query ? <>{"Nothing in the tribe's stash for "}&quot;<span>{state.query}</span>&quot; — yet.</> : <>Nothing in the tribe&apos;s stash — yet.</>}
+              </p>
+              <p className="browse-zero-support">Listings land daily. Try a shorter word, or have a look at everything that&apos;s up right now.</p>
+              <div className="browse-zero-actions">
+                {state.query && <button type="button" onClick={clearSearch}>Clear search</button>}
+                <Link href="/browse">Browse all listings</Link>
+              </div>
+            </div>
           ) : (
             <div className="browse-results-grid">{listings.map((item, index) => <div key={item.id} className="stagger-item" style={{ "--i": Math.min(index, 9), minWidth: 0, height: "100%" } as CSSProperties}><ProductCard item={item} /></div>)}</div>
           )}
 
-          {!loading && listings.length > 0 && <div style={{ textAlign: "center", marginTop: "42px" }}>{error && <p role="alert" style={{ color: "#a33" }}>{error}</p>}{hasMore && <button type="button" onClick={() => void loadMore()} disabled={loadingMore} style={{ border: "1px solid var(--dark)", borderRadius: "7px", background: "var(--white)", color: "var(--dark)", padding: "10px 22px", fontWeight: 700, cursor: loadingMore ? "default" : "pointer" }}>{loadingMore ? "Loading…" : "Load more"}</button>}{!hasMore && <p style={{ color: "var(--text-light)", fontSize: "13px" }}>All results loaded</p>}</div>}
+          {!loading && listings.length > 0 && (error || hasMore) && <div style={{ textAlign: "center", marginTop: "42px" }}>{error && <p role="alert" style={{ color: "#a33" }}>{error}</p>}{hasMore && <button type="button" onClick={() => void loadMore()} disabled={loadingMore} style={{ border: "1px solid var(--dark)", borderRadius: "7px", background: "var(--white)", color: "var(--dark)", padding: "10px 22px", fontWeight: 700, cursor: loadingMore ? "default" : "pointer" }}>{loadingMore ? "Loading…" : "Load more"}</button>}</div>}
+          {!loading && !error && !hasMore && (
+            <div className="browse-results-end">
+              <Waveform label="End of results" />
+              <p className="browse-results-end-count">END OF RESULTS · {listings.length} OF {total}</p>
+              <p className="browse-results-end-help">Looking for something specific? <Link href="/browse">Browse all listings</Link></p>
+            </div>
+          )}
         </section>
       </main>
       <Footer />
       <style>{`
         .browse-results-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 26px; align-items: stretch; }
+        .browse-zero-results { max-width: 620px; margin: 0 auto; padding: 58px 20px 22px; text-align: center; }
+        .browse-zero-title { margin: 0 0 9px; color: var(--text); font-size: 17px; font-weight: 600; line-height: 1.45; }
+        .browse-zero-title span { color: var(--rust); }
+        .browse-zero-support { margin: 0 auto; color: var(--text-mid); font-size: 13px; line-height: 1.6; }
+        .browse-zero-actions { display: flex; align-items: center; justify-content: center; gap: 18px; margin-top: 20px; }
+        .browse-zero-actions button { border: 0; border-radius: 7px; background: var(--rust); color: var(--white); padding: 9px 18px; font: inherit; font-size: 13px; font-weight: 700; cursor: pointer; }
+        .browse-zero-actions a { color: var(--rust); font-size: 13px; font-weight: 600; text-underline-offset: 3px; }
+        .browse-results-end { margin-top: 42px; text-align: center; }
+        .browse-results-end-count { margin: 10px 0 0; color: var(--text-light); font-size: 11px; font-weight: 600; letter-spacing: 0.12em; text-transform: uppercase; }
+        .browse-results-end-help { margin: 9px 0 0; color: var(--text-mid); font-size: 13px; line-height: 1.5; }
+        .browse-results-end-help a { color: var(--rust); font-weight: 600; text-underline-offset: 3px; }
         @media (max-width: 1180px) { .browse-results-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
         @media (max-width: 860px) { .browse-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
-        @media (max-width: 640px) { .browse-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 640px) { .browse-results-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); column-gap: 10px; row-gap: 14px; } .browse-zero-results { padding: 46px 8px 16px; } .browse-zero-actions { flex-wrap: wrap; gap: 14px 18px; } .browse-results-end { margin-top: 36px; } }
         @media (max-width: 379px) { .browse-results-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
