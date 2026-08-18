@@ -41,38 +41,45 @@ function FeaturedCard({ item }: { item: Listing }) {
   const conditionColor = CONDITION_COLORS[item.condition] || "var(--text-light)";
 
   return (
-    <Link href={`/listing/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
+    <Link href={`/listing/${item.id}`} className="standard-category-featured-link" style={{ textDecoration: "none" }}>
       <div
+        className="standard-category-featured-card"
         style={{ background: "var(--white)", borderRadius: "12px", overflow: "hidden", border: "1px solid var(--sand)", boxShadow: hovered ? "0 16px 48px oklch(35% 0.06 55 / 0.18)" : "0 4px 14px oklch(0% 0 0 / 0.08)", transform: hovered ? "translateY(-5px)" : "none", transition: "all 0.3s ease" }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <div style={{ position: "relative", overflow: "hidden" }}>
+        <div className="standard-category-featured-image">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ width: "100%", height: "260px", objectFit: "cover", display: "block", transition: "transform 0.55s ease", transform: hovered ? "scale(1.04)" : "scale(1)" }} />
+          <img
+            className="standard-category-featured-image-element"
+            src={item.images[0] || "/listing-placeholder.webp"}
+            onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }}
+            alt={item.title}
+            style={{ transition: "transform 0.55s ease", transform: hovered ? "scale(1.04)" : "scale(1)" }}
+          />
           <span style={{ position: "absolute", top: "12px", left: "12px", background: "var(--rust)", color: "white", fontSize: "9px", padding: "4px 10px", borderRadius: "4px", fontWeight: 700, letterSpacing: "0.08em", textTransform: "uppercase" }}>
             Featured
           </span>
         </div>
-        <div style={{ padding: "16px 18px 20px" }}>
-          <p style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3 }}>{item.title}</p>
+        <div className="standard-category-featured-content" style={{ padding: "16px 18px 20px" }}>
+          <p className="standard-category-featured-title" style={{ fontSize: "14px", fontWeight: 600, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3 }}>{item.title}</p>
           {item.description && (
-            <p style={{ fontSize: "12px", color: "var(--text-light)", marginBottom: "12px", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2 } as CSSProperties}>
+            <p className="standard-category-featured-description" style={{ fontSize: "12px", color: "var(--text-light)", marginBottom: "12px", lineHeight: 1.5, overflow: "hidden", display: "-webkit-box", WebkitLineClamp: 2 } as CSSProperties}>
               {item.description}
             </p>
           )}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-            <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "22px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
+          <div className="standard-category-featured-price-row">
+            <p className="standard-category-featured-price" style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "22px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
               {formatPrice(item.priceCents)}
             </p>
-            <span style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "4px", background: `${conditionColor}18`, color: conditionColor, fontWeight: 600 }}>
+            <span className="standard-category-featured-condition" style={{ fontSize: "10px", padding: "2px 8px", borderRadius: "4px", background: `${conditionColor}18`, color: conditionColor, fontWeight: 600 }}>
               {conditionLabels[item.condition]}
             </span>
           </div>
           {item.sellerHandle && (
-            <div style={{ display: "flex", alignItems: "center", gap: "5px", marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--sand)" }}>
+            <div className="standard-category-featured-seller-row" style={{ marginTop: "10px", paddingTop: "10px", borderTop: "1px solid var(--sand)" }}>
               <ProfileAvatar name={item.sellerName || item.sellerHandle} url={item.sellerAvatar} size={20} />
-              <span style={{ fontSize: "11px", color: "var(--text-light)" }}>@{item.sellerHandle}</span>
+              <span className="standard-category-featured-seller-handle" style={{ fontSize: "11px", color: "var(--text-light)" }}>@{item.sellerHandle}</span>
             </div>
           )}
         </div>
@@ -319,7 +326,18 @@ export default function StandardCategoryPage({
       <Footer />
 
       <style>{`
-        .standard-category-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; }
+        .standard-category-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
+        .standard-category-featured-grid > .stagger-item { height: 100%; }
+        .standard-category-featured-link { display: block; height: 100%; }
+        .standard-category-featured-card { display: flex; flex-direction: column; height: 100%; }
+        .standard-category-featured-image { position: relative; width: 100%; aspect-ratio: 4 / 3; overflow: hidden; flex-shrink: 0; isolation: isolate; }
+        .standard-category-featured-image-element { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+        .standard-category-featured-content { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+        .standard-category-featured-price-row { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: auto; flex-wrap: wrap; }
+        .standard-category-featured-price { min-width: 0; overflow-wrap: anywhere; }
+        .standard-category-featured-condition { flex-shrink: 0; }
+        .standard-category-featured-seller-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
+        .standard-category-featured-seller-handle { min-width: 0; overflow-wrap: anywhere; }
         .standard-category-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
         @media (max-width: 1024px) { .standard-category-grid { grid-template-columns: repeat(4, 1fr); } }
         @media (max-width: 768px) {
