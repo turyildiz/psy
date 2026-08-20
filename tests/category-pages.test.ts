@@ -203,24 +203,41 @@ test("category featured rails expose every featured item and add desktop overflo
   }
 
   assert.match(rail, /const isScrollable = itemCount > 3;/, "three or fewer items must retain the existing no-control layout");
+  assert.match(rail, /const OVERFLOW_TOLERANCE_PX = 4;/, "minor snap residue must not keep a spent arrow visible");
   assert.match(rail, /useLayoutEffect\(/);
   assert.match(rail, /const updateOverflow = \(\) =>/);
+  assert.match(rail, /rail\.parentElement\?\.style\.setProperty\("--featured-image-center", `\$\{firstCard\.getBoundingClientRect\(\)\.width \* 3 \/ 8\}px`\)/, "arrow placement must derive from the actual 4:3 card image width");
+  assert.match(rail, /setCanScrollLeft\(rail\.scrollLeft > OVERFLOW_TOLERANCE_PX\)/, "the left arrow must ignore a few pixels of snap residue");
+  assert.match(rail, /setCanScrollRight\(rail\.scrollWidth - rail\.clientWidth - rail\.scrollLeft > OVERFLOW_TOLERANCE_PX\)/, "the right arrow must use the same end tolerance");
   assert.match(rail, /new ResizeObserver\(updateOverflow\)/);
   assert.match(rail, /isScrollable && canScrollLeft/);
   assert.match(rail, /isScrollable && canScrollRight/);
+  assert.match(rail, /className="featured-category-rail-arrow featured-category-rail-arrow-left"/);
+  assert.match(rail, /className="featured-category-rail-arrow featured-category-rail-arrow-right"/);
+  assert.doesNotMatch(rail, /className="category-rail-arrow/, "featured controls must not reuse the pill-rail arrow classes");
   assert.match(rail, /aria-label="Scroll featured items left"/);
   assert.match(rail, /aria-label="Scroll featured items right"/);
   assert.match(rail, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
-  assert.match(rail, /targetCard\.scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", inline: "start", block: "nearest" \}\)/, "featured navigation must compose with mandatory snap without moving the page vertically");
+  assert.match(rail, /targetIndex === 0/);
+  assert.match(rail, /rail\.scrollTo\(\{ left: 0, behavior \}\)/, "back navigation to the first card must target the true start");
+  assert.match(rail, /targetCard\.scrollIntoView\(\{ behavior, inline: "start", block: "nearest" \}\)/, "other featured navigation must compose with mandatory snap without moving the page vertically");
   assert.match(rail, /const currentIndex = cards\.findLastIndex\(/, "arrow clicks must locate the currently aligned card");
-  assert.match(rail, /const targetCard = cards\[Math\.max\(0, Math\.min\(cards\.length - 1, currentIndex \+ direction\)\)\]/, "arrow clicks must target exactly one adjacent card");
+  assert.match(rail, /const targetIndex = Math\.max\(0, Math\.min\(cards\.length - 1, currentIndex \+ direction\)\)/, "arrow clicks must target exactly one adjacent card");
   assert.doesNotMatch(rail, /scrollBy\(/, "mandatory snap cancels smooth scrollBy navigation");
   assert.match(rail, /onFocusCapture=/, "tabbing to an off-screen card must bring it fully into view");
 
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\][^{]*\{[^}]*width: calc\(100% \+ 32px\);/);
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail \{[^}]*display: flex;[^}]*overflow-x: auto;[^}]*scroll-snap-type: x mandatory;/);
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail > \.stagger-item \{[^}]*flex: 0 0 calc\(\(100% - 72px\) \/ 3\);[^}]*scroll-snap-align: start;[^}]*scroll-snap-stop: always;/);
+  assert.match(styles, /\.featured-category-rail-arrow \{[^}]*top: var\(--featured-image-center\);[^}]*width: 44px;[^}]*height: 44px;[^}]*border: 1px solid var\(--sand\);[^}]*background: var\(--white\);[^}]*box-shadow:/, "featured arrows must be 44px overlays centered on the 4:3 image area");
+  assert.match(rail, /<svg aria-hidden="true" viewBox="0 0 24 24">/);
+  assert.match(styles, /\.featured-category-rail-arrow svg \{[^}]*width: 24px;[^}]*height: 24px;/, "the featured chevron must scale with its button");
+  assert.match(styles, /\.featured-category-rail-arrow-left \{ left: 8px; \}/);
+  assert.match(styles, /\.featured-category-rail-arrow-right \{ right: 8px; \}/);
+  assert.match(styles, /\.featured-category-rail-arrow:hover \{[^}]*background: var\(--cream\);/);
+  assert.match(styles, /\.featured-category-rail-arrow:focus-visible \{[^}]*outline: 3px solid var\(--rust\);[^}]*outline-offset: 2px;/);
   assert.match(styles, /@media \(max-width: 768px\)[\s\S]*?\.featured-category-rail-segment\[data-scrollable="true"\] \{ width: 100%; \}/);
+  assert.match(styles, /@media \(max-width: 768px\)[\s\S]*?\.featured-category-rail-arrow,[\s\S]*?\.featured-category-rail-segment \.category-rail-fade \{ display: none; \}/);
   assert.match(styles, /\.featured-category-rail-segment \.category-rail-fade \{[^}]*pointer-events: none;/);
 });
 
