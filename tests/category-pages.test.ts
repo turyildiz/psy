@@ -163,9 +163,10 @@ test("category photo heroes keep readable descriptions inside fixed-height photo
     assert.match(source, /objectPosition: "50% center"|objectPosition: heroObjectPosition/, `${path} must crop from the vertical middle`);
     assert.match(source, /\.category-photo-hero\s*\{[^}]*height:\s*200px;/, `${path} must match the profile banner's fixed 200px desktop height`);
     assert.match(source, /className="category-photo-hero-eyebrow"/, `${path} must identify the optional eyebrow separately from essential mobile text`);
-    assert.match(source, /@media \(max-width: 640px\)[^{]*\{[^}]*\.category-photo-hero\s*\{[^}]*height:\s*130px;/, `${path} must freeze the current 130px mobile height`);
-    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-eyebrow\s*\{[^}]*margin-bottom:\s*0;/, `${path} must compact the eyebrow without hiding it in the 130px mobile band`);
-    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-description\s*\{[^}]*margin-top:\s*0;/, `${path} must fit the description inside the fixed mobile band`);
+    assert.match(source, /@media \(max-width: 640px\)[^{]*\{[^}]*\.category-photo-hero\s*\{[^}]*height:\s*168px;/, `${path} must use the relieved fixed 168px mobile height`);
+    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-text\s*\{[^}]*padding-top:\s*10px;[^}]*padding-right:\s*16px;[^}]*padding-bottom:\s*10px;[^}]*padding-left:\s*24px;/, `${path} must add mobile edge breathing room without changing desktop alignment`);
+    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-eyebrow\s*\{[^}]*margin-bottom:\s*4px;/, `${path} must separate the eyebrow from the category name`);
+    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-description\s*\{[^}]*margin-top:\s*4px;/, `${path} must separate the description while keeping it clear of the band edge`);
     assert.doesNotMatch(source, /\.category-photo-hero-eyebrow\s*\{[^}]*display:\s*none;/, `${path} must keep the Marketplace eyebrow visible`);
     assert.doesNotMatch(source, /\.category-photo-hero\s*\{[^}]*aspect-ratio:/, `${path} must not resize the hero by aspect ratio`);
 

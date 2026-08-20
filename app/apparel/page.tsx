@@ -286,7 +286,7 @@ export default function ApparelPage() {
           .apparel-featured-grid::-webkit-scrollbar { display: none; }
           .apparel-featured-grid > .stagger-item { flex: 0 0 80vw; max-width: 80vw; scroll-snap-align: start; scroll-snap-stop: always; }
         }
-        @media (max-width: 640px) { .category-photo-hero { height: 130px; } .category-photo-hero-text { padding-top: 0; padding-bottom: 0; } .category-photo-hero-eyebrow { margin-bottom: 0; } .category-photo-hero-description { margin-top: 0; } .apparel-grid { column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 640px) { .category-photo-hero { height: 168px; } .category-photo-hero-text { padding-top: 10px; padding-right: 16px; padding-bottom: 10px; padding-left: 24px; } .category-photo-hero-eyebrow { margin-bottom: 4px; } .category-photo-hero-description { margin-top: 4px; } .apparel-grid { column-gap: 10px; row-gap: 14px; } }
         @media (max-width: 379px) { .apparel-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
