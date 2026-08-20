@@ -144,6 +144,13 @@ test("all category layouts use a mobile featured swipe row and the browse catalo
   }
 });
 
+test("global mobile styles do not override category-owned responsive grids", () => {
+  const styles = readFileSync("app/globals.css", "utf8");
+
+  assert.doesNotMatch(styles, /\.music-featured-grid, \.apparel-featured-grid, \.jewellery-featured-grid/);
+  assert.doesNotMatch(styles, /\.music-gear-grid, \.apparel-grid, \.jewellery-grid/);
+});
+
 test("every category route uses the shared browse-style filter toolbar without changing tag state", () => {
   const toolbarPath = "components/CategoryFilterToolbar.tsx";
   assert.equal(existsSync(toolbarPath), true, "the visual filter toolbar must be shared across all category implementations");
