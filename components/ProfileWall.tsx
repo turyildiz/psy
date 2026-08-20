@@ -251,7 +251,7 @@ function PostEditor({ profileId, post, onCancel, onSaved }: PostEditorProps) {
   };
 
   return (
-    <div className={post ? "post-editor post-editor-inline" : "post-editor"}>
+    <div className={post ? "post-editor post-editor-inline" : "post-editor"} data-scroll-to-top-blocker={post ? "" : undefined}>
       {!post && <h2>Share something</h2>}
       <textarea
         value={body}
@@ -562,7 +562,7 @@ export function PostCard({ post, profile, isOwner, viewerProfileId, onLoginReque
             {!confirmDelete ? (
               <button type="button" onClick={() => setConfirmDelete(true)}>Delete</button>
             ) : (
-              <div className="post-delete-confirm">
+              <div className="post-delete-confirm" data-scroll-to-top-blocker>
                 <span>Delete permanently?</span>
                 <button type="button" onClick={deletePost} disabled={deleting}>{deleting ? "Deleting…" : "Yes, delete"}</button>
                 <button type="button" onClick={() => setConfirmDelete(false)} disabled={deleting}>Keep</button>

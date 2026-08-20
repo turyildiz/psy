@@ -12,6 +12,7 @@ import AuthModal from "@/components/AuthModal";
 import MessagesInbox from "@/components/MessagesInbox";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import ProfileWall from "@/components/ProfileWall";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { conditionLabels } from "@/lib/constants";
 import { formatPrice } from "@/lib/listings/price";
 import type { Listing, PublicProfile } from "@/types/marketplace";
@@ -115,7 +116,7 @@ function ListingCard({ item, isOwner, onDeleted, onEdit }: { item: Listing; isOw
               </button>
             </>
           ) : (
-            <div onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: "5px", background: "white", border: "1px solid var(--sand)", borderRadius: "8px", padding: "5px 8px", boxShadow: "0 2px 8px oklch(0% 0 0 / 0.12)", alignItems: "center" }}>
+            <div data-scroll-to-top-blocker onClick={(e) => e.stopPropagation()} style={{ display: "flex", gap: "5px", background: "white", border: "1px solid var(--sand)", borderRadius: "8px", padding: "5px 8px", boxShadow: "0 2px 8px oklch(0% 0 0 / 0.12)", alignItems: "center" }}>
               <button
                 onClick={handleDelete}
                 disabled={deleting}
@@ -511,6 +512,7 @@ function SellerProfilePageInner() {
       )}
 
       <Footer />
+      <ScrollToTopButton />
 
       <style>{`
         .seller-hero {

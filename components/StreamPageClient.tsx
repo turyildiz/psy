@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AuthModal from "@/components/AuthModal";
 import PageHero from "@/components/PageHero";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 import {
   POST_PAGE_SIZE,
   PostCard,
@@ -289,6 +290,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         </div>
       </main>
       <Footer />
+      <ScrollToTopButton />
       {reactionLoginOpen && <AuthModal initial="login" onClose={() => setReactionLoginOpen(false)} />}
 
       <style>{`

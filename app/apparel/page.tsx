@@ -7,6 +7,7 @@ import Footer from "@/components/layout/Footer";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import CategoryFilterToolbar from "@/components/CategoryFilterToolbar";
 import FeaturedCategoryRail from "@/components/FeaturedCategoryRail";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 import PageHero from "@/components/PageHero";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing } from "@/types/marketplace";
@@ -246,6 +247,7 @@ export default function ApparelPage() {
       </div>
 
       <Footer />
+      <ScrollToTopButton />
 
       <style>{`
         .apparel-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
