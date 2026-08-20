@@ -1081,8 +1081,6 @@ input:autofill {
   .browse-marketplace-controls-row .browse-select-chevron { display: block; }
 
   /* Category pages mobile — 1-col grid */
-  .music-featured-grid, .apparel-featured-grid, .jewellery-featured-grid { grid-template-columns: 1fr !important; gap: 12px !important; }
-  .music-gear-grid, .apparel-grid, .jewellery-grid { grid-template-columns: 1fr !important; gap: 10px !important; }
   .gear-card-img { height: 160px !important; }
   .music-content { padding: 32px 16px 60px !important; }
 
