@@ -15,8 +15,6 @@
   --white: oklch(99% 0.005 75);
 }
 
-html { scroll-behavior: smooth; }
-
 * { box-sizing: border-box; }
 
 body {
