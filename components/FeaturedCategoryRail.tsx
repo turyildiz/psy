@@ -1,6 +1,7 @@
 "use client";
 
-import { useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, type FocusEvent, type ReactNode } from "react";
+import { animateRailScroll, getRailItemTargetLeft } from "@/lib/rail-scroll-animation";
 
 type FeaturedCategoryRailProps = {
   className: string;
@@ -13,6 +14,7 @@ const OVERFLOW_TOLERANCE_PX = 4;
 
 export default function FeaturedCategoryRail({ className, itemCount, label, children }: FeaturedCategoryRailProps) {
   const railRef = useRef<HTMLDivElement>(null);
+  const animationCancelRef = useRef<(() => void) | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
   const [canScrollRight, setCanScrollRight] = useState(false);
   const isScrollable = itemCount > 3;
@@ -27,7 +29,12 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
 
     const updateOverflow = () => {
       const firstCard = rail.firstElementChild as HTMLElement | null;
-      if (firstCard) rail.parentElement?.style.setProperty("--featured-image-center", `${firstCard.getBoundingClientRect().width * 3 / 8}px`);
+      const segment = rail.parentElement;
+      const image = firstCard?.querySelector<HTMLElement>('[class$="-featured-image"]');
+      if (segment && firstCard && image) {
+        const imageCenter = firstCard.offsetTop + image.offsetTop + image.offsetHeight / 2;
+        segment.style.setProperty("--featured-image-center", `${imageCenter}px`);
+      }
       setCanScrollLeft(rail.scrollLeft > OVERFLOW_TOLERANCE_PX);
       setCanScrollRight(rail.scrollWidth - rail.clientWidth - rail.scrollLeft > OVERFLOW_TOLERANCE_PX);
     };
@@ -44,6 +51,14 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     };
   }, [isScrollable, itemCount]);
 
+  useEffect(() => () => animationCancelRef.current?.(), []);
+
+  const animateTo = (rail: HTMLElement, targetLeft: number) => {
+    animationCancelRef.current?.();
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    animationCancelRef.current = animateRailScroll(rail, targetLeft, reducedMotion);
+  };
+
   const scrollCardIntoView = (card: HTMLElement) => {
     const rail = railRef.current;
     if (!rail || !isScrollable) return;
@@ -52,8 +67,8 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     const cardRect = card.getBoundingClientRect();
     if (cardRect.left >= railRect.left - 1 && cardRect.right <= railRect.right + 1) return;
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    card.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", inline: "start", block: "nearest" });
+    const targetLeft = getRailItemTargetLeft(rail, card);
+    animateTo(rail, targetLeft);
   };
 
   const scrollRail = (direction: -1 | 1) => {
@@ -63,24 +78,27 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     const cards = Array.from(rail.children) as HTMLElement[];
     if (cards.length < 2) return;
 
-    const railRect = rail.getBoundingClientRect();
-    const safeEdge = Number.parseFloat(window.getComputedStyle(rail).scrollPaddingInlineStart) || 0;
-    const safeLeft = railRect.left + safeEdge;
-    const currentIndex = cards.findLastIndex((card) => card.getBoundingClientRect().left <= safeLeft + 1);
+    const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
+    const cardTargets = cards.map((card, index) => {
+      const cardTarget = index === 0 ? 0 : getRailItemTargetLeft(rail, card);
+      return Math.max(0, Math.min(cardTarget, maxScrollLeft));
+    });
+    const currentIndex = cardTargets.reduce(
+      (closestIndex, target, index) => Math.abs(target - rail.scrollLeft) < Math.abs(cardTargets[closestIndex] - rail.scrollLeft) ? index : closestIndex,
+      0
+    );
     const targetIndex = Math.max(0, Math.min(cards.length - 1, currentIndex + direction));
-    const targetCard = cards[targetIndex];
-    if (!targetCard) return;
+    const targetLeft = cardTargets[targetIndex];
+    if (targetLeft === undefined) return;
 
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
-    if (targetIndex === 0) rail.scrollTo({ left: 0, behavior });
-    else targetCard.scrollIntoView({ behavior, inline: "start", block: "nearest" });
+    animateTo(rail, targetLeft);
   };
 
   const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
     const rail = railRef.current;
     const card = (event.target as HTMLElement).closest<HTMLElement>(".stagger-item");
-    if (rail && card?.parentElement === rail) scrollCardIntoView(card);
+    if (!rail || !card || card.parentElement !== rail) return;
+    scrollCardIntoView(card);
   };
 
   return (

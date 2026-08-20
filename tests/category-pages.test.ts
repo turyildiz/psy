@@ -184,9 +184,12 @@ test("global mobile styles do not override category-owned responsive grids", () 
 
 test("category featured rails expose every featured item and add desktop overflow controls only beyond three cards", () => {
   const railPath = "components/FeaturedCategoryRail.tsx";
+  const animationPath = "lib/rail-scroll-animation.ts";
   assert.equal(existsSync(railPath), true, "the desktop overflow behavior must be shared by every category page");
+  assert.equal(existsSync(animationPath), true, "programmatic snap-rail movement must use one shared animation primitive");
 
   const rail = readFileSync(railPath, "utf8");
+  const animation = readFileSync(animationPath, "utf8");
   const styles = readFileSync("app/globals.css", "utf8");
   for (const { path, prefix } of [
     { path: "components/StandardCategoryPage.tsx", prefix: "standard-category" },
@@ -206,7 +209,9 @@ test("category featured rails expose every featured item and add desktop overflo
   assert.match(rail, /const OVERFLOW_TOLERANCE_PX = 4;/, "minor snap residue must not keep a spent arrow visible");
   assert.match(rail, /useLayoutEffect\(/);
   assert.match(rail, /const updateOverflow = \(\) =>/);
-  assert.match(rail, /rail\.parentElement\?\.style\.setProperty\("--featured-image-center", `\$\{firstCard\.getBoundingClientRect\(\)\.width \* 3 \/ 8\}px`\)/, "arrow placement must derive from the actual 4:3 card image width");
+  assert.match(rail, /firstCard\?\.querySelector<HTMLElement>\('\[class\$="-featured-image"\]'\)/, "arrow placement must read the rendered image area rather than infer it from the whole card");
+  assert.match(rail, /const imageCenter = firstCard\.offsetTop \+ image\.offsetTop \+ image\.offsetHeight \/ 2;/, "arrow placement must use transform-independent layout geometry so the stagger entrance cannot leave it below the image center");
+  assert.match(rail, /segment\.style\.setProperty\("--featured-image-center", `\$\{imageCenter\}px`\)/, "both arrows must consume one image-center custom property");
   assert.match(rail, /setCanScrollLeft\(rail\.scrollLeft > OVERFLOW_TOLERANCE_PX\)/, "the left arrow must ignore a few pixels of snap residue");
   assert.match(rail, /setCanScrollRight\(rail\.scrollWidth - rail\.clientWidth - rail\.scrollLeft > OVERFLOW_TOLERANCE_PX\)/, "the right arrow must use the same end tolerance");
   assert.match(rail, /new ResizeObserver\(updateOverflow\)/);
@@ -218,17 +223,26 @@ test("category featured rails expose every featured item and add desktop overflo
   assert.match(rail, /aria-label="Scroll featured items left"/);
   assert.match(rail, /aria-label="Scroll featured items right"/);
   assert.match(rail, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
-  assert.match(rail, /targetIndex === 0/);
-  assert.match(rail, /rail\.scrollTo\(\{ left: 0, behavior \}\)/, "back navigation to the first card must target the true start");
-  assert.match(rail, /targetCard\.scrollIntoView\(\{ behavior, inline: "start", block: "nearest" \}\)/, "other featured navigation must compose with mandatory snap without moving the page vertically");
-  assert.match(rail, /const currentIndex = cards\.findLastIndex\(/, "arrow clicks must locate the currently aligned card");
+  assert.match(rail, /animateRailScroll\(rail, targetLeft, reducedMotion\)/, "featured navigation must use the shared eased snap-safe animation");
+  assert.match(rail, /const cardTargets = cards\.map\(/, "each card must have one clamped reachable snap boundary");
+  assert.match(rail, /const currentIndex = cardTargets\.reduce\(/, "arrow clicks must choose the nearest reachable boundary, including the clamped end position");
   assert.match(rail, /const targetIndex = Math\.max\(0, Math\.min\(cards\.length - 1, currentIndex \+ direction\)\)/, "arrow clicks must target exactly one adjacent card");
+  assert.match(rail, /const targetLeft = cardTargets\[targetIndex\]/);
   assert.doesNotMatch(rail, /scrollBy\(/, "mandatory snap cancels smooth scrollBy navigation");
+  assert.doesNotMatch(rail, /scrollIntoView\(\{ behavior: [^}]*smooth/, "mandatory snap must not cancel native smooth navigation");
   assert.match(rail, /onFocusCapture=/, "tabbing to an off-screen card must bring it fully into view");
+
+  assert.match(animation, /const RAIL_SCROLL_DURATION_MS = 420;/);
+  assert.match(animation, /progress < 0\.5[\s\S]*4 \* progress \* progress \* progress/, "the animation must ease gently in and out rather than move linearly");
+  assert.match(animation, /rail\.style\.scrollSnapType = "none";/, "snap must be suspended while custom movement is in flight");
+  assert.match(animation, /requestAnimationFrame\(step\)/);
+  assert.match(animation, /rail\.scrollLeft = targetLeft;/, "the animation must land on the exact clamped boundary");
+  assert.match(animation, /rail\.style\.removeProperty\("scroll-snap-type"\)/, "the normal swipe snap contract must be restored after movement");
 
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\][^{]*\{[^}]*width: calc\(100% \+ 32px\);/);
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail \{[^}]*display: flex;[^}]*overflow-x: auto;[^}]*scroll-snap-type: x mandatory;/);
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail > \.stagger-item \{[^}]*flex: 0 0 calc\(\(100% - 72px\) \/ 3\);[^}]*scroll-snap-align: start;[^}]*scroll-snap-stop: always;/);
+  assert.doesNotMatch(styles, /\.featured-category-rail::after/, "a trailing pseudo-item must not add scrollable width after the final card");
   assert.match(styles, /\.featured-category-rail-arrow \{[^}]*top: var\(--featured-image-center\);[^}]*width: 44px;[^}]*height: 44px;[^}]*border: 1px solid var\(--sand\);[^}]*background: var\(--white\);[^}]*box-shadow:/, "featured arrows must be 44px overlays centered on the 4:3 image area");
   assert.match(rail, /<svg aria-hidden="true" viewBox="0 0 24 24">/);
   assert.match(styles, /\.featured-category-rail-arrow svg \{[^}]*width: 24px;[^}]*height: 24px;/, "the featured chevron must scale with its button");
@@ -270,8 +284,8 @@ test("every category route uses the shared browse-style filter toolbar without c
   assert.match(toolbar, /aria-label="Scroll types left"/);
   assert.match(toolbar, /aria-label="Scroll types right"/);
   assert.match(toolbar, /const scrollPillIntoView = \(pill: HTMLElement/);
-  assert.match(toolbar, /pill\.scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", inline: "start", block: "nearest" \}\)/, "pill navigation must compose with mandatory snap without moving the page vertically");
-  assert.doesNotMatch(toolbar, /scrollTo\(/, "mandatory snap cancels smooth scrollTo navigation");
+  assert.match(toolbar, /animateRailScroll\(rail, targetLeft, reducedMotion\)/, "the pill rail must share the same snap-safe eased movement where it has the same Chrome defect");
+  assert.doesNotMatch(toolbar, /scrollIntoView\(\{ behavior: [^}]*smooth/, "mandatory snap must not cancel native smooth pill navigation");
   assert.match(toolbar, /onClick=\{\(event\) => selectTag\(event\.currentTarget, onClearTags\)\}/);
   assert.match(toolbar, /onClick=\{\(event\) => selectTag\(event\.currentTarget, \(\) => onToggleTag\(value\)\)\}/);
   assert.match(toolbar, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useId, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
+import { animateRailScroll, getRailItemTargetLeft } from "@/lib/rail-scroll-animation";
 
 type FilterOption = {
   value: string;
@@ -49,6 +50,7 @@ export default function CategoryFilterToolbar({
   const toolbarRef = useRef<HTMLDivElement>(null);
   const stickyRef = useRef<HTMLDivElement>(null);
   const railRef = useRef<HTMLDivElement>(null);
+  const animationCancelRef = useRef<(() => void) | null>(null);
   const id = useId().replace(/:/g, "");
   const [openPopover, setOpenPopover] = useState<OpenPopover | null>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -81,6 +83,8 @@ export default function CategoryFilterToolbar({
       resizeObserver.disconnect();
     };
   }, [tags]);
+
+  useEffect(() => () => animationCancelRef.current?.(), []);
 
   useEffect(() => {
     const updateStuck = () => {
@@ -126,8 +130,10 @@ export default function CategoryFilterToolbar({
     const safeRight = railRect.right - safeEdge;
     if (pillRect.left >= safeLeft - 1 && pillRect.right <= safeRight + 1) return;
 
+    animationCancelRef.current?.();
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    pill.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", inline: "start", block: "nearest" });
+    const targetLeft = getRailItemTargetLeft(rail, pill, safeEdge);
+    animationCancelRef.current = animateRailScroll(rail, targetLeft, reducedMotion);
   };
 
   const scrollRail = (direction: -1 | 1) => {
