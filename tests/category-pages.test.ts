@@ -213,7 +213,10 @@ test("every category route uses the shared browse-style filter toolbar without c
   assert.match(toolbar, /className="category-rail-fade category-rail-fade-right/);
   assert.match(toolbar, /aria-label="Scroll types left"/);
   assert.match(toolbar, /aria-label="Scroll types right"/);
-  assert.match(toolbar, /scrollBy\(\{ left: direction \* rail\.clientWidth/);
+  assert.match(toolbar, /const scrollPillIntoView = \(pill: HTMLElement/);
+  assert.match(toolbar, /scrollTo\(\{ left: targetLeft, behavior: reducedMotion \? "auto" : "smooth" \}\)/);
+  assert.match(toolbar, /onClick=\{\(event\) => selectTag\(event\.currentTarget, onClearTags\)\}/);
+  assert.match(toolbar, /onClick=\{\(event\) => selectTag\(event\.currentTarget, \(\) => onToggleTag\(value\)\)\}/);
   assert.match(toolbar, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
   assert.match(toolbar, /event\.key === "Escape"/);
   assert.match(toolbar, /className="browse-filter-popover category-filter-popover"/);
@@ -224,7 +227,13 @@ test("every category route uses the shared browse-style filter toolbar without c
   assert.match(styles, /\.category-filter-sticky \{[^}]*position: sticky;[^}]*background: var\(--white\);[^}]*border-bottom: 1px solid var\(--sand\);/);
   assert.match(styles, /\.category-filter-toolbar-main \{[^}]*height: 56px;[^}]*border: 1px solid var\(--sand\);[^}]*border-radius: 16px;[^}]*background: var\(--white\);/);
   assert.match(styles, /\.category-filter-toolbar-main > \* \+ \*::before \{[^}]*top: 12px;[^}]*bottom: 12px;[^}]*width: 1px;[^}]*background: var\(--sand\);/);
-  assert.match(styles, /\.category-type-rail \{[^}]*overflow-x: auto;[^}]*scrollbar-width: none;/);
+  assert.match(styles, /\.category-type-rail \{[^}]*overflow-x: auto;[^}]*scroll-snap-type: x mandatory;[^}]*scroll-padding-inline: 32px;[^}]*scrollbar-width: none;/);
+  assert.match(styles, /\.category-type-pill \{[^}]*scroll-snap-align: start;[^}]*scroll-snap-stop: always;/);
+  assert.match(styles, /\.category-rail-fade \{[^}]*width: 20px;[^}]*pointer-events: none;/);
+  assert.match(styles, /\.category-rail-fade-left \{[^}]*linear-gradient\(to right, var\(--white\) 0%, transparent 100%\)/);
+  assert.match(styles, /\.category-rail-fade-right \{[^}]*linear-gradient\(to left, var\(--white\) 0%, transparent 100%\)/);
+  assert.doesNotMatch(styles, /\.category-rail-arrow-left \+ \.category-type-rail/);
+  assert.doesNotMatch(styles, /\.category-rail-fade-right:has/);
   assert.match(styles, /\.category-rail-arrow \{[^}]*position: absolute;[^}]*top: 50%;/);
   assert.doesNotMatch(styles, /\.category-rail-arrow \{[^}]*flex:/);
   assert.match(styles, /\.category-filter-popover \{[^}]*border-radius: 12px;/);
@@ -237,10 +246,11 @@ test("every category route uses the shared browse-style filter toolbar without c
   assert.match(categoryMobileStyles, /\.category-filter-popover \{[^}]*left: 0;[^}]*right: 0;[^}]*top: calc\(100% \+ 8px\);[^}]*width: auto;/);
   assert.match(categoryMobileStyles, /\.category-rail-arrow \{ display: none;/);
   assert.match(categoryMobileStyles, /\.category-filter-menu \+ \.category-filter-menu \{ border-left: 1px solid var\(--sand\); \}/);
-  assert.match(toolbar, /child\.dataset\.railVisible = String\(fullyVisible\)/);
-  assert.match(categoryMobileStyles, /\.category-type-pill\[data-rail-visible="false"\] \{ visibility: hidden; \}/);
-  assert.match(categoryMobileStyles, /\.category-type-rail \{[^}]*scroll-snap-type: x mandatory;/);
-  assert.match(categoryMobileStyles, /\.category-type-pill \{[^}]*scroll-snap-align: start;/);
+  assert.doesNotMatch(toolbar, /dataset\.railVisible/);
+  assert.match(toolbar, /for \(const pill of Array\.from\(rail\.children\)\) resizeObserver\.observe\(pill\);/);
+  assert.doesNotMatch(categoryMobileStyles, /data-rail-visible/);
+  assert.match(categoryMobileStyles, /\.category-type-rail \{[^}]*padding: 8px 24px;[^}]*scroll-padding-inline: 24px;/);
+  assert.match(categoryMobileStyles, /\.category-type-pill \{[^}]*font-size: 12px;/);
   assert.match(styles, /@media \(prefers-reduced-motion: reduce\) \{[\s\S]*?\.category-filter-trigger svg/);
 });
 
