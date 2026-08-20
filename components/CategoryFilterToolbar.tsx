@@ -127,9 +127,7 @@ export default function CategoryFilterToolbar({
     if (pillRect.left >= safeLeft - 1 && pillRect.right <= safeRight + 1) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
-    const targetLeft = Math.max(0, Math.min(maxScrollLeft, rail.scrollLeft + pillRect.left - safeLeft));
-    rail.scrollTo({ left: targetLeft, behavior: reducedMotion ? "auto" : "smooth" });
+    pill.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", inline: "start", block: "nearest" });
   };
 
   const scrollRail = (direction: -1 | 1) => {

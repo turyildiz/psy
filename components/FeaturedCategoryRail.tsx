@@ -54,9 +54,7 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     if (cardRect.left >= railRect.left - 1 && cardRect.right <= railRect.right + 1) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
-    const targetLeft = Math.max(0, Math.min(maxScrollLeft, rail.scrollLeft + cardRect.left - railRect.left));
-    rail.scrollTo({ left: targetLeft, behavior: reducedMotion ? "auto" : "smooth" });
+    card.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", inline: "start", block: "nearest" });
   };
 
   const scrollRail = (direction: -1 | 1) => {
@@ -66,9 +64,15 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     const cards = Array.from(rail.children) as HTMLElement[];
     if (cards.length < 2) return;
 
-    const cardStep = cards[1].offsetLeft - cards[0].offsetLeft;
+    const railRect = rail.getBoundingClientRect();
+    const safeEdge = Number.parseFloat(window.getComputedStyle(rail).scrollPaddingInlineStart) || 0;
+    const safeLeft = railRect.left + safeEdge;
+    const currentIndex = cards.findLastIndex((card) => card.getBoundingClientRect().left <= safeLeft + 1);
+    const targetCard = cards[Math.max(0, Math.min(cards.length - 1, currentIndex + direction))];
+    if (!targetCard) return;
+
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    rail.scrollBy({ left: direction * cardStep, behavior: reducedMotion ? "auto" : "smooth" });
+    targetCard.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", inline: "start", block: "nearest" });
   };
 
   const handleFocus = (event: FocusEvent<HTMLDivElement>) => {

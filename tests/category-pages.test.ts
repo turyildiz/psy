@@ -211,9 +211,10 @@ test("category featured rails expose every featured item and add desktop overflo
   assert.match(rail, /aria-label="Scroll featured items left"/);
   assert.match(rail, /aria-label="Scroll featured items right"/);
   assert.match(rail, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
-  assert.match(rail, /scrollTo\(\{ left: targetLeft, behavior: reducedMotion \? "auto" : "smooth" \}\)/);
-  assert.match(rail, /const cardStep = cards\[1\]\.offsetLeft - cards\[0\]\.offsetLeft;/, "arrow clicks must measure one complete card boundary");
-  assert.match(rail, /scrollBy\(\{ left: direction \* cardStep, behavior: reducedMotion \? "auto" : "smooth" \}\)/, "arrow clicks must advance the rail by one measured card step");
+  assert.match(rail, /targetCard\.scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", inline: "start", block: "nearest" \}\)/, "featured navigation must compose with mandatory snap without moving the page vertically");
+  assert.match(rail, /const currentIndex = cards\.findLastIndex\(/, "arrow clicks must locate the currently aligned card");
+  assert.match(rail, /const targetCard = cards\[Math\.max\(0, Math\.min\(cards\.length - 1, currentIndex \+ direction\)\)\]/, "arrow clicks must target exactly one adjacent card");
+  assert.doesNotMatch(rail, /scrollBy\(/, "mandatory snap cancels smooth scrollBy navigation");
   assert.match(rail, /onFocusCapture=/, "tabbing to an off-screen card must bring it fully into view");
 
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\][^{]*\{[^}]*width: calc\(100% \+ 32px\);/);
@@ -252,7 +253,8 @@ test("every category route uses the shared browse-style filter toolbar without c
   assert.match(toolbar, /aria-label="Scroll types left"/);
   assert.match(toolbar, /aria-label="Scroll types right"/);
   assert.match(toolbar, /const scrollPillIntoView = \(pill: HTMLElement/);
-  assert.match(toolbar, /scrollTo\(\{ left: targetLeft, behavior: reducedMotion \? "auto" : "smooth" \}\)/);
+  assert.match(toolbar, /pill\.scrollIntoView\(\{ behavior: reducedMotion \? "auto" : "smooth", inline: "start", block: "nearest" \}\)/, "pill navigation must compose with mandatory snap without moving the page vertically");
+  assert.doesNotMatch(toolbar, /scrollTo\(/, "mandatory snap cancels smooth scrollTo navigation");
   assert.match(toolbar, /onClick=\{\(event\) => selectTag\(event\.currentTarget, onClearTags\)\}/);
   assert.match(toolbar, /onClick=\{\(event\) => selectTag\(event\.currentTarget, \(\) => onToggleTag\(value\)\)\}/);
   assert.match(toolbar, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
