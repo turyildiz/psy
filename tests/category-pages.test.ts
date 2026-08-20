@@ -131,7 +131,7 @@ test("all category layouts use a mobile featured swipe row and the browse catalo
   ]) {
     const source = readFileSync(path, "utf8");
 
-    assert.match(source, new RegExp(`className="${featuredPrefix}-featured-grid" tabIndex=\\{0\\}`), `${path} must make the featured row focus-scrollable`);
+    assert.match(source, new RegExp(`<FeaturedCategoryRail[\\s\\S]*?className="${featuredPrefix}-featured-grid"[\\s\\S]*?itemCount=\\{featuredItems\\.length\\}`), `${path} must use the shared focus-scrollable featured rail`);
     assert.match(source, new RegExp(`\\.${featuredPrefix}-featured-grid \\{[^}]*display: flex;[^}]*overflow-x: auto;[^}]*scroll-snap-type: x mandatory;`), `${path} must switch featured cards to a mobile swipe row`);
     assert.match(source, new RegExp(`\\.${featuredPrefix}-featured-grid > \\.stagger-item \\{[^}]*flex: 0 0 80vw;[^}]*scroll-snap-align: start;`), `${path} must preserve the next-card peek and snap each card`);
 
@@ -180,6 +180,45 @@ test("global mobile styles do not override category-owned responsive grids", () 
 
   assert.doesNotMatch(styles, /\.music-featured-grid, \.apparel-featured-grid, \.jewellery-featured-grid/);
   assert.doesNotMatch(styles, /\.music-gear-grid, \.apparel-grid, \.jewellery-grid/);
+});
+
+test("category featured rails expose every featured item and add desktop overflow controls only beyond three cards", () => {
+  const railPath = "components/FeaturedCategoryRail.tsx";
+  assert.equal(existsSync(railPath), true, "the desktop overflow behavior must be shared by every category page");
+
+  const rail = readFileSync(railPath, "utf8");
+  const styles = readFileSync("app/globals.css", "utf8");
+  for (const { path, prefix } of [
+    { path: "components/StandardCategoryPage.tsx", prefix: "standard-category" },
+    { path: "app/apparel/page.tsx", prefix: "apparel" },
+    { path: "app/jewellery/page.tsx", prefix: "jewellery" },
+    { path: "app/music/page.tsx", prefix: "music" },
+  ]) {
+    const source = readFileSync(path, "utf8");
+    assert.match(source, /import FeaturedCategoryRail from "@\/components\/FeaturedCategoryRail";/, `${path} must import the shared rail`);
+    assert.doesNotMatch(source, /filter\([^\n]*isFeatured[^\n]*\)\.slice\(0,\s*3\)/, `${path} must not cap featured listings`);
+    assert.match(source, /const featuredIds = new Set\(featuredItems\.map\(/, `${path} must derive exclusions from every featured item`);
+    assert.match(source, /const gridItems = hasFeatured \? filtered\.filter\([^\n]*!featuredIds\.has\(/, `${path} must exclude every rendered featured item from the catalogue grid`);
+    assert.match(source, new RegExp(`<FeaturedCategoryRail[\\s\\S]*?className="${prefix}-featured-grid"[\\s\\S]*?itemCount=\\{featuredItems\\.length\\}`));
+  }
+
+  assert.match(rail, /const isScrollable = itemCount > 3;/, "three or fewer items must retain the existing no-control layout");
+  assert.match(rail, /useLayoutEffect\(/);
+  assert.match(rail, /const updateOverflow = \(\) =>/);
+  assert.match(rail, /new ResizeObserver\(updateOverflow\)/);
+  assert.match(rail, /isScrollable && canScrollLeft/);
+  assert.match(rail, /isScrollable && canScrollRight/);
+  assert.match(rail, /aria-label="Scroll featured items left"/);
+  assert.match(rail, /aria-label="Scroll featured items right"/);
+  assert.match(rail, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
+  assert.match(rail, /scrollTo\(\{ left: targetLeft, behavior: reducedMotion \? "auto" : "smooth" \}\)/);
+  assert.match(rail, /onFocusCapture=/, "tabbing to an off-screen card must bring it fully into view");
+
+  assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\][^{]*\{[^}]*width: calc\(100% \+ 32px\);/);
+  assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail \{[^}]*display: flex;[^}]*overflow-x: auto;[^}]*scroll-snap-type: x mandatory;/);
+  assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail > \.stagger-item \{[^}]*flex: 0 0 calc\(\(100% - 72px\) \/ 3\);[^}]*scroll-snap-align: start;[^}]*scroll-snap-stop: always;/);
+  assert.match(styles, /@media \(max-width: 768px\)[\s\S]*?\.featured-category-rail-segment\[data-scrollable="true"\] \{ width: 100%; \}/);
+  assert.match(styles, /\.featured-category-rail-segment \.category-rail-fade \{[^}]*pointer-events: none;/);
 });
 
 test("every category route uses the shared browse-style filter toolbar without changing tag state", () => {

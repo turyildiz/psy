@@ -920,6 +920,69 @@ input:autofill {
 .category-rail-fade-left { left: 7px; background: linear-gradient(to right, var(--white) 0%, transparent 100%); }
 .category-rail-fade-right { right: 7px; background: linear-gradient(to left, var(--white) 0%, transparent 100%); }
 
+.featured-category-rail-segment {
+  position: relative;
+}
+
+.featured-category-rail-segment[data-scrollable="true"] {
+  width: calc(100% + 32px);
+}
+
+.featured-category-rail-segment[data-scrollable="true"] .featured-category-rail {
+  display: flex;
+  gap: 20px;
+  overflow-x: auto;
+  overscroll-behavior-inline: contain;
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
+}
+
+.featured-category-rail-segment[data-scrollable="true"] .featured-category-rail::-webkit-scrollbar {
+  display: none;
+}
+
+.featured-category-rail-segment[data-scrollable="true"] .featured-category-rail::after {
+  content: "";
+  flex: 0 0 32px;
+}
+
+.featured-category-rail-segment[data-scrollable="true"] .featured-category-rail > .stagger-item {
+  flex: 0 0 calc((100% - 72px) / 3);
+  height: 100%;
+  scroll-snap-align: start;
+  scroll-snap-stop: always;
+}
+
+.featured-category-rail-segment .category-rail-fade {
+  top: 0;
+  bottom: 0;
+  pointer-events: none;
+}
+
+.featured-category-rail-segment .category-rail-fade-left { left: 0; }
+.featured-category-rail-segment .category-rail-fade-right { right: 0; }
+
+@media (max-width: 768px) {
+  .featured-category-rail-segment[data-scrollable="true"] { width: 100%; }
+  .featured-category-rail-segment[data-scrollable="true"] .featured-category-rail {
+    display: flex;
+    gap: 12px;
+    overflow-x: auto;
+    overscroll-behavior-inline: contain;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+  .featured-category-rail-segment[data-scrollable="true"] .featured-category-rail::after { display: none; }
+  .featured-category-rail-segment[data-scrollable="true"] .featured-category-rail > .stagger-item {
+    flex: 0 0 80vw;
+    max-width: 80vw;
+    scroll-snap-align: start;
+    scroll-snap-stop: always;
+  }
+  .featured-category-rail-segment .category-rail-arrow,
+  .featured-category-rail-segment .category-rail-fade { display: none; }
+}
+
 .category-filter-menu { flex: 0 0 205px; }
 .category-filter-menu:last-child { flex-basis: 180px; }
 .category-filter-trigger { min-width: 0; }

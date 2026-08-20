@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import CategoryFilterToolbar from "@/components/CategoryFilterToolbar";
+import FeaturedCategoryRail from "@/components/FeaturedCategoryRail";
 import PageHero from "@/components/PageHero";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing } from "@/types/marketplace";
@@ -160,7 +161,7 @@ export default function ApparelPage() {
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  const featuredItems = filtered.filter((l) => l.isFeatured).slice(0, 3);
+  const featuredItems = filtered.filter((l) => l.isFeatured);
   const hasFeatured = featuredItems.length >= 2;
   const featuredIds = new Set(featuredItems.map((l) => l.id));
   const gridItems = hasFeatured ? filtered.filter((l) => !featuredIds.has(l.id)) : filtered;
@@ -218,13 +219,13 @@ export default function ApparelPage() {
             {hasFeatured && (
               <div style={{ marginBottom: "56px" }}>
                 <SectionHeading>Featured Pieces</SectionHeading>
-                <div className="apparel-featured-grid" tabIndex={0} aria-label="Featured Pieces — swipe to browse">
+                <FeaturedCategoryRail className="apparel-featured-grid" itemCount={featuredItems.length} label="Featured Pieces">
                   {featuredItems.map((item, i) => (
                     <div key={item.id} className="stagger-item" style={{ '--i': i } as CSSProperties}>
                       <FeaturedCard item={item} />
                     </div>
                   ))}
-                </div>
+                </FeaturedCategoryRail>
               </div>
             )}
 
