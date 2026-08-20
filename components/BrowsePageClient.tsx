@@ -8,6 +8,7 @@ import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import PageHero from "@/components/PageHero";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 import Waveform from "@/components/Waveform";
 import {
   BROWSE_CATEGORIES,
@@ -358,6 +359,7 @@ export default function BrowsePageClient() {
         </section>
       </main>
       <Footer />
+      <ScrollToTopButton />
       <style>{`
         .browse-results-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 26px; align-items: stretch; }
         .browse-zero-results { max-width: 620px; margin: 0 auto; padding: 58px 20px 22px; text-align: center; }

@@ -8,6 +8,7 @@ import CategoryFilterToolbar from "@/components/CategoryFilterToolbar";
 import FeaturedCategoryRail from "@/components/FeaturedCategoryRail";
 import PageHero from "@/components/PageHero";
 import ProfileAvatar from "@/components/ProfileAvatar";
+import ScrollToTopButton from "@/components/ScrollToTopButton";
 import { conditionLabels } from "@/lib/constants";
 import { toListing } from "@/lib/db";
 import { formatPrice } from "@/lib/listings/price";
@@ -298,6 +299,7 @@ export default function StandardCategoryPage({
       </div>
 
       <Footer />
+      <ScrollToTopButton />
 
       <style>{`
         .standard-category-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
