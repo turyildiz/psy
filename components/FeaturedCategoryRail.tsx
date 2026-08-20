@@ -64,17 +64,11 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     if (!rail) return;
 
     const cards = Array.from(rail.children) as HTMLElement[];
-    const currentIndex = cards.reduce((closestIndex, card, index) => {
-      const closestDistance = Math.abs(cards[closestIndex].offsetLeft - rail.scrollLeft);
-      return Math.abs(card.offsetLeft - rail.scrollLeft) < closestDistance ? index : closestIndex;
-    }, 0);
-    const targetCard = cards[Math.max(0, Math.min(cards.length - 1, currentIndex + direction))];
-    if (!targetCard) return;
+    if (cards.length < 2) return;
 
+    const cardStep = cards[1].offsetLeft - cards[0].offsetLeft;
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
-    const targetLeft = Math.max(0, Math.min(maxScrollLeft, targetCard.offsetLeft));
-    rail.scrollTo({ left: targetLeft, behavior: reducedMotion ? "auto" : "smooth" });
+    rail.scrollBy({ left: direction * cardStep, behavior: reducedMotion ? "auto" : "smooth" });
   };
 
   const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
