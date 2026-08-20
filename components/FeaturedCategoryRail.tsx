@@ -9,6 +9,8 @@ type FeaturedCategoryRailProps = {
   children: ReactNode;
 };
 
+const OVERFLOW_TOLERANCE_PX = 4;
+
 export default function FeaturedCategoryRail({ className, itemCount, label, children }: FeaturedCategoryRailProps) {
   const railRef = useRef<HTMLDivElement>(null);
   const [canScrollLeft, setCanScrollLeft] = useState(false);
@@ -24,13 +26,10 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     }
 
     const updateOverflow = () => {
-      const railRect = rail.getBoundingClientRect();
-      const cards = Array.from(rail.children) as HTMLElement[];
-      const firstCardRect = cards[0]?.getBoundingClientRect();
-      const lastCardRect = cards.at(-1)?.getBoundingClientRect();
-
-      setCanScrollLeft(Boolean(firstCardRect && firstCardRect.left < railRect.left - 1));
-      setCanScrollRight(Boolean(lastCardRect && lastCardRect.right > railRect.right + 1));
+      const firstCard = rail.firstElementChild as HTMLElement | null;
+      if (firstCard) rail.parentElement?.style.setProperty("--featured-image-center", `${firstCard.getBoundingClientRect().width * 3 / 8}px`);
+      setCanScrollLeft(rail.scrollLeft > OVERFLOW_TOLERANCE_PX);
+      setCanScrollRight(rail.scrollWidth - rail.clientWidth - rail.scrollLeft > OVERFLOW_TOLERANCE_PX);
     };
 
     updateOverflow();
@@ -68,11 +67,14 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     const safeEdge = Number.parseFloat(window.getComputedStyle(rail).scrollPaddingInlineStart) || 0;
     const safeLeft = railRect.left + safeEdge;
     const currentIndex = cards.findLastIndex((card) => card.getBoundingClientRect().left <= safeLeft + 1);
-    const targetCard = cards[Math.max(0, Math.min(cards.length - 1, currentIndex + direction))];
+    const targetIndex = Math.max(0, Math.min(cards.length - 1, currentIndex + direction));
+    const targetCard = cards[targetIndex];
     if (!targetCard) return;
 
     const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    targetCard.scrollIntoView({ behavior: reducedMotion ? "auto" : "smooth", inline: "start", block: "nearest" });
+    const behavior: ScrollBehavior = reducedMotion ? "auto" : "smooth";
+    if (targetIndex === 0) rail.scrollTo({ left: 0, behavior });
+    else targetCard.scrollIntoView({ behavior, inline: "start", block: "nearest" });
   };
 
   const handleFocus = (event: FocusEvent<HTMLDivElement>) => {
@@ -84,8 +86,10 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
   return (
     <div className="featured-category-rail-segment" data-scrollable={isScrollable}>
       {isScrollable && canScrollLeft && (
-        <button type="button" className="category-rail-arrow category-rail-arrow-left" aria-label="Scroll featured items left" onClick={() => scrollRail(-1)}>
-          <span aria-hidden="true">‹</span>
+        <button type="button" className="featured-category-rail-arrow featured-category-rail-arrow-left" aria-label="Scroll featured items left" onClick={() => scrollRail(-1)}>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="m15 18-6-6 6-6" />
+          </svg>
         </button>
       )}
       <div ref={railRef} className={`${className} featured-category-rail`} tabIndex={0} aria-label={`${label} — swipe to browse`} onFocusCapture={handleFocus}>
@@ -94,8 +98,10 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
       {isScrollable && <span className="category-rail-fade category-rail-fade-left" data-visible={canScrollLeft} aria-hidden="true" />}
       {isScrollable && <span className="category-rail-fade category-rail-fade-right" data-visible={canScrollRight} aria-hidden="true" />}
       {isScrollable && canScrollRight && (
-        <button type="button" className="category-rail-arrow category-rail-arrow-right" aria-label="Scroll featured items right" onClick={() => scrollRail(1)}>
-          <span aria-hidden="true">›</span>
+        <button type="button" className="featured-category-rail-arrow featured-category-rail-arrow-right" aria-label="Scroll featured items right" onClick={() => scrollRail(1)}>
+          <svg aria-hidden="true" viewBox="0 0 24 24">
+            <path d="m9 18 6-6-6-6" />
+          </svg>
         </button>
       )}
     </div>
