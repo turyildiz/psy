@@ -5,7 +5,7 @@ import { useEffect, useState } from "react";
 const BLOCKING_OVERLAY_SELECTOR = [
   '[aria-modal="true"]',
   ".drawer-backdrop",
-  ".mobile-drawer",
+  ".mobile-drawer.open",
   "[data-scroll-to-top-blocker]",
 ].join(", ");
 
