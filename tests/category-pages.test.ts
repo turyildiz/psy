@@ -144,6 +144,29 @@ test("all category layouts use a mobile featured swipe row and the browse catalo
   }
 });
 
+test("category photo heroes use a slim responsive band with the description below", () => {
+  for (const path of [
+    "components/StandardCategoryPage.tsx",
+    "app/apparel/page.tsx",
+    "app/jewellery/page.tsx",
+    "app/music/page.tsx",
+  ]) {
+    const source = readFileSync(path, "utf8");
+
+    assert.match(source, /className="category-photo-hero"/, `${path} must use the shared slim hero contract`);
+    assert.match(source, /className="stagger-item site-shell category-photo-hero-text"/, `${path} must align hero text to the site shell`);
+    assert.match(source, /className="category-photo-hero-description"/, `${path} must keep the full-size description below the short photo band`);
+    assert.match(source, /objectPosition: "50% center"|objectPosition: heroObjectPosition/, `${path} must crop from the vertical middle`);
+    assert.match(source, /\.category-photo-hero\s*\{[^}]*aspect-ratio:\s*8\s*\/\s*1;/, `${path} must produce a 175px band at a 1400px viewport`);
+    assert.match(source, /@media \(max-width: 640px\)[^{]*\{[^}]*\.category-photo-hero\s*\{[^}]*aspect-ratio:\s*3\s*\/\s*1;/, `${path} must produce a 130px band at a 390px viewport`);
+
+    const heroTextIndex = source.indexOf('className="stagger-item site-shell category-photo-hero-text"');
+    const descriptionIndex = source.indexOf('className="category-photo-hero-description"');
+    const toolbarIndex = source.indexOf("<CategoryFilterToolbar");
+    assert.ok(heroTextIndex < descriptionIndex && descriptionIndex < toolbarIndex, `${path} must place the description between the photo and toolbar`);
+  }
+});
+
 test("global mobile styles do not override category-owned responsive grids", () => {
   const styles = readFileSync("app/globals.css", "utf8");
 
