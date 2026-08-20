@@ -5,6 +5,7 @@ import Link from "next/link";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import CategoryFilterToolbar from "@/components/CategoryFilterToolbar";
+import PageHero from "@/components/PageHero";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { conditionLabels } from "@/lib/constants";
 import { toListing } from "@/lib/db";
@@ -214,16 +215,14 @@ export default function StandardCategoryPage({
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
       <Header />
 
-      <div className="category-photo-hero" style={{ position: "relative", background: "var(--dark)", overflow: "hidden", display: "flex", alignItems: "center" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={heroImage} alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: heroObjectPosition, opacity: 1 }} />
-        <div className="category-photo-hero-overlay" style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, oklch(10% 0.01 55 / 0.96) 0%, oklch(10% 0.01 55 / 0.82) 55%, oklch(10% 0.01 55 / 0.64) 100%)" }} />
-        <div className="stagger-item site-shell category-photo-hero-text" style={{ "--i": 0, position: "relative", zIndex: 1 } as CSSProperties}>
-          <p className="category-photo-hero-eyebrow" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--rust)" }}>Marketplace</p>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "white", margin: 0, letterSpacing: "-0.03em", lineHeight: 1.1 }}>{title}</h1>
-          <p className="category-photo-hero-description" style={{ fontSize: "15px", color: "white", maxWidth: "460px", lineHeight: 1.6 }}>{tagline}</p>
-        </div>
-      </div>
+      <PageHero
+        imageSrc={heroImage}
+        objectPosition={heroObjectPosition}
+        eyebrow="Marketplace"
+        title={title}
+        description={tagline}
+        descriptionMaxWidth="460px"
+      />
 
       {infoBanner && (
         <div style={{ background: "var(--cream-mid)", borderBottom: "1px solid var(--sand)" }}>
@@ -300,10 +299,6 @@ export default function StandardCategoryPage({
       <Footer />
 
       <style>{`
-        .category-photo-hero { width: 100%; height: 200px; }
-        .category-photo-hero-text { width: 100%; padding-top: 20px; padding-bottom: 20px; }
-        .category-photo-hero-eyebrow { margin: 0 0 10px; }
-        .category-photo-hero-description { margin: 10px 0 0; text-shadow: 0 1px 3px oklch(0% 0 0 / 0.72); }
         .standard-category-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
         .standard-category-featured-grid > .stagger-item { height: 100%; }
         .standard-category-featured-link { display: block; height: 100%; }
@@ -331,7 +326,7 @@ export default function StandardCategoryPage({
           .standard-category-featured-grid::-webkit-scrollbar { display: none; }
           .standard-category-featured-grid > .stagger-item { flex: 0 0 80vw; max-width: 80vw; scroll-snap-align: start; scroll-snap-stop: always; }
         }
-        @media (max-width: 640px) { .category-photo-hero { height: 168px; } .category-photo-hero-text { padding-top: 10px; padding-right: 16px; padding-bottom: 10px; padding-left: 24px; } .category-photo-hero-eyebrow { margin-bottom: 4px; } .category-photo-hero-description { margin-top: 4px; } .standard-category-grid { column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 640px) { .standard-category-grid { column-gap: 10px; row-gap: 14px; } }
         @media (max-width: 379px) { .standard-category-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>

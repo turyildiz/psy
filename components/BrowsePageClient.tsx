@@ -6,6 +6,7 @@ import { FormEvent, useEffect, useMemo, useRef, useState, type CSSProperties } f
 
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
+import PageHero from "@/components/PageHero";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import Waveform from "@/components/Waveform";
 import {
@@ -20,6 +21,7 @@ import {
   type BrowseSort,
   type BrowseState,
 } from "@/lib/browse-state";
+import { getBrowseHeroImage } from "@/lib/browse-hero";
 import { conditionLabels } from "@/lib/constants";
 import { toListing } from "@/lib/db";
 import { formatPrice } from "@/lib/listings/price";
@@ -257,11 +259,12 @@ export default function BrowsePageClient() {
     <div style={{ background: "var(--cream)", minHeight: "100vh" }}>
       <Header />
       <main>
-        <section className="stagger-item site-shell" style={{ "--i": 0, boxSizing: "border-box", minHeight: "120px", paddingTop: "14px", paddingBottom: "14px", display: "flex", flexDirection: "column", justifyContent: "center" } as CSSProperties}>
-          <p style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--rust)", margin: "0 0 4px" }}>Marketplace</p>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "40px", fontWeight: 800, color: "var(--text)", margin: "0 0 4px", letterSpacing: "-0.03em", lineHeight: 1.05 }}>Browse</h1>
-          <p style={{ fontSize: "14px", color: "var(--text-mid)", lineHeight: 1.5, margin: 0 }}>Every active listing from the tribe — apparel, art, sound and tickets.</p>
-        </section>
+        <PageHero
+          imageSrc={getBrowseHeroImage()}
+          eyebrow="Marketplace"
+          title="Browse"
+          description="Every active listing from the tribe — apparel, art, sound and tickets."
+        />
 
         <section className="browse-filter-sticky stagger-item" style={{ "--i": 1 } as CSSProperties} aria-label="Listing filters">
           <div ref={toolbarRef} className="browse-marketplace-toolbar site-shell">
