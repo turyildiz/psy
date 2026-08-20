@@ -47,12 +47,23 @@ test("the button hides for app overlays, drawers, and delete confirmations", () 
   assert.match(source, /MutationObserver/);
   assert.match(source, /\[aria-modal="true"\]/);
   assert.match(source, /\.drawer-backdrop/);
-  assert.match(source, /\.mobile-drawer/);
+  assert.match(source, /\.mobile-drawer\.open/);
   assert.match(source, /\[data-scroll-to-top-blocker\]/);
   assert.match(source, /document\.body\.style\.overflow === "hidden"/);
 
   const profile = read("app/[handle]/page.tsx");
   assert.match(profile, /data-scroll-to-top-blocker/);
+});
+
+test("closed Header drawers allow the button past threshold while an open drawer hides it", () => {
+  const source = read(componentPath);
+  const header = read("components/layout/Header.tsx");
+
+  assert.match(source, /const visible = pastThreshold && !overlayOpen/);
+  assert.match(header, /className=\{`mobile-drawer mobile-drawer-left\$\{leftOpen \? " open" : ""\}`\}/);
+  assert.match(header, /className=\{`mobile-drawer mobile-drawer-right\$\{rightOpen \? " open" : ""\}`\}/);
+  assert.match(source, /"\.mobile-drawer\.open"/);
+  assert.doesNotMatch(source, /"\.mobile-drawer"/);
 });
 
 test("the shared button matches carousel controls without covering sticky UI", () => {
