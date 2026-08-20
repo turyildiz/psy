@@ -144,7 +144,7 @@ test("all category layouts use a mobile featured swipe row and the browse catalo
   }
 });
 
-test("category photo heroes use a slim responsive band with the description below", () => {
+test("category photo heroes keep readable descriptions inside fixed-height photo bands", () => {
   for (const path of [
     "components/StandardCategoryPage.tsx",
     "app/apparel/page.tsx",
@@ -153,18 +153,27 @@ test("category photo heroes use a slim responsive band with the description belo
   ]) {
     const source = readFileSync(path, "utf8");
 
-    assert.match(source, /className="category-photo-hero"/, `${path} must use the shared slim hero contract`);
+    assert.match(source, /className="category-photo-hero"/, `${path} must use the shared hero contract`);
+    assert.match(source, /className="category-photo-hero-overlay"/, `${path} must protect all hero text from bright images`);
+    assert.match(source, /linear-gradient\(to right,[^\n]*\/ 0\.96\)[^\n]*\/ 0\.82\)[^\n]*\/ 0\.64\)/, `${path} must keep white-image contrast strong across the text region`);
     assert.match(source, /className="stagger-item site-shell category-photo-hero-text"/, `${path} must align hero text to the site shell`);
     assert.match(source, /\.category-photo-hero-text\s*\{[^}]*width:\s*100%;/, `${path} must let the site shell span the hero before applying its shared edges`);
-    assert.match(source, /className="category-photo-hero-description"/, `${path} must keep the full-size description below the short photo band`);
+    assert.match(source, /className="category-photo-hero-description"/, `${path} must render the description inside the photo`);
+    assert.match(source, /className="category-photo-hero-description"[^>]*color:\s*"white"/, `${path} must render the protected description in white`);
     assert.match(source, /objectPosition: "50% center"|objectPosition: heroObjectPosition/, `${path} must crop from the vertical middle`);
-    assert.match(source, /\.category-photo-hero\s*\{[^}]*aspect-ratio:\s*8\s*\/\s*1;/, `${path} must produce a 175px band at a 1400px viewport`);
-    assert.match(source, /@media \(max-width: 640px\)[^{]*\{[^}]*\.category-photo-hero\s*\{[^}]*aspect-ratio:\s*3\s*\/\s*1;/, `${path} must produce a 130px band at a 390px viewport`);
+    assert.match(source, /\.category-photo-hero\s*\{[^}]*height:\s*200px;/, `${path} must match the profile banner's fixed 200px desktop height`);
+    assert.match(source, /className="category-photo-hero-eyebrow"/, `${path} must identify the optional eyebrow separately from essential mobile text`);
+    assert.match(source, /@media \(max-width: 640px\)[^{]*\{[^}]*\.category-photo-hero\s*\{[^}]*height:\s*130px;/, `${path} must freeze the current 130px mobile height`);
+    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-eyebrow\s*\{[^}]*margin-bottom:\s*0;/, `${path} must compact the eyebrow without hiding it in the 130px mobile band`);
+    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-description\s*\{[^}]*margin-top:\s*0;/, `${path} must fit the description inside the fixed mobile band`);
+    assert.doesNotMatch(source, /\.category-photo-hero-eyebrow\s*\{[^}]*display:\s*none;/, `${path} must keep the Marketplace eyebrow visible`);
+    assert.doesNotMatch(source, /\.category-photo-hero\s*\{[^}]*aspect-ratio:/, `${path} must not resize the hero by aspect ratio`);
 
     const heroTextIndex = source.indexOf('className="stagger-item site-shell category-photo-hero-text"');
     const descriptionIndex = source.indexOf('className="category-photo-hero-description"');
+    const heroCloseIndex = source.indexOf("</div>", descriptionIndex);
     const toolbarIndex = source.indexOf("<CategoryFilterToolbar");
-    assert.ok(heroTextIndex < descriptionIndex && descriptionIndex < toolbarIndex, `${path} must place the description between the photo and toolbar`);
+    assert.ok(heroTextIndex < descriptionIndex && descriptionIndex < heroCloseIndex && heroCloseIndex < toolbarIndex, `${path} must place the description within the hero text before the toolbar`);
   }
 });
 
