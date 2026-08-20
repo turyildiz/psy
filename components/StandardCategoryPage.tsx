@@ -93,18 +93,19 @@ function ListingCard({ item }: { item: Listing }) {
   const [hovered, setHovered] = useState(false);
 
   return (
-    <Link href={`/listing/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
+    <Link href={`/listing/${item.id}`} className="standard-category-card-link" style={{ textDecoration: "none" }}>
       <div
+        className="standard-category-card"
         style={{ background: "var(--white)", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--sand)", boxShadow: hovered ? "0 10px 28px oklch(35% 0.06 55 / 0.14)" : "0 2px 8px oklch(0% 0 0 / 0.06)", transform: hovered ? "translateY(-3px)" : "none", transition: "all 0.25s ease" }}
         onMouseEnter={() => setHovered(true)}
         onMouseLeave={() => setHovered(false)}
       >
-        <div style={{ overflow: "hidden" }}>
+        <div className="standard-category-card-image">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ width: "100%", height: "180px", objectFit: "cover", display: "block", transition: "transform 0.5s ease", transform: hovered ? "scale(1.05)" : "scale(1)" }} />
+          <img className="standard-category-card-image-element" src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ transition: "transform 0.5s ease", transform: hovered ? "scale(1.05)" : "scale(1)" }} />
         </div>
-        <div style={{ padding: "11px 13px 14px" }}>
-          <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</p>
+        <div className="standard-category-card-content" style={{ padding: "11px 13px 14px" }}>
+          <p className="standard-category-card-title" style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3 }}>{item.title}</p>
           <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
             {formatPrice(item.priceCents)}
           </p>
@@ -271,7 +272,7 @@ export default function StandardCategoryPage({
             {hasFeatured && (
               <div style={{ marginBottom: "56px" }}>
                 <SectionHeading>{featuredLabel}</SectionHeading>
-                <div className="standard-category-featured-grid">
+                <div className="standard-category-featured-grid" tabIndex={0} aria-label={`${featuredLabel} — swipe to browse`}>
                   {featuredItems.map((item, index) => (
                     <div key={item.id} className="stagger-item" style={{ "--i": index } as CSSProperties}>
                       <FeaturedCard item={item} />
@@ -311,12 +312,23 @@ export default function StandardCategoryPage({
         .standard-category-featured-condition { flex-shrink: 0; }
         .standard-category-featured-seller-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
         .standard-category-featured-seller-handle { min-width: 0; overflow-wrap: anywhere; }
-        .standard-category-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-        @media (max-width: 1024px) { .standard-category-grid { grid-template-columns: repeat(4, 1fr); } }
+        .standard-category-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 26px; align-items: stretch; }
+        .standard-category-grid > .stagger-item { min-width: 0; height: 100%; }
+        .standard-category-card-link { display: block; height: 100%; }
+        .standard-category-card { display: flex; flex-direction: column; height: 100%; }
+        .standard-category-card-image { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; flex-shrink: 0; }
+        .standard-category-card-image-element { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+        .standard-category-card-content { display: flex; flex: 1; flex-direction: column; }
+        .standard-category-card-title { min-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        @media (max-width: 1180px) { .standard-category-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 860px) { .standard-category-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 768px) {
-          .standard-category-featured-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .standard-category-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .standard-category-featured-grid { display: flex; gap: 12px; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+          .standard-category-featured-grid::-webkit-scrollbar { display: none; }
+          .standard-category-featured-grid > .stagger-item { flex: 0 0 80vw; max-width: 80vw; scroll-snap-align: start; scroll-snap-stop: always; }
         }
+        @media (max-width: 640px) { .standard-category-grid { column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 379px) { .standard-category-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
   );

@@ -122,6 +122,28 @@ test("legacy category featured cards use the same contained equal-height vertica
   }
 });
 
+test("all category layouts use a mobile featured swipe row and the browse catalogue grid", () => {
+  for (const { path, featuredPrefix, gridPrefix, cardPrefix } of [
+    { path: "components/StandardCategoryPage.tsx", featuredPrefix: "standard-category", gridPrefix: "standard-category", cardPrefix: "standard-category" },
+    { path: "app/apparel/page.tsx", featuredPrefix: "apparel", gridPrefix: "apparel", cardPrefix: "apparel" },
+    { path: "app/jewellery/page.tsx", featuredPrefix: "jewellery", gridPrefix: "jewellery", cardPrefix: "jewellery" },
+    { path: "app/music/page.tsx", featuredPrefix: "music", gridPrefix: "music-gear", cardPrefix: "music-gear" },
+  ]) {
+    const source = readFileSync(path, "utf8");
+
+    assert.match(source, new RegExp(`className="${featuredPrefix}-featured-grid" tabIndex=\\{0\\}`), `${path} must make the featured row focus-scrollable`);
+    assert.match(source, new RegExp(`\\.${featuredPrefix}-featured-grid \\{[^}]*display: flex;[^}]*overflow-x: auto;[^}]*scroll-snap-type: x mandatory;`), `${path} must switch featured cards to a mobile swipe row`);
+    assert.match(source, new RegExp(`\\.${featuredPrefix}-featured-grid > \\.stagger-item \\{[^}]*flex: 0 0 80vw;[^}]*scroll-snap-align: start;`), `${path} must preserve the next-card peek and snap each card`);
+
+    assert.match(source, new RegExp(`\\.${gridPrefix}-grid \\{[^}]*grid-template-columns: repeat\\(4, minmax\\(0, 1fr\\)\\);[^}]*column-gap: 24px;[^}]*row-gap: 26px;`), `${path} must match the browse desktop grid`);
+    assert.match(source, new RegExp(`@media \\(max-width: 1180px\\) \\{ \\.${gridPrefix}-grid \\{ grid-template-columns: repeat\\(3, minmax\\(0, 1fr\\)\\);`));
+    assert.match(source, new RegExp(`@media \\(max-width: 860px\\) \\{ \\.${gridPrefix}-grid \\{ grid-template-columns: repeat\\(2, minmax\\(0, 1fr\\)\\);`));
+    assert.match(source, new RegExp(`@media \\(max-width: 379px\\) \\{ \\.${gridPrefix}-grid \\{ grid-template-columns: minmax\\(0, 1fr\\);`));
+    assert.match(source, new RegExp(`\\.${cardPrefix}-card-image \\{[^}]*aspect-ratio: 1;`), `${path} must keep catalogue images square`);
+    assert.match(source, new RegExp(`\\.${cardPrefix}-card-title \\{[^}]*-webkit-line-clamp: 2;`), `${path} must cap catalogue titles at two lines`);
+  }
+});
+
 test("every category route uses the shared browse-style filter toolbar without changing tag state", () => {
   const toolbarPath = "components/CategoryFilterToolbar.tsx";
   assert.equal(existsSync(toolbarPath), true, "the visual filter toolbar must be shared across all category implementations");

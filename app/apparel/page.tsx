@@ -77,18 +77,19 @@ function ApparelCard({ item }: { item: Listing }) {
   const [hov, setHov] = useState(false);
   const condColor = CONDITION_COLORS[item.condition] || "var(--text-light)";
   return (
-    <Link href={`/listing/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
+    <Link href={`/listing/${item.id}`} className="apparel-card-link" style={{ textDecoration: "none" }}>
       <div
+        className="apparel-card"
         style={{ background: "var(--white)", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--sand)", boxShadow: hov ? "0 10px 28px oklch(35% 0.06 55 / 0.14)" : "0 2px 8px oklch(0% 0 0 / 0.06)", transform: hov ? "translateY(-3px)" : "none", transition: "all 0.25s ease" }}
         onMouseEnter={() => setHov(true)}
         onMouseLeave={() => setHov(false)}
       >
-        <div style={{ overflow: "hidden" }}>
+        <div className="apparel-card-image">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ width: "100%", height: "220px", objectFit: "cover", display: "block", transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
+          <img className="apparel-card-image-element" src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} style={{ transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
         </div>
-        <div style={{ padding: "11px 13px 14px" }}>
-          <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "4px", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</p>
+        <div className="apparel-card-content" style={{ padding: "11px 13px 14px" }}>
+          <p className="apparel-card-title" style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "4px", lineHeight: 1.3 }}>{item.title}</p>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "6px" }}>
             <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
               {formatPrice(item.priceCents)}
@@ -225,7 +226,7 @@ export default function ApparelPage() {
             {hasFeatured && (
               <div style={{ marginBottom: "56px" }}>
                 <SectionHeading>Featured Pieces</SectionHeading>
-                <div className="apparel-featured-grid">
+                <div className="apparel-featured-grid" tabIndex={0} aria-label="Featured Pieces — swipe to browse">
                   {featuredItems.map((item, i) => (
                     <div key={item.id} className="stagger-item" style={{ '--i': i } as CSSProperties}>
                       <FeaturedCard item={item} />
@@ -266,12 +267,23 @@ export default function ApparelPage() {
         .apparel-featured-condition { flex-shrink: 0; }
         .apparel-featured-seller-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
         .apparel-featured-seller-handle { min-width: 0; overflow-wrap: anywhere; }
-        .apparel-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-        @media (max-width: 1024px) { .apparel-grid { grid-template-columns: repeat(4, 1fr); } }
+        .apparel-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 26px; align-items: stretch; }
+        .apparel-grid > .stagger-item { min-width: 0; height: 100%; }
+        .apparel-card-link { display: block; height: 100%; }
+        .apparel-card { display: flex; flex-direction: column; height: 100%; }
+        .apparel-card-image { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; flex-shrink: 0; }
+        .apparel-card-image-element { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+        .apparel-card-content { display: flex; flex: 1; flex-direction: column; }
+        .apparel-card-title { min-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        @media (max-width: 1180px) { .apparel-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 860px) { .apparel-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 768px) {
-          .apparel-featured-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .apparel-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .apparel-featured-grid { display: flex; gap: 12px; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+          .apparel-featured-grid::-webkit-scrollbar { display: none; }
+          .apparel-featured-grid > .stagger-item { flex: 0 0 80vw; max-width: 80vw; scroll-snap-align: start; scroll-snap-stop: always; }
         }
+        @media (max-width: 640px) { .apparel-grid { column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 379px) { .apparel-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
   );
