@@ -306,7 +306,7 @@ export default function StandardCategoryPage({
 
       <style>{`
         .category-photo-hero { width: 100%; aspect-ratio: 8 / 1; }
-        .category-photo-hero-text { padding-top: 20px; padding-bottom: 20px; }
+        .category-photo-hero-text { width: 100%; padding-top: 20px; padding-bottom: 20px; }
         .category-photo-hero-description { padding: 14px 0; background: var(--cream); border-bottom: 1px solid var(--sand); }
         .standard-category-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
         .standard-category-featured-grid > .stagger-item { height: 100%; }

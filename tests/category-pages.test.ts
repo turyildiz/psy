@@ -155,6 +155,7 @@ test("category photo heroes use a slim responsive band with the description belo
 
     assert.match(source, /className="category-photo-hero"/, `${path} must use the shared slim hero contract`);
     assert.match(source, /className="stagger-item site-shell category-photo-hero-text"/, `${path} must align hero text to the site shell`);
+    assert.match(source, /\.category-photo-hero-text\s*\{[^}]*width:\s*100%;/, `${path} must let the site shell span the hero before applying its shared edges`);
     assert.match(source, /className="category-photo-hero-description"/, `${path} must keep the full-size description below the short photo band`);
     assert.match(source, /objectPosition: "50% center"|objectPosition: heroObjectPosition/, `${path} must crop from the vertical middle`);
     assert.match(source, /\.category-photo-hero\s*\{[^}]*aspect-ratio:\s*8\s*\/\s*1;/, `${path} must produce a 175px band at a 1400px viewport`);
