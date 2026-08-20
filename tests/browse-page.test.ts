@@ -164,6 +164,24 @@ test("browse route provides a suspense boundary for URL-backed client state", ()
   assert.match(source, /<BrowsePageClient \/>/);
 });
 
+test("browse uses the shared fixed-height photo hero with config-selected unchanged copy", () => {
+  const source = read("components/BrowsePageClient.tsx");
+  const config = read("lib/browse-hero.ts");
+
+  assert.match(source, /import PageHero from "@\/components\/PageHero"/);
+  assert.match(source, /import \{ getBrowseHeroImage \} from "@\/lib\/browse-hero"/);
+  assert.match(source, /<PageHero/);
+  assert.match(source, /imageSrc=\{getBrowseHeroImage\(\)\}/);
+  assert.match(source, /eyebrow="Marketplace"/);
+  assert.match(source, /title="Browse"/);
+  assert.match(source, /description="Every active listing from the tribe — apparel, art, sound and tickets\."/);
+  assert.doesNotMatch(source, /minHeight:\s*"120px"/, "the old text-only browse header must be removed");
+
+  assert.match(config, /export const BROWSE_HERO_IMAGES = \[/);
+  assert.equal(config.match(/"\/music-hero\.jpg"/g)?.length, 1, "the config must currently hold exactly one placeholder image");
+  assert.match(config, /return BROWSE_HERO_IMAGES\[0\]/, "selection must stay a trivial pick-first until rotation is commissioned");
+});
+
 test("header search panel contains search controls without duplicate category shortcuts", () => {
   const source = read("components/layout/Header.tsx");
   assert.doesNotMatch(source, /QUICK_LINKS/);

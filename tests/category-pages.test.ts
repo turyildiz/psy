@@ -145,36 +145,33 @@ test("all category layouts use a mobile featured swipe row and the browse catalo
 });
 
 test("category photo heroes keep readable descriptions inside fixed-height photo bands", () => {
-  for (const path of [
-    "components/StandardCategoryPage.tsx",
-    "app/apparel/page.tsx",
-    "app/jewellery/page.tsx",
-    "app/music/page.tsx",
-  ]) {
-    const source = readFileSync(path, "utf8");
+  const heroPath = "components/PageHero.tsx";
+  assert.equal(existsSync(heroPath), true, "the photo hero must be shared by browse and category pages");
+  const source = readFileSync(heroPath, "utf8");
 
-    assert.match(source, /className="category-photo-hero"/, `${path} must use the shared hero contract`);
-    assert.match(source, /className="category-photo-hero-overlay"/, `${path} must protect all hero text from bright images`);
-    assert.match(source, /linear-gradient\(to right,[^\n]*\/ 0\.96\)[^\n]*\/ 0\.82\)[^\n]*\/ 0\.64\)/, `${path} must keep white-image contrast strong across the text region`);
-    assert.match(source, /className="stagger-item site-shell category-photo-hero-text"/, `${path} must align hero text to the site shell`);
-    assert.match(source, /\.category-photo-hero-text\s*\{[^}]*width:\s*100%;/, `${path} must let the site shell span the hero before applying its shared edges`);
-    assert.match(source, /className="category-photo-hero-description"/, `${path} must render the description inside the photo`);
-    assert.match(source, /className="category-photo-hero-description"[^>]*color:\s*"white"/, `${path} must render the protected description in white`);
-    assert.match(source, /objectPosition: "50% center"|objectPosition: heroObjectPosition/, `${path} must crop from the vertical middle`);
-    assert.match(source, /\.category-photo-hero\s*\{[^}]*height:\s*200px;/, `${path} must match the profile banner's fixed 200px desktop height`);
-    assert.match(source, /className="category-photo-hero-eyebrow"/, `${path} must identify the optional eyebrow separately from essential mobile text`);
-    assert.match(source, /@media \(max-width: 640px\)[^{]*\{[^}]*\.category-photo-hero\s*\{[^}]*height:\s*168px;/, `${path} must use the relieved fixed 168px mobile height`);
-    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-text\s*\{[^}]*padding-top:\s*10px;[^}]*padding-right:\s*16px;[^}]*padding-bottom:\s*10px;[^}]*padding-left:\s*24px;/, `${path} must add mobile edge breathing room without changing desktop alignment`);
-    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-eyebrow\s*\{[^}]*margin-bottom:\s*4px;/, `${path} must separate the eyebrow from the category name`);
-    assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-description\s*\{[^}]*margin-top:\s*4px;/, `${path} must separate the description while keeping it clear of the band edge`);
-    assert.doesNotMatch(source, /\.category-photo-hero-eyebrow\s*\{[^}]*display:\s*none;/, `${path} must keep the Marketplace eyebrow visible`);
-    assert.doesNotMatch(source, /\.category-photo-hero\s*\{[^}]*aspect-ratio:/, `${path} must not resize the hero by aspect ratio`);
+  assert.match(source, /className="category-photo-hero"/);
+  assert.match(source, /className="category-photo-hero-overlay"/);
+  assert.match(source, /linear-gradient\(to right,[^\n]*\/ 0\.96\)[^\n]*\/ 0\.82\)[^\n]*\/ 0\.64\)/, "the shared overlay must protect text over a pure-white image");
+  assert.match(source, /className="stagger-item site-shell category-photo-hero-text"/);
+  assert.match(source, /\.category-photo-hero-text\s*\{[^}]*width:\s*100%;/);
+  assert.match(source, /className="category-photo-hero-description"[^>]*color:\s*"white"/);
+  assert.match(source, /objectFit:\s*"cover"/);
+  assert.match(source, /objectPosition/);
+  assert.match(source, /\.category-photo-hero\s*\{[^}]*height:\s*200px;/);
+  assert.match(source, /className="category-photo-hero-eyebrow"/);
+  assert.match(source, /@media \(max-width: 640px\)[^{]*\{[^}]*\.category-photo-hero\s*\{[^}]*height:\s*168px;/);
+  assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-text\s*\{[^}]*padding-top:\s*10px;[^}]*padding-right:\s*16px;[^}]*padding-bottom:\s*10px;[^}]*padding-left:\s*24px;/);
+  assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-eyebrow\s*\{[^}]*margin-bottom:\s*4px;/);
+  assert.match(source, /@media \(max-width: 640px\)[\s\S]*?\.category-photo-hero-description\s*\{[^}]*margin-top:\s*4px;/);
+  assert.doesNotMatch(source, /\.category-photo-hero-eyebrow\s*\{[^}]*display:\s*none;/);
+  assert.doesNotMatch(source, /\.category-photo-hero\s*\{[^}]*aspect-ratio:/);
 
-    const heroTextIndex = source.indexOf('className="stagger-item site-shell category-photo-hero-text"');
-    const descriptionIndex = source.indexOf('className="category-photo-hero-description"');
-    const heroCloseIndex = source.indexOf("</div>", descriptionIndex);
-    const toolbarIndex = source.indexOf("<CategoryFilterToolbar");
-    assert.ok(heroTextIndex < descriptionIndex && descriptionIndex < heroCloseIndex && heroCloseIndex < toolbarIndex, `${path} must place the description within the hero text before the toolbar`);
+  for (const path of ["components/StandardCategoryPage.tsx", "app/apparel/page.tsx", "app/jewellery/page.tsx", "app/music/page.tsx"]) {
+    const consumer = readFileSync(path, "utf8");
+    assert.match(consumer, /import PageHero from "@\/components\/PageHero";/, `${path} must import the shared hero`);
+    assert.equal(consumer.match(/<PageHero/g)?.length, 1, `${path} must render exactly one shared hero`);
+    assert.doesNotMatch(consumer, /className="category-photo-hero"/, `${path} must not duplicate hero markup`);
+    assert.doesNotMatch(consumer, /\.category-photo-hero\s*\{/, `${path} must not duplicate hero CSS`);
   }
 });
 

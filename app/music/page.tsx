@@ -6,6 +6,7 @@ import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import CategoryFilterToolbar from "@/components/CategoryFilterToolbar";
+import PageHero from "@/components/PageHero";
 import { conditionLabels } from "@/lib/constants";
 import type { Listing } from "@/types/marketplace";
 import { createClient } from "@/lib/supabase/client";
@@ -165,22 +166,13 @@ export default function MusicPage() {
       <Header />
 
       {/* Hero */}
-      <div className="category-photo-hero" style={{ position: "relative", background: "var(--dark)", overflow: "hidden", display: "flex", alignItems: "center" }}>
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/music-hero.jpg" alt="" aria-hidden style={{ position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover", objectPosition: "50% center", opacity: 1 }} />
-        <div className="category-photo-hero-overlay" style={{ position: "absolute", inset: 0, background: "linear-gradient(to right, oklch(10% 0.01 55 / 0.96) 0%, oklch(10% 0.01 55 / 0.82) 55%, oklch(10% 0.01 55 / 0.64) 100%)" }} />
-        <div className="stagger-item site-shell category-photo-hero-text" style={{ '--i': 0, position: "relative", zIndex: 1 } as CSSProperties}>
-          <p className="category-photo-hero-eyebrow" style={{ fontSize: "11px", fontWeight: 600, letterSpacing: "0.12em", textTransform: "uppercase", color: "var(--rust)" }}>
-            Marketplace
-          </p>
-          <h1 style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "clamp(32px, 5vw, 52px)", fontWeight: 800, color: "white", margin: 0, letterSpacing: "-0.03em", lineHeight: 1.1 }}>
-            Music Gear
-          </h1>
-          <p className="category-photo-hero-description" style={{ fontSize: "15px", color: "white", maxWidth: "420px", lineHeight: 1.6 }}>
-            Explore synths, controllers, and everything you need to shape your sound.
-          </p>
-        </div>
-      </div>
+      <PageHero
+        imageSrc="/music-hero.jpg"
+        objectPosition="50% center"
+        eyebrow="Marketplace"
+        title="Music Gear"
+        description="Explore synths, controllers, and everything you need to shape your sound."
+      />
 
       {/* Filter bar */}
       <CategoryFilterToolbar
@@ -251,10 +243,6 @@ export default function MusicPage() {
       <Footer />
 
       <style>{`
-        .category-photo-hero { width: 100%; height: 200px; }
-        .category-photo-hero-text { width: 100%; padding-top: 20px; padding-bottom: 20px; }
-        .category-photo-hero-eyebrow { margin: 0 0 10px; }
-        .category-photo-hero-description { margin: 10px 0 0; text-shadow: 0 1px 3px oklch(0% 0 0 / 0.72); }
         .music-featured-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; align-items: stretch; }
         .music-featured-grid > .stagger-item { height: 100%; }
         .music-featured-link { display: block; height: 100%; }
@@ -282,7 +270,7 @@ export default function MusicPage() {
           .music-featured-grid::-webkit-scrollbar { display: none; }
           .music-featured-grid > .stagger-item { flex: 0 0 80vw; max-width: 80vw; scroll-snap-align: start; scroll-snap-stop: always; }
         }
-        @media (max-width: 640px) { .category-photo-hero { height: 168px; } .category-photo-hero-text { padding-top: 10px; padding-right: 16px; padding-bottom: 10px; padding-left: 24px; } .category-photo-hero-eyebrow { margin-bottom: 4px; } .category-photo-hero-description { margin-top: 4px; } .music-gear-grid { column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 640px) { .music-gear-grid { column-gap: 10px; row-gap: 14px; } }
         @media (max-width: 379px) { .music-gear-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
