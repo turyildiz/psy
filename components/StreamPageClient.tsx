@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import Header from "@/components/layout/Header";
 import Footer from "@/components/layout/Footer";
 import AuthModal from "@/components/AuthModal";
+import PageHero from "@/components/PageHero";
 import {
   POST_PAGE_SIZE,
   PostCard,
@@ -14,6 +15,7 @@ import {
   type PostAuthor,
 } from "@/components/ProfileWall";
 import { createClient } from "@/lib/supabase/client";
+import { getStreamHeroImage } from "@/lib/stream-hero";
 import { getStreamLocalDateBounds, streamRangeQueryString, type StreamDateRange } from "@/lib/posts/date-range";
 import { useReactionViewerProfileId } from "@/lib/posts/use-reaction-viewer";
 
@@ -57,12 +59,13 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
   const [reactionLoginOpen, setReactionLoginOpen] = useState(false);
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
-  const [rangeOpen, setRangeOpen] = useState(Boolean(range.from || range.to));
+  const [rangeOpen, setRangeOpen] = useState(false);
   const [draftFrom, setDraftFrom] = useState(range.from ?? "");
   const [draftTo, setDraftTo] = useState(range.to ?? "");
   const rangeBounds = useMemo(() => getStreamLocalDateBounds(range), [range.from, range.to]);
   const requestGeneration = useRef(0);
   const paginationInFlight = useRef<number | null>(null);
+  const rangeToolbarRef = useRef<HTMLDivElement>(null);
 
   const loadPosts = useCallback(async (reset: boolean) => {
     if (!reset && paginationInFlight.current !== null) return;
@@ -136,7 +139,26 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [range.from, range.to]);
 
+  useEffect(() => {
+    if (!rangeOpen) return;
+    const closeOnOutsideClick = (event: PointerEvent) => {
+      if (!rangeToolbarRef.current?.contains(event.target as Node)) setRangeOpen(false);
+    };
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setRangeOpen(false);
+    };
+    document.addEventListener("pointerdown", closeOnOutsideClick);
+    document.addEventListener("keydown", closeOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", closeOnOutsideClick);
+      document.removeEventListener("keydown", closeOnEscape);
+    };
+  }, [rangeOpen]);
+
   const rangeActive = Boolean(range.from || range.to);
+  const rangeLabel = rangeActive
+    ? `${range.from ?? "Any start"} – ${range.to ?? "Any end"}`
+    : "All time";
   const requestInFlight = loading || rangeNavigationPending || resolvedRangeKey !== rangeKey;
 
   function applyRange() {
@@ -163,47 +185,68 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
   return (
     <div className="stream-page">
       <Header />
+      <PageHero
+        imageSrc={getStreamHeroImage()}
+        objectPosition="50% center"
+        eyebrow="Community"
+        title="Stream"
+        description="Latest posts from across psy.market, newest first."
+        contentClassName="stream-page-hero-text"
+      />
+      <section className="stream-range-sticky" aria-label="Time range filter">
+        <div ref={rangeToolbarRef} className="stream-range-control">
+          <div className="stream-range-toolbar">
+            <div className="stream-range-menu">
+              <button
+                type="button"
+                className={`stream-range-toggle${rangeActive ? " is-active" : ""}`}
+                onClick={() => setRangeOpen((open) => !open)}
+                aria-haspopup="true"
+                aria-expanded={rangeOpen}
+                aria-controls="stream-range-popover"
+              >
+                <span className="stream-range-key">Time range</span>
+                <span className="stream-range-value">{rangeLabel}</span>
+                <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden style={{ transform: rangeOpen ? "rotate(180deg)" : "none" }}><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
+              </button>
+              {rangeOpen && (
+                <form id="stream-range-popover" className="stream-range-popover" onSubmit={(event) => { event.preventDefault(); applyRange(); }}>
+                  <label>
+                    <span>From</span>
+                    <input type="date" value={draftFrom} max={draftTo || undefined} onChange={(event) => {
+                      const next = event.target.value;
+                      setDraftFrom(next);
+                      if (next && draftTo && next > draftTo) setDraftTo(next);
+                    }} />
+                  </label>
+                  <label>
+                    <span>To</span>
+                    <input type="date" value={draftTo} min={draftFrom || undefined} onChange={(event) => {
+                      const next = event.target.value;
+                      setDraftTo(next);
+                      if (next && draftFrom && next < draftFrom) setDraftFrom(next);
+                    }} />
+                  </label>
+                  <button type="submit" className="stream-range-apply" disabled={rangeNavigationPending}>{rangeNavigationPending ? "Applying…" : "Apply"}</button>
+                </form>
+              )}
+            </div>
+          </div>
+          {rangeActive && (
+            <div className="stream-range-active-filters" aria-label="Active filters">
+              <button type="button" className="stream-range-chip" onClick={clearRange} disabled={rangeNavigationPending}>
+                <span className="stream-range-chip-key">RANGE</span>
+                <span>{rangeLabel}</span>
+                <span aria-hidden="true">×</span>
+                <span className="sr-only">Remove time range filter</span>
+              </button>
+              <button type="button" className="stream-range-clear-link" onClick={clearRange} disabled={rangeNavigationPending}>Clear</button>
+            </div>
+          )}
+        </div>
+      </section>
       <main className="site-shell stream-shell">
         <div className="stream-column">
-          <div className="stream-heading">
-            <span>Community</span>
-            <h1>Stream</h1>
-            <p>Latest posts from across psy.market, newest first.</p>
-          </div>
-
-          <div className="stream-range-bar">
-            <div className="stream-range-summary">
-              <button type="button" className={`stream-range-toggle${rangeActive ? " active" : ""}`} onClick={() => setRangeOpen((open) => !open)} aria-expanded={rangeOpen} aria-controls="stream-range-fields">
-                <span>Time range</span>
-                {rangeActive && <strong>{range.from ?? "Any start"} – {range.to ?? "Any end"}</strong>}
-                <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
-              </button>
-              {rangeActive && <button type="button" className="stream-range-clear" onClick={clearRange}>Clear</button>}
-            </div>
-            {rangeOpen && (
-              <form id="stream-range-fields" className="stream-range-fields" onSubmit={(event) => { event.preventDefault(); applyRange(); }}>
-                <label>
-                  <span>From</span>
-                  <input type="date" value={draftFrom} max={draftTo || undefined} onChange={(event) => {
-                    const next = event.target.value;
-                    setDraftFrom(next);
-                    if (next && draftTo && next > draftTo) setDraftTo(next);
-                  }} />
-                </label>
-                <label>
-                  <span>To</span>
-                  <input type="date" value={draftTo} min={draftFrom || undefined} onChange={(event) => {
-                    const next = event.target.value;
-                    setDraftTo(next);
-                    if (next && draftFrom && next < draftFrom) setDraftFrom(next);
-                  }} />
-                </label>
-                <button type="submit" className="stream-range-apply" disabled={rangeNavigationPending}>{rangeNavigationPending ? "Applying…" : "Apply"}</button>
-                {(draftFrom || draftTo) && <button type="button" className="stream-range-clear" onClick={clearRange} disabled={rangeNavigationPending}>Clear</button>}
-              </form>
-            )}
-          </div>
-
           {requestInFlight ? (
             <PostListSkeleton label="Loading Stream" />
           ) : loadError && posts.length === 0 ? (
@@ -250,26 +293,32 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
 
       <style>{`
         .stream-page { min-height: 100vh; background: var(--cream); }
-        .stream-shell { padding-top: 42px; padding-bottom: 80px; }
+        .stream-page-hero-text { max-width: 760px; }
+        .stream-shell { padding-top: 28px; padding-bottom: 80px; }
         .stream-column { max-width: 680px; margin: 0 auto; }
-        .stream-heading { margin-bottom: 26px; }
-        .stream-heading > span { color: var(--rust); font-size: 11px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase; }
-        .stream-heading h1 { margin: 5px 0 7px; color: var(--text); font: 700 36px/1.1 'Bricolage Grotesque', var(--font-bricolage); letter-spacing: -.025em; }
-        .stream-heading p { margin: 0; color: var(--text-light); font-size: 13px; }
-        .stream-range-bar { margin-bottom: 22px; padding: 10px 12px; background: var(--white); border: 1px solid var(--sand); border-radius: 9px; box-shadow: 0 2px 8px oklch(0% 0 0 / .04); }
-        .stream-range-summary { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-        .stream-range-toggle { display: flex; align-items: center; gap: 9px; min-width: 0; padding: 6px 8px; border: 0; background: transparent; color: var(--text-mid); font: 600 12px Manrope, var(--font-manrope); cursor: pointer; }
-        .stream-range-toggle.active { color: var(--rust); }
-        .stream-range-toggle strong { overflow: hidden; color: var(--text); font-size: 11px; font-weight: 500; text-overflow: ellipsis; white-space: nowrap; }
-        .stream-range-toggle svg { flex-shrink: 0; }
-        .stream-range-fields { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto auto; align-items: end; gap: 10px; margin-top: 10px; padding-top: 12px; border-top: 1px solid var(--sand); }
-        .stream-range-fields label { display: flex; flex-direction: column; gap: 5px; color: var(--text-light); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
-        .stream-range-fields input { width: 100%; min-width: 0; padding: 7px 9px; border: 1px solid var(--sand); border-radius: 6px; outline: none; background: transparent; color: var(--text); font: 500 12px Manrope, var(--font-manrope); }
-        .stream-range-fields input:focus { border-color: var(--rust); }
-        .stream-range-apply, .stream-range-clear { border-radius: 6px; padding: 8px 12px; font: 600 12px Manrope, var(--font-manrope); cursor: pointer; }
-        .stream-range-apply { border: 1px solid var(--rust); background: var(--rust); color: white; }
-        .stream-range-clear { border: 0; background: transparent; color: var(--rust); }
-        .stream-range-apply:disabled, .stream-range-clear:disabled { opacity: .55; cursor: not-allowed; }
+        .stream-range-sticky { position: sticky; top: 72px; z-index: 100; width: calc(100% - 32px); max-width: 680px; margin: 0 auto; background: var(--cream); }
+        .stream-range-control { padding: 12px 0; }
+        .stream-range-toolbar { box-sizing: border-box; width: 100%; height: 56px; display: flex; align-items: center; border: 1px solid var(--sand); border-radius: 16px; background: var(--white); }
+        .stream-range-menu { position: relative; width: 270px; max-width: 100%; height: 100%; }
+        .stream-range-toggle { width: 100%; height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 0 14px; border: 0; border-radius: 15px; background: transparent; color: var(--text-mid); font: 600 13px Manrope, var(--font-manrope); text-align: left; cursor: pointer; }
+        .stream-range-toggle:hover, .stream-range-toggle[aria-expanded="true"] { background: var(--cream); color: var(--rust); }
+        .stream-range-toggle.is-active { background: oklch(96% 0.025 55); color: var(--rust); }
+        .stream-range-key { color: var(--text-light); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
+        .stream-range-value { overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
+        .stream-range-toggle.is-active .stream-range-value { color: var(--rust); }
+        .stream-range-toggle svg { flex-shrink: 0; transition: transform 160ms ease; }
+        .stream-range-popover { position: absolute; z-index: 5; top: calc(100% + 9px); left: 0; width: min(420px, calc(100vw - 32px)); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 14px; border: 1px solid var(--sand); border-radius: 12px; background: var(--white); box-shadow: 0 14px 36px oklch(25% 0.03 50 / .17); }
+        .stream-range-popover label { display: flex; flex-direction: column; gap: 6px; color: var(--text-light); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+        .stream-range-popover input { box-sizing: border-box; width: 100%; min-width: 0; height: 38px; padding: 7px 9px; border: 1px solid var(--sand); border-radius: 7px; outline: none; background: var(--cream); color: var(--text); color-scheme: light; font: 500 12px Manrope, var(--font-manrope); }
+        .stream-range-popover input:focus { border-color: var(--rust); box-shadow: 0 0 0 2px oklch(58% 0.12 45 / .12); }
+        .stream-range-apply { grid-column: 1 / -1; min-height: 38px; border: 1px solid var(--rust); border-radius: 7px; background: var(--rust); color: white; padding: 8px 14px; font: 600 12px Manrope, var(--font-manrope); cursor: pointer; }
+        .stream-range-active-filters { display: flex; align-items: center; gap: 9px; padding-top: 10px; }
+        .stream-range-chip { display: flex; align-items: center; gap: 5px; min-width: 0; border: 0; border-radius: 999px; background: oklch(96% 0.025 55); color: var(--rust); padding: 5px 9px; font: 600 11px Manrope, var(--font-manrope); cursor: pointer; }
+        .stream-range-chip > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .stream-range-chip-key { flex-shrink: 0; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
+        .stream-range-clear-link { border: 0; background: transparent; color: var(--text-light); padding: 0; font: 500 12px Manrope, var(--font-manrope); cursor: pointer; }
+        .stream-range-clear-link:hover { color: var(--text-mid); text-decoration: underline; }
+        .stream-range-apply:disabled, .stream-range-chip:disabled, .stream-range-clear-link:disabled { opacity: .55; cursor: not-allowed; }
         .post-list { display: flex; flex-direction: column; gap: 16px; }
         .post-card { background: var(--white); border: 1px solid var(--sand); border-radius: 12px; padding: 20px; }
         .post-card header { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
@@ -294,11 +343,14 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         .post-empty h2 { margin: 0 0 7px; color: var(--text); font: 700 20px 'Bricolage Grotesque', var(--font-bricolage); }
         .post-empty p { margin: 0 0 16px; font-size: 13px; }
         .post-skeleton { height: 210px; border-radius: 12px; }
+        @media (min-width: 769px) and (max-width: 1024px) { .stream-page-hero-text { max-width: 728px; } }
+        @media (max-width: 768px) { .stream-page-hero-text { max-width: 712px; } }
         @media (max-width: 640px) {
-          .stream-shell { padding-top: 28px; }
-          .stream-heading h1 { font-size: 31px; }
-          .stream-range-fields { grid-template-columns: 1fr 1fr; }
-          .stream-range-apply, .stream-range-fields .stream-range-clear { width: 100%; }
+          .stream-page-hero-text { padding-left: 16px; }
+          .stream-range-sticky { top: 76px; }
+          .stream-range-control { padding: 8px 0; }
+          .stream-range-menu { width: 250px; }
+          .stream-shell { padding-top: 20px; }
           .post-card { padding: 15px; border-radius: 10px; }
           .post-images button { height: 190px; }
           .post-images-1 button { height: auto; }
@@ -306,6 +358,13 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
           .post-images-5 { grid-template-columns: repeat(2, 1fr); }
           .post-images-3 button:first-child, .post-images-5 button:first-child { height: 385px; }
           .post-card header { align-items: flex-start; }
+        }
+        @media (max-width: 420px) {
+          .stream-range-popover { grid-template-columns: 1fr; }
+          .stream-range-apply { grid-column: 1; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+          .stream-range-toggle svg { transition: none; }
         }
       `}</style>
     </div>
