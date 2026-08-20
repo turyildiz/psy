@@ -68,18 +68,19 @@ function FeaturedCard({ item }: { item: Listing }) {
 function GearCard({ item }: { item: Listing }) {
   const [hov, setHov] = useState(false);
   return (
-    <Link href={`/listing/${item.id}`} style={{ textDecoration: "none", display: "block" }}>
+    <Link href={`/listing/${item.id}`} className="music-gear-card-link" style={{ textDecoration: "none" }}>
       <div
+        className="music-gear-card"
         style={{ background: "var(--white)", borderRadius: "10px", overflow: "hidden", border: "1px solid var(--sand)", boxShadow: hov ? "0 10px 28px oklch(35% 0.06 55 / 0.14)" : "0 2px 8px oklch(0% 0 0 / 0.06)", transform: hov ? "translateY(-3px)" : "none", transition: "all 0.25s ease" }}
         onMouseEnter={() => setHov(true)}
         onMouseLeave={() => setHov(false)}
       >
-        <div style={{ overflow: "hidden" }}>
+        <div className="music-gear-card-image">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} className="gear-card-img" style={{ width: "100%", height: "180px", objectFit: "cover", display: "block", transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
+          <img src={item.images[0] || "/listing-placeholder.webp"} onError={(event) => { event.currentTarget.onerror = null; event.currentTarget.src = "/listing-placeholder.webp"; }} alt={item.title} className="music-gear-card-image-element" style={{ transition: "transform 0.5s ease", transform: hov ? "scale(1.05)" : "scale(1)" }} />
         </div>
-        <div style={{ padding: "11px 13px 14px" }}>
-          <p style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3, overflow: "hidden", whiteSpace: "nowrap", textOverflow: "ellipsis" }}>{item.title}</p>
+        <div className="music-gear-card-content" style={{ padding: "11px 13px 14px" }}>
+          <p className="music-gear-card-title" style={{ fontSize: "12px", fontWeight: 500, color: "var(--text)", marginBottom: "5px", lineHeight: 1.3 }}>{item.title}</p>
           <p style={{ fontFamily: "'Bricolage Grotesque', var(--font-bricolage)", fontSize: "15px", fontWeight: 700, color: "var(--rust)", margin: 0 }}>
             {formatPrice(item.priceCents)}
           </p>
@@ -221,7 +222,7 @@ export default function MusicPage() {
             {hasFeatured && (
               <div style={{ marginBottom: "56px" }}>
                 <SectionHeading>Featured Gear</SectionHeading>
-                <div className="music-featured-grid">
+                <div className="music-featured-grid" tabIndex={0} aria-label="Featured Gear — swipe to browse">
                   {featuredItems.map((item, i) => (
                     <div key={item.id} className="stagger-item" style={{ '--i': i } as CSSProperties}>
                       <FeaturedCard item={item} />
@@ -262,12 +263,23 @@ export default function MusicPage() {
         .music-featured-condition { flex-shrink: 0; }
         .music-featured-seller-row { display: flex; align-items: center; gap: 5px; min-width: 0; }
         .music-featured-seller-handle { min-width: 0; overflow-wrap: anywhere; }
-        .music-gear-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 16px; }
-        @media (max-width: 1024px) { .music-gear-grid { grid-template-columns: repeat(4, 1fr); } }
+        .music-gear-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); column-gap: 24px; row-gap: 26px; align-items: stretch; }
+        .music-gear-grid > .stagger-item { min-width: 0; height: 100%; }
+        .music-gear-card-link { display: block; height: 100%; }
+        .music-gear-card { display: flex; flex-direction: column; height: 100%; }
+        .music-gear-card-image { position: relative; width: 100%; aspect-ratio: 1; overflow: hidden; flex-shrink: 0; }
+        .music-gear-card-image-element { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; display: block; }
+        .music-gear-card-content { display: flex; flex: 1; flex-direction: column; }
+        .music-gear-card-title { min-height: 2.6em; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+        @media (max-width: 1180px) { .music-gear-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+        @media (max-width: 860px) { .music-gear-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
         @media (max-width: 768px) {
-          .music-featured-grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
-          .music-gear-grid { grid-template-columns: repeat(2, 1fr); gap: 10px; }
+          .music-featured-grid { display: flex; gap: 12px; overflow-x: auto; overscroll-behavior-inline: contain; scroll-snap-type: x mandatory; scrollbar-width: none; }
+          .music-featured-grid::-webkit-scrollbar { display: none; }
+          .music-featured-grid > .stagger-item { flex: 0 0 80vw; max-width: 80vw; scroll-snap-align: start; scroll-snap-stop: always; }
         }
+        @media (max-width: 640px) { .music-gear-grid { column-gap: 10px; row-gap: 14px; } }
+        @media (max-width: 379px) { .music-gear-grid { grid-template-columns: minmax(0, 1fr); } }
       `}</style>
     </div>
   );
