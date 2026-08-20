@@ -5,6 +5,7 @@ import Link from "next/link";
 import Footer from "@/components/layout/Footer";
 import Header from "@/components/layout/Header";
 import CategoryFilterToolbar from "@/components/CategoryFilterToolbar";
+import FeaturedCategoryRail from "@/components/FeaturedCategoryRail";
 import PageHero from "@/components/PageHero";
 import ProfileAvatar from "@/components/ProfileAvatar";
 import { conditionLabels } from "@/lib/constants";
@@ -206,7 +207,7 @@ export default function StandardCategoryPage({
     return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
   });
 
-  const featuredItems = showFeatured ? filtered.filter((listing) => listing.isFeatured).slice(0, 3) : [];
+  const featuredItems = showFeatured ? filtered.filter((listing) => listing.isFeatured) : [];
   const hasFeatured = showFeatured && featuredItems.length >= 2;
   const featuredIds = new Set(featuredItems.map((listing) => listing.id));
   const gridItems = hasFeatured ? filtered.filter((listing) => !featuredIds.has(listing.id)) : filtered;
@@ -271,13 +272,13 @@ export default function StandardCategoryPage({
             {hasFeatured && (
               <div style={{ marginBottom: "56px" }}>
                 <SectionHeading>{featuredLabel}</SectionHeading>
-                <div className="standard-category-featured-grid" tabIndex={0} aria-label={`${featuredLabel} — swipe to browse`}>
+                <FeaturedCategoryRail className="standard-category-featured-grid" itemCount={featuredItems.length} label={featuredLabel}>
                   {featuredItems.map((item, index) => (
                     <div key={item.id} className="stagger-item" style={{ "--i": index } as CSSProperties}>
                       <FeaturedCard item={item} />
                     </div>
                   ))}
-                </div>
+                </FeaturedCategoryRail>
               </div>
             )}
             {gridItems.length > 0 && (
