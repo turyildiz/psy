@@ -214,21 +214,36 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
                 <form id="stream-range-popover" className="stream-range-popover" onSubmit={(event) => { event.preventDefault(); applyRange(); }}>
                   <label>
                     <span>From</span>
-                    <input type="date" value={draftFrom} max={draftTo || undefined} onChange={(event) => {
-                      const next = event.target.value;
-                      setDraftFrom(next);
-                      if (next && draftTo && next > draftTo) setDraftTo(next);
-                    }} />
+                    <span className="stream-range-date-field">
+                      <input type="date" value={draftFrom} max={draftTo || undefined} onChange={(event) => {
+                        const next = event.target.value;
+                        setDraftFrom(next);
+                        if (next && draftTo && next > draftTo) setDraftTo(next);
+                      }} />
+                      <svg className="stream-range-date-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <rect x="1.5" y="2.5" width="11" height="10" rx="2" stroke="currentColor" />
+                        <path d="M4 1v3M10 1v3M2 5.5h10" stroke="currentColor" strokeLinecap="round" />
+                      </svg>
+                    </span>
                   </label>
                   <label>
                     <span>To</span>
-                    <input type="date" value={draftTo} min={draftFrom || undefined} onChange={(event) => {
-                      const next = event.target.value;
-                      setDraftTo(next);
-                      if (next && draftFrom && next < draftFrom) setDraftFrom(next);
-                    }} />
+                    <span className="stream-range-date-field">
+                      <input type="date" value={draftTo} min={draftFrom || undefined} onChange={(event) => {
+                        const next = event.target.value;
+                        setDraftTo(next);
+                        if (next && draftFrom && next < draftFrom) setDraftFrom(next);
+                      }} />
+                      <svg className="stream-range-date-icon" width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden="true">
+                        <rect x="1.5" y="2.5" width="11" height="10" rx="2" stroke="currentColor" />
+                        <path d="M4 1v3M10 1v3M2 5.5h10" stroke="currentColor" strokeLinecap="round" />
+                      </svg>
+                    </span>
                   </label>
-                  <button type="submit" className="stream-range-apply" disabled={rangeNavigationPending}>{rangeNavigationPending ? "Applying…" : "Apply"}</button>
+                  <div className="stream-range-actions">
+                    <button type="button" className="stream-range-popover-clear" onClick={clearRange} disabled={rangeNavigationPending}>Clear</button>
+                    <button type="submit" className="stream-range-apply" disabled={rangeNavigationPending}>{rangeNavigationPending ? "Applying…" : "Apply"}</button>
+                  </div>
                 </form>
               )}
             </div>
@@ -309,18 +324,31 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         .stream-range-value { overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
         .stream-range-toggle.is-active .stream-range-value { color: var(--rust); }
         .stream-range-toggle svg { flex-shrink: 0; transition: transform 160ms ease; }
-        .stream-range-popover { position: absolute; z-index: 5; top: calc(100% + 9px); left: 0; width: min(420px, calc(100vw - 32px)); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; padding: 14px; border: 1px solid var(--sand); border-radius: 12px; background: var(--white); box-shadow: 0 14px 36px oklch(25% 0.03 50 / .17); }
+        .stream-range-popover { box-sizing: border-box; position: absolute; z-index: 5; top: calc(100% + 9px); left: 0; width: min(356px, calc(100vw - 32px)); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; margin: 0; padding: 14px; border: 1px solid var(--sand); border-radius: 12px; background: var(--white); box-shadow: 0 14px 36px oklch(25% 0.03 50 / .17); }
         .stream-range-popover label { display: flex; flex-direction: column; gap: 6px; color: var(--text-light); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-        .stream-range-popover input { box-sizing: border-box; width: 100%; min-width: 0; height: 38px; padding: 7px 9px; border: 1px solid var(--sand); border-radius: 7px; outline: none; background: var(--cream); color: var(--text); color-scheme: light; font: 500 12px Manrope, var(--font-manrope); }
+        .stream-range-date-field { position: relative; display: block; }
+        .stream-range-popover input { box-sizing: border-box; position: relative; width: 100%; min-width: 0; height: 40px; padding: 0 34px 0 10px; border: 1px solid var(--sand); border-radius: 8px; outline: none; appearance: none; -webkit-appearance: none; background: var(--cream); color: var(--text); color-scheme: light; font: 500 12px Manrope, var(--font-manrope); }
+        .stream-range-date-icon { position: absolute; top: 50%; right: 10px; transform: translateY(-50%); color: var(--text-light); pointer-events: none; }
+        .stream-range-popover input::-webkit-datetime-edit { padding: 0; color: var(--text); }
+        .stream-range-popover input::-webkit-datetime-edit-fields-wrapper { padding: 0; }
+        .stream-range-popover input::-webkit-datetime-edit-text { padding: 0 1px; color: var(--text-light); }
+        .stream-range-popover input::-webkit-datetime-edit-day-field,
+        .stream-range-popover input::-webkit-datetime-edit-month-field,
+        .stream-range-popover input::-webkit-datetime-edit-year-field { color: var(--text); font: inherit; }
+        .stream-range-popover input::-webkit-inner-spin-button { display: none; }
+        .stream-range-popover input::-webkit-calendar-picker-indicator { position: absolute; inset: 0; width: auto; height: auto; margin: 0; padding: 0; opacity: 0; cursor: pointer; }
         .stream-range-popover input:focus { border-color: var(--rust); box-shadow: 0 0 0 2px oklch(58% 0.12 45 / .12); }
-        .stream-range-apply { grid-column: 1 / -1; min-height: 38px; border: 1px solid var(--rust); border-radius: 7px; background: var(--rust); color: white; padding: 8px 14px; font: 600 12px Manrope, var(--font-manrope); cursor: pointer; }
+        .stream-range-actions { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+        .stream-range-popover-clear { border: 0; background: transparent; color: var(--text-light); padding: 5px 0; font: 500 12px Manrope, var(--font-manrope); cursor: pointer; }
+        .stream-range-popover-clear:hover { color: var(--text-mid); text-decoration: underline; }
+        .stream-range-apply { min-height: 34px; border: 1px solid var(--rust); border-radius: 8px; background: var(--rust); color: white; padding: 6px 14px; font: 600 12px Manrope, var(--font-manrope); cursor: pointer; }
         .stream-range-active-filters { display: flex; align-items: center; gap: 9px; padding-top: 10px; }
         .stream-range-chip { display: flex; align-items: center; gap: 5px; min-width: 0; border: 0; border-radius: 999px; background: oklch(96% 0.025 55); color: var(--rust); padding: 5px 9px; font: 600 11px Manrope, var(--font-manrope); cursor: pointer; }
         .stream-range-chip > span:nth-child(2) { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
         .stream-range-chip-key { flex-shrink: 0; font-size: 9px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; }
         .stream-range-clear-link { border: 0; background: transparent; color: var(--text-light); padding: 0; font: 500 12px Manrope, var(--font-manrope); cursor: pointer; }
         .stream-range-clear-link:hover { color: var(--text-mid); text-decoration: underline; }
-        .stream-range-apply:disabled, .stream-range-chip:disabled, .stream-range-clear-link:disabled { opacity: .55; cursor: not-allowed; }
+        .stream-range-apply:disabled, .stream-range-popover-clear:disabled, .stream-range-chip:disabled, .stream-range-clear-link:disabled { opacity: .55; cursor: not-allowed; }
         .post-list { display: flex; flex-direction: column; gap: 16px; }
         .post-card { background: var(--white); border: 1px solid var(--sand); border-radius: 12px; padding: 20px; }
         .post-card header { display: flex; align-items: center; gap: 11px; margin-bottom: 16px; }
@@ -363,7 +391,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         }
         @media (max-width: 420px) {
           .stream-range-popover { grid-template-columns: 1fr; }
-          .stream-range-apply { grid-column: 1; }
+          .stream-range-actions { grid-column: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
           .stream-range-toggle svg { transition: none; }
