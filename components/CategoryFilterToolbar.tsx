@@ -60,25 +60,21 @@ export default function CategoryFilterToolbar({
     if (!rail) return;
 
     const updateOverflow = () => {
-      const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
-      setCanScrollLeft(rail.scrollLeft > 1);
-      setCanScrollRight(maxScrollLeft - rail.scrollLeft > 1);
-
       const railRect = rail.getBoundingClientRect();
-      for (const child of Array.from(rail.children) as HTMLElement[]) {
-        const childRect = child.getBoundingClientRect();
-        const fullyVisible = childRect.left >= railRect.left - 1 && childRect.right <= railRect.right + 1;
-        child.dataset.railVisible = String(fullyVisible);
-      }
+      const pills = Array.from(rail.children) as HTMLElement[];
+      const firstPillRect = pills[0]?.getBoundingClientRect();
+      const lastPillRect = pills.at(-1)?.getBoundingClientRect();
+      const safeEdge = Number.parseFloat(window.getComputedStyle(rail).scrollPaddingInlineStart) || 0;
+
+      setCanScrollLeft(Boolean(firstPillRect && firstPillRect.left < railRect.left + safeEdge - 1));
+      setCanScrollRight(Boolean(lastPillRect && lastPillRect.right > railRect.right - safeEdge + 1));
     };
 
     updateOverflow();
     rail.addEventListener("scroll", updateOverflow, { passive: true });
     const resizeObserver = new ResizeObserver(updateOverflow);
     resizeObserver.observe(rail);
-    for (let index = 0; index < rail.children.length; index += 1) {
-      resizeObserver.observe(rail.children.item(index)!);
-    }
+    for (const pill of Array.from(rail.children)) resizeObserver.observe(pill);
 
     return () => {
       rail.removeEventListener("scroll", updateOverflow);
@@ -119,11 +115,40 @@ export default function CategoryFilterToolbar({
     };
   }, [openPopover]);
 
+  const scrollPillIntoView = (pill: HTMLElement) => {
+    const rail = railRef.current;
+    if (!rail) return;
+
+    const railRect = rail.getBoundingClientRect();
+    const pillRect = pill.getBoundingClientRect();
+    const safeEdge = Number.parseFloat(window.getComputedStyle(rail).scrollPaddingInlineStart) || 0;
+    const safeLeft = railRect.left + safeEdge;
+    const safeRight = railRect.right - safeEdge;
+    if (pillRect.left >= safeLeft - 1 && pillRect.right <= safeRight + 1) return;
+
+    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const maxScrollLeft = rail.scrollWidth - rail.clientWidth;
+    const targetLeft = Math.max(0, Math.min(maxScrollLeft, rail.scrollLeft + pillRect.left - safeLeft));
+    rail.scrollTo({ left: targetLeft, behavior: reducedMotion ? "auto" : "smooth" });
+  };
+
   const scrollRail = (direction: -1 | 1) => {
     const rail = railRef.current;
     if (!rail) return;
-    const reducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    rail.scrollBy({ left: direction * rail.clientWidth, behavior: reducedMotion ? "auto" : "smooth" });
+
+    const railRect = rail.getBoundingClientRect();
+    const safeEdge = Number.parseFloat(window.getComputedStyle(rail).scrollPaddingInlineStart) || 0;
+    const pills = Array.from(rail.children) as HTMLElement[];
+    const targetPill = direction === 1
+      ? pills.find((pill) => pill.getBoundingClientRect().right > railRect.right - safeEdge + 1)
+      : pills.findLast((pill) => pill.getBoundingClientRect().left < railRect.left + safeEdge - 1);
+
+    if (targetPill) scrollPillIntoView(targetPill);
+  };
+
+  const selectTag = (pill: HTMLElement, select: () => void) => {
+    select();
+    scrollPillIntoView(pill);
   };
 
   const chooseSort = (value: string) => {
@@ -143,10 +168,10 @@ export default function CategoryFilterToolbar({
           <div className="category-type-segment">
             {canScrollLeft && <button type="button" className="category-rail-arrow category-rail-arrow-left" aria-label="Scroll types left" onClick={() => scrollRail(-1)}><span aria-hidden="true">‹</span></button>}
             <div ref={railRef} className="category-type-rail">
-              <button type="button" className={`category-type-pill${activeTags.length === 0 ? " is-active" : ""}`} aria-pressed={activeTags.length === 0} onClick={onClearTags}>{allLabel}</button>
+              <button type="button" className={`category-type-pill${activeTags.length === 0 ? " is-active" : ""}`} aria-pressed={activeTags.length === 0} onClick={(event) => selectTag(event.currentTarget, onClearTags)}>{allLabel}</button>
               {tags.map(({ value, label }) => {
                 const active = activeTags.includes(value);
-                return <button key={value} type="button" className={`category-type-pill${active ? " is-active" : ""}`} aria-pressed={active} onClick={() => onToggleTag(value)}>{label}</button>;
+                return <button key={value} type="button" className={`category-type-pill${active ? " is-active" : ""}`} aria-pressed={active} onClick={(event) => selectTag(event.currentTarget, () => onToggleTag(value))}>{label}</button>;
               })}
             </div>
             <span className="category-rail-fade category-rail-fade-left" data-visible={canScrollLeft} aria-hidden="true" />
