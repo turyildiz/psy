@@ -143,8 +143,9 @@ export default function Header() {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  // Close on route change
+  // Reset scroll and close overlays on route change
   useEffect(() => {
+    window.scrollTo(0, 0);
     setSearchOpen(false);
     setQuery("");
     setLeftOpen(false);

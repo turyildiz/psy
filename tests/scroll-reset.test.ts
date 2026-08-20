@@ -102,3 +102,19 @@ test("every deliberate full navigation uses the shared top-reset helper", () => 
   }
   assert.doesNotMatch(header, /psy_scroll_top_after_login|scrollRestoration/);
 });
+
+test("client route changes reset scroll without document-level smooth scrolling", () => {
+  const globalStyles = readFileSync("app/globals.css", "utf8");
+  const header = readFileSync("components/layout/Header.tsx", "utf8");
+
+  assert.doesNotMatch(
+    globalStyles,
+    /(?:^|\n)html(?::[^\s{]+)?\s*\{[^}]*scroll-behavior:\s*smooth;/,
+  );
+  assert.match(header, /window\.scrollTo\(0, 0\)/);
+  assert.match(globalStyles, /\.category-type-rail\s*\{[^}]*scroll-behavior:\s*smooth;/);
+  assert.match(
+    globalStyles,
+    /@media \(prefers-reduced-motion: reduce\)\s*\{[\s\S]*\.category-type-rail\s*\{\s*scroll-behavior:\s*auto;\s*\}/,
+  );
+});
