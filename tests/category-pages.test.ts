@@ -212,6 +212,8 @@ test("category featured rails expose every featured item and add desktop overflo
   assert.match(rail, /aria-label="Scroll featured items right"/);
   assert.match(rail, /window\.matchMedia\("\(prefers-reduced-motion: reduce\)"\)/);
   assert.match(rail, /scrollTo\(\{ left: targetLeft, behavior: reducedMotion \? "auto" : "smooth" \}\)/);
+  assert.match(rail, /const cardStep = cards\[1\]\.offsetLeft - cards\[0\]\.offsetLeft;/, "arrow clicks must measure one complete card boundary");
+  assert.match(rail, /scrollBy\(\{ left: direction \* cardStep, behavior: reducedMotion \? "auto" : "smooth" \}\)/, "arrow clicks must advance the rail by one measured card step");
   assert.match(rail, /onFocusCapture=/, "tabbing to an off-screen card must bring it fully into view");
 
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\][^{]*\{[^}]*width: calc\(100% \+ 32px\);/);
