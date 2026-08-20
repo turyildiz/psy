@@ -34,12 +34,19 @@ test("Stream time range uses a post-column-width sticky toolbar and styled popov
   assert.match(stream, /const rangeLabel = rangeActive/);
   assert.match(stream, /: "All time"/);
   assert.match(stream, /className="stream-range-popover"/);
+  assert.match(stream, /className="stream-range-actions"/);
+  assert.match(stream, /className="stream-range-popover-clear"/);
+  assert.match(stream, /className="stream-range-date-field"/);
+  assert.match(stream, /className="stream-range-date-icon"/);
   assert.match(stream, /className="stream-range-active-filters"/);
   assert.match(stream, /className="stream-range-chip"/);
   assert.match(stream, /className="stream-range-clear-link"/);
   assert.match(stream, /\.stream-range-sticky \{[^}]*position: sticky;[^}]*max-width: 680px;/);
   assert.match(stream, /\.stream-range-toolbar \{[^}]*height: 56px;[^}]*border: 1px solid var\(--sand\);[^}]*border-radius: 16px;/);
-  assert.match(stream, /\.stream-range-popover \{[^}]*border: 1px solid var\(--sand\);[^}]*border-radius: 12px;[^}]*box-shadow:/);
+  assert.match(stream, /\.stream-range-popover \{[^}]*top: calc\(100% \+ 9px\);[^}]*left: 0;[^}]*border: 1px solid var\(--sand\);[^}]*border-radius: 12px;[^}]*box-shadow:/);
+  assert.match(stream, /\.stream-range-popover input \{[^}]*height: 40px;[^}]*border: 1px solid var\(--sand\);[^}]*border-radius: 8px;[^}]*appearance: none;/);
+  assert.match(stream, /\.stream-range-popover input::-webkit-calendar-picker-indicator/);
+  assert.match(stream, /\.stream-range-actions \{[^}]*justify-content: space-between;/);
 });
 
 test("Stream keeps the existing local date bounds, URL parameters, and query predicates", () => {
