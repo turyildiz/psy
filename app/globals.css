@@ -941,11 +941,6 @@ input:autofill {
   display: none;
 }
 
-.featured-category-rail-segment[data-scrollable="true"] .featured-category-rail::after {
-  content: "";
-  flex: 0 0 32px;
-}
-
 .featured-category-rail-segment[data-scrollable="true"] .featured-category-rail > .stagger-item {
   flex: 0 0 calc((100% - 72px) / 3);
   height: 100%;
@@ -1008,7 +1003,6 @@ input:autofill {
     scroll-snap-type: x mandatory;
     scrollbar-width: none;
   }
-  .featured-category-rail-segment[data-scrollable="true"] .featured-category-rail::after { display: none; }
   .featured-category-rail-segment[data-scrollable="true"] .featured-category-rail > .stagger-item {
     flex: 0 0 80vw;
     max-width: 80vw;
