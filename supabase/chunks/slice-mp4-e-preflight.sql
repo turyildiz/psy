@@ -4,6 +4,8 @@
 -- WINGMAN LIVE RECOMPUTE REQUIRED before sitting: every check labelled LIVE_PIN.
 begin;
 set local row_security = off;
+set local lock_timeout = '5s';
+set local statement_timeout = '30s';
 lock table public.profiles, public.listings, public.conversations,
   public.messages, public.conversation_participant_state in share mode;
 
@@ -73,17 +75,17 @@ row_facts as (
    (select count(*) from public.conversations where seller_profile_id is null) seller_nulls,
    (select count(*) from public.messages where sender_profile_id is null) sender_nulls,
    (select count(*) from public.conversations where buyer_profile_id=seller_profile_id) equal_participants,
-   (select count(*) from public.messages m join public.conversations c on c.id=m.conversation_id where m.sender_profile_id not in (c.buyer_profile_id,c.seller_profile_id)) nonparticipant_senders,
+   (select count(*) from public.messages m join public.conversations c on c.id=m.conversation_id where m.sender_profile_id is distinct from c.buyer_profile_id and m.sender_profile_id is distinct from c.seller_profile_id) nonparticipant_senders,
    (select count(*) from public.conversations c cross join lateral unnest(coalesce(c.unread_for,'{}'::text[])) u(v)
-      where case when u.v ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then u.v::uuid not in (c.buyer_profile_id,c.seller_profile_id) else true end) invalid_unread,
-   (select count(*) from public.conversations c where cardinality(coalesce(c.unread_for,'{}'::text[]))<>(select count(distinct v) from unnest(coalesce(c.unread_for,'{}'::text[])) u(v))) duplicate_unread,
-   (select count(*) from public.conversation_participant_state s left join public.conversations c on c.id=s.conversation_id where c.id is null or s.profile_id not in (c.buyer_profile_id,c.seller_profile_id)) invalid_state
+      where case when u.v ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then u.v::uuid is distinct from c.buyer_profile_id and u.v::uuid is distinct from c.seller_profile_id else true end) invalid_unread,
+   (select count(*) from public.conversations c where cardinality(coalesce(c.unread_for,'{}'::text[]))<>(select count(distinct case when v ~* '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$' then v::uuid end) from unnest(coalesce(c.unread_for,'{}'::text[])) u(v))) duplicate_unread,
+   (select count(*) from public.conversation_participant_state s left join public.conversations c on c.id=s.conversation_id where c.id is null or (s.profile_id is distinct from c.buyer_profile_id and s.profile_id is distinct from c.seller_profile_id)) invalid_state
 ),
 checks(name,ok,detail) as (
  select * from (values
  ('owner_complete_context',current_user='postgres' and session_user='postgres' and (select rolsuper or rolbypassrls from pg_roles where rolname=current_user),'LIVE_PIN: owner/BYPASSRLS completeness'),
  ('source_column_nullability',
-   (select count(*)=3 from columns where (table_name,column_name) in (('conversations','buyer_profile_id'),('conversations','seller_profile_id'),('messages','sender_profile_id')) and data_type='uuid' and attnotnull and default_expr='<null>' and attidentity='' and attgenerated=''),
+   (select count(*)=3 from columns where (table_name,column_name) in (('conversations','buyer_profile_id'),('conversations','seller_profile_id'),('messages','sender_profile_id')) and data_type='uuid' and attnotnull and default_expr='<null>' and attcollation=0 and attidentity='' and attgenerated=''),
    'LIVE_PIN: three UUID actor columns are NOT NULL with no default/identity/generation'),
  ('listing_and_state_columns_unchanged',
    (select count(*)=7 from columns where (table_name,column_name) in (('conversations','listing_id'),('conversations','unread_for'),('messages','conversation_id'),('conversation_participant_state','profile_id'),('conversation_participant_state','conversation_id'),('account_session_active_profiles','profile_id'),('account_session_active_profiles','user_id'))),
@@ -100,12 +102,22 @@ checks(name,ok,detail) as (
    'LIVE_PIN: old differ CHECK renderer'),
  ('unique_conversation_retained',(select count(*)=1 from constraints where conname='unique_conversation' and contype='u'),'LIVE_PIN: retained uniqueness is present and unchanged'),
  ('source_trigger_bindings_exact',
-   (select count(*)=3 and bool_and(enabled='O') from triggers where (table_name,tgname,proname) in (
-    ('conversations','conversations_enforce_listing_seller','enforce_conversation_listing_seller'),
-    ('messages','messages_unhide_recipient_conversation','unhide_conversation_for_message_recipient'),
-    ('messages','on_message_insert','update_conversation_last_message'))),
-   'LIVE_PIN: exactly the three admitted source trigger bindings in scope'),
- ('source_functions_and_acls_captured',(select count(*)=6 from function_state) and not exists(select 1 from function_acl where proname in ('enforce_conversation_listing_seller','unhide_conversation_for_message_recipient','update_conversation_last_message') and grantee in ('PUBLIC','anon','authenticated') and privilege_type='EXECUTE'),'LIVE_PIN: complete overload/default/attribute/body and exploded ACL capture'),
+   not exists((select table_name,tgname,proname,enabled,definition from triggers) except (values
+    ('conversations','conversations_enforce_listing_seller','enforce_conversation_listing_seller','O','create trigger conversations_enforce_listing_seller before insert or update of listing_id, seller_profile_id on conversations for each row execute function enforce_conversation_listing_seller()'),
+    ('messages','messages_unhide_recipient_conversation','unhide_conversation_for_message_recipient','O','create trigger messages_unhide_recipient_conversation after insert on messages for each row execute function unhide_conversation_for_message_recipient()'),
+    ('messages','on_message_insert','update_conversation_last_message','O','create trigger on_message_insert after insert on messages for each row execute function update_conversation_last_message()')))
+   and not exists((values
+    ('conversations','conversations_enforce_listing_seller','enforce_conversation_listing_seller','O','create trigger conversations_enforce_listing_seller before insert or update of listing_id, seller_profile_id on conversations for each row execute function enforce_conversation_listing_seller()'),
+    ('messages','messages_unhide_recipient_conversation','unhide_conversation_for_message_recipient','O','create trigger messages_unhide_recipient_conversation after insert on messages for each row execute function unhide_conversation_for_message_recipient()'),
+    ('messages','on_message_insert','update_conversation_last_message','O','create trigger on_message_insert after insert on messages for each row execute function update_conversation_last_message()')) except select table_name,tgname,proname,enabled,definition from triggers),
+   'LIVE_PIN: exact three source trigger definitions including UPDATE OF columns'),
+ ('source_functions_and_acls_captured',(select count(*)=6 from function_state)
+   and (select count(*)=3 from function_state where (proname,body_hash) in (('enforce_conversation_listing_seller','0dff735e21efc845ee166e57f902136a'),('unhide_conversation_for_message_recipient','66074618fc4aefdc17cd2b6c0274950a'),('update_conversation_last_message','45c2da17ae8a0272b0fd3e1fbb3d388e')))
+   and not exists(
+   (select proname,grantor,grantee,privilege_type,is_grantable from function_acl where proname in ('enforce_conversation_listing_seller','unhide_conversation_for_message_recipient','update_conversation_last_message'))
+   except (values ('enforce_conversation_listing_seller','postgres','postgres','EXECUTE',false),('enforce_conversation_listing_seller','postgres','service_role','EXECUTE',false),('unhide_conversation_for_message_recipient','postgres','postgres','EXECUTE',false),('unhide_conversation_for_message_recipient','postgres','service_role','EXECUTE',false),('update_conversation_last_message','postgres','postgres','EXECUTE',false),('update_conversation_last_message','postgres','service_role','EXECUTE',false)))
+   and not exists((values ('enforce_conversation_listing_seller','postgres','postgres','EXECUTE',false),('enforce_conversation_listing_seller','postgres','service_role','EXECUTE',false),('unhide_conversation_for_message_recipient','postgres','postgres','EXECUTE',false),('unhide_conversation_for_message_recipient','postgres','service_role','EXECUTE',false),('update_conversation_last_message','postgres','postgres','EXECUTE',false),('update_conversation_last_message','postgres','service_role','EXECUTE',false)) except
+   select proname,grantor,grantee,privilege_type,is_grantable from function_acl where proname in ('enforce_conversation_listing_seller','unhide_conversation_for_message_recipient','update_conversation_last_message')),'LIVE_PIN: complete overload/default/attribute/body and exact exploded ACL sets'),
  ('rows_have_current_shape',(select buyer_nulls=0 and seller_nulls=0 and sender_nulls=0 and equal_participants=0 and nonparticipant_senders=0 and invalid_unread=0 and duplicate_unread=0 and invalid_state=0 from row_facts),'LIVE_PIN: lock-protected current row/null/unread/state invariants'),
  ('realtime_replica_identity_exact',
    (select count(*)=3 and bool_and(c.relreplident='d') from pg_class c join pg_namespace n on n.oid=c.relnamespace where n.nspname='public' and c.relname in ('conversations','messages','conversation_participant_state'))
