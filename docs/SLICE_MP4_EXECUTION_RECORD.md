@@ -17,7 +17,7 @@ Each package receives one dated section after its live sitting. Future package r
 | MP4-B | Live and verified — 2026-08-15 |
 | MP4-C | Live and verified — 2026-08-15 |
 | MP4-D | Live and verified — 2026-08-15 |
-| MP4-E | Not yet authored/applied |
+| MP4-E | Live and verified — 2026-08-21 |
 | MP4-F | Not yet authored/applied |
 | MP4-G | Not yet authored/applied |
 | MP4-H | Not yet authored/applied |
@@ -230,3 +230,48 @@ All-Inkl KAS inspection on 2026-08-16 found no DKIM signing option in mailbox se
 The Sunday co-founder auto-update timer, `psy-weekly-cofounder.timer`, was verified armed on 2026-08-16 with its first run due that afternoon. It runs Sundays at 15:00 `Europe/Berlin`, has `Persistent=true`, and linger is enabled.
 
 MP4-D is live and verified. The next guarded package is MP4-E; its sitting must continue to use this rolling record and mandatory owner-hosted gates.
+
+---
+
+## 2026-08-21 — MP4-E: dormant conversation nullability foundation
+
+### Scope
+
+MP4-E makes `conversations.buyer_profile_id`, `conversations.seller_profile_id` and `messages.sender_profile_id` nullable while retaining the existing foreign-key delete actions. It replaces the participant-difference check with a null-aware form and installs four null-safe structural guards for conversation participants, message senders, unread state and participant state.
+
+The package does not install a deletion callable path or rewrite a live participant value. The future profile-FK `SET NULL` transition, unread cleanup, retained-conversation uniqueness and both-deleted cleanup remain held for later guarded packages.
+
+### Authoring and review history
+
+- MP4-E was authored on card `t_eb13e65e` in commit `64eab48`.
+- An independent live-catalog audit returned **CHANGES-REQUIRED**, with three blockers and seven majors. The correction commit `39b4393` fixed every blocker and major, and the exact corrected artifacts were re-verified by recomputation.
+- The independent re-audit verdict was **PASS-WITH-MINORS**. The accepted non-blocking minors are recorded on the authoring card. They include a binding follow-up for MP4-F: its commission must require harness fixture fidelity and evidence the no-first-branch-wins rule.
+
+### Live sitting results
+
+The owner-run live sequence completed successfully on 2026-08-21:
+
+1. **PREFLIGHT first run: STOP 10/11** — the owner-context row-invariant check exposed four nonparticipant-sender messages. They were May 2026 QA relics in which Turgay had sent messages into an Otis/Solarbeing conversation before sender-identity guards existed.
+2. **Guarded cleanup: exact four-row correction** — the wingman-prepared cleanup deleted exactly those four rows and refreshed the conversation last-message summary.
+3. **PREFLIGHT rerun: GO 11/11** — all owner-hosted gates passed, with 16 messages remaining.
+4. **APPLY: clean first run** — the guarded nullability, constraint, function and trigger transition committed successfully.
+5. **APPLY rerun: proven no-op live** — the exact after-state was accepted without further mutation.
+6. **VERIFY: GO 11/11** — the final catalog, guard and compatibility state passed.
+
+Wingman live post-checks confirmed:
+
+- all three actor columns are nullable;
+- all four guard triggers are installed;
+- the null-aware participant-difference constraint is live;
+- the guard functions grant no client role direct `EXECUTE` access.
+
+Application-layer proof followed on staging in the owner session. A real message sent through `MessagesInbox` passed the new active-participant guard, and both the send and rendered result were verified.
+
+### Declared boundaries
+
+- Conversation creation remains authorized by the current policy and structural rules. Conversion to active-profile authority for conversation creation belongs to MP4-F.
+- JWT-less trusted message writes now require the documented owner `DISABLE TRIGGER` break-glass path. No current trusted messaging writer exists.
+- Deletion and the retained-row cutover are not live. MP4-E only installs their dormant nullability and guard foundation.
+- The accepted harness/evidence minors remain recorded on card `t_eb13e65e`; MP4-F must inherit the fixture-fidelity requirement and prove the no-first-branch-wins rule.
+
+MP4-E is live and verified. The next guarded package is MP4-F; its sitting must continue to use this rolling record and mandatory owner-hosted gates.
