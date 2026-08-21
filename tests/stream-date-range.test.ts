@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { getStreamLocalDateBounds, normalizeStreamDateRange, streamRangeQueryString } from "../lib/posts/date-range.ts";
+import { resolveStreamDatePreset } from "../lib/posts/date-range-presets.ts";
 
 function withTimeZone<T>(timeZone: string, run: () => T) {
   const previous = process.env.TZ;
@@ -12,6 +13,24 @@ function withTimeZone<T>(timeZone: string, run: () => T) {
     else process.env.TZ = previous;
   }
 }
+
+test("Stream presets resolve to inclusive viewer-local calendar dates", () => {
+  withTimeZone("Europe/Berlin", () => {
+    const now = new Date(2026, 7, 21, 23, 45);
+
+    assert.deepEqual(resolveStreamDatePreset("all", now), { from: null, to: null });
+    assert.deepEqual(resolveStreamDatePreset("last-7-days", now), { from: "2026-08-15", to: "2026-08-21" });
+    assert.deepEqual(resolveStreamDatePreset("last-30-days", now), { from: "2026-07-23", to: "2026-08-21" });
+    assert.deepEqual(resolveStreamDatePreset("this-year", now), { from: "2026-01-01", to: "2026-08-21" });
+  });
+});
+
+test("rolling Stream presets use local calendar arithmetic across a DST boundary", () => {
+  withTimeZone("Europe/Berlin", () => {
+    const now = new Date(2026, 2, 30, 0, 30);
+    assert.deepEqual(resolveStreamDatePreset("last-7-days", now), { from: "2026-03-24", to: "2026-03-30" });
+  });
+});
 
 test("valid Stream dates remain server-validated date-only values", () => {
   const result = normalizeStreamDateRange({ from: "2026-08-01", to: "2026-08-07" });
