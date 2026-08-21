@@ -186,7 +186,7 @@ Run these with a controlled owner profile/listing, capture status and response, 
 These rulings record product outcomes only. Their implementation belongs to separate future work.
 
 1. **Following placement — resolved by Turgay on 2026-08-21:** Following lives on the Stream page as an **All / Following** toggle, always visible to logged-in users, with a friendly empty state when the active profile follows nobody. For this placement, the `docs/DECISIONS_HANDOVER.md` wording takes precedence over `docs/V1_DECISIONS.md` line 29.
-2. **Homepage tickets — resolved by Turgay on 2026-08-21:** Remove the five hard-coded ticket cards. Keep the section location reserved and, once ticket-category listings exist, display the **most recent ten** in a carousel using the same rail mechanics as Featured Pieces on `/apparel` through the shared `FeaturedCategoryRail`: three visible plus peek, conditional arrows, snap, eased motion, and mobile swipe. Keep the section hidden/empty until such listings exist.
+2. **Homepage tickets — removal deferred by Turgay on 2026-08-21:** The five hard-coded ticket cards stay on the homepage as deliberate show-pieces during the pre-launch demo phase and are removed only on his explicit later order. When that order is given, switch the section to the **most recent ten** ticket-category listings in a carousel using the same rail mechanics as Featured Pieces on `/apparel` through the shared `FeaturedCategoryRail`: three visible plus peek, conditional arrows, snap, eased motion, and mobile swipe.
 
 ## Fact pins
 
