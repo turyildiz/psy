@@ -28,13 +28,6 @@ export default function FeaturedCategoryRail({ className, itemCount, label, chil
     }
 
     const updateOverflow = () => {
-      const firstCard = rail.firstElementChild as HTMLElement | null;
-      const segment = rail.parentElement;
-      const image = firstCard?.querySelector<HTMLElement>('[class$="-featured-image"]');
-      if (segment && firstCard && image) {
-        const imageCenter = firstCard.offsetTop + image.offsetTop + image.offsetHeight / 2;
-        segment.style.setProperty("--featured-image-center", `${imageCenter}px`);
-      }
       setCanScrollLeft(rail.scrollLeft > OVERFLOW_TOLERANCE_PX);
       setCanScrollRight(rail.scrollWidth - rail.clientWidth - rail.scrollLeft > OVERFLOW_TOLERANCE_PX);
     };
