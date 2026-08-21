@@ -18,7 +18,18 @@ import {
 import { createClient } from "@/lib/supabase/client";
 import { getStreamHeroImage } from "@/lib/stream-hero";
 import { getStreamLocalDateBounds, streamRangeQueryString, type StreamDateRange } from "@/lib/posts/date-range";
+import { resolveStreamDatePreset, type StreamDatePreset } from "@/lib/posts/date-range-presets";
 import { useReactionViewerProfileId } from "@/lib/posts/use-reaction-viewer";
+
+type StreamRangeChoice = StreamDatePreset | "custom";
+
+const STREAM_RANGE_PRESETS: Array<{ value: StreamRangeChoice; label: string }> = [
+  { value: "all", label: "All time" },
+  { value: "last-7-days", label: "Last 7 days" },
+  { value: "last-30-days", label: "Last 30 days" },
+  { value: "this-year", label: "This year" },
+  { value: "custom", label: "Custom range…" },
+];
 
 type StreamPost = {
   post: Post;
@@ -61,6 +72,13 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
   const [hasMore, setHasMore] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [rangeOpen, setRangeOpen] = useState(false);
+  const [popoverView, setPopoverView] = useState<"presets" | "custom">("presets");
+  const [selectedPreset, setSelectedPreset] = useState<{
+    value: StreamRangeChoice;
+    rangeKey: string;
+    from: string | null;
+    to: string | null;
+  } | null>(null);
   const [draftFrom, setDraftFrom] = useState(range.from ?? "");
   const [draftTo, setDraftTo] = useState(range.to ?? "");
   const rangeBounds = useMemo(() => getStreamLocalDateBounds(range), [range.from, range.to]);
@@ -157,17 +175,53 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
   }, [rangeOpen]);
 
   const rangeActive = Boolean(range.from || range.to);
-  const rangeLabel = rangeActive
-    ? `${range.from ?? "Any start"} – ${range.to ?? "Any end"}`
-    : "All time";
+  const selectedChoice = selectedPreset && (selectedPreset.rangeKey === rangeKey || rangeNavigationPending)
+    ? selectedPreset.value
+    : null;
+  const activePreset: StreamRangeChoice = selectedChoice ?? (rangeActive ? "custom" : "all");
+  const displayRangeActive = activePreset !== "all";
+  const displayRange = selectedChoice && selectedPreset ? selectedPreset : range;
+  const rangeLabel = activePreset === "custom"
+    ? `${displayRange.from ?? "Any start"} – ${displayRange.to ?? "Any end"}`
+    : STREAM_RANGE_PRESETS.find((preset) => preset.value === activePreset)?.label ?? "All time";
   const requestInFlight = loading || rangeNavigationPending || resolvedRangeKey !== rangeKey;
+
+  function applyPreset(preset: StreamDatePreset) {
+    const nextRange = resolveStreamDatePreset(preset);
+    setDraftFrom(nextRange.from ?? "");
+    setDraftTo(nextRange.to ?? "");
+    setSelectedPreset({
+      value: preset,
+      rangeKey: `${nextRange.from ?? ""}:${nextRange.to ?? ""}`,
+      from: nextRange.from,
+      to: nextRange.to,
+    });
+    setPopoverView("presets");
+    setRangeOpen(false);
+    const queryString = streamRangeQueryString(nextRange);
+    startRangeTransition(() => {
+      if (queryString) router.push(`/stream?${queryString}`);
+      else router.push("/stream");
+    });
+  }
 
   function applyRange() {
     let from = draftFrom;
     let to = draftTo;
     if (from && to && from > to) [from, to] = [to, from];
+    if (!from && !to) {
+      applyPreset("all");
+      return;
+    }
     setDraftFrom(from);
     setDraftTo(to);
+    setSelectedPreset({
+      value: "custom",
+      rangeKey: `${from}:${to}`,
+      from: from || null,
+      to: to || null,
+    });
+    setPopoverView("presets");
     setRangeOpen(false);
     const queryString = streamRangeQueryString({ from: from || null, to: to || null });
     startRangeTransition(() => {
@@ -177,10 +231,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
   }
 
   function clearRange() {
-    setDraftFrom("");
-    setDraftTo("");
-    setRangeOpen(false);
-    startRangeTransition(() => router.push("/stream"));
+    applyPreset("all");
   }
 
   return (
@@ -200,8 +251,11 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
             <div className="stream-range-menu">
               <button
                 type="button"
-                className={`stream-range-toggle${rangeActive ? " is-active" : ""}`}
-                onClick={() => setRangeOpen((open) => !open)}
+                className={`stream-range-toggle${displayRangeActive ? " is-active" : ""}`}
+                onClick={() => setRangeOpen((open) => {
+                  if (!open) setPopoverView("presets");
+                  return !open;
+                })}
                 aria-haspopup="true"
                 aria-expanded={rangeOpen}
                 aria-controls="stream-range-popover"
@@ -210,8 +264,27 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
                 <span className="stream-range-value">{rangeLabel}</span>
                 <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden style={{ transform: rangeOpen ? "rotate(180deg)" : "none" }}><path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" /></svg>
               </button>
-              {rangeOpen && (
-                <form id="stream-range-popover" className="stream-range-popover" onSubmit={(event) => { event.preventDefault(); applyRange(); }}>
+              {rangeOpen && popoverView === "presets" && (
+                <div id="stream-range-popover" className="stream-range-popover stream-range-options" role="group" aria-label="Choose a time range">
+                  {STREAM_RANGE_PRESETS.map((preset) => (
+                    <button
+                      key={preset.value}
+                      type="button"
+                      className="stream-range-option"
+                      aria-pressed={activePreset === preset.value}
+                      onClick={() => {
+                        if (preset.value === "custom") setPopoverView("custom");
+                        else applyPreset(preset.value);
+                      }}
+                    >
+                      <span className="stream-range-option-check" aria-hidden="true">{activePreset === preset.value ? "✓" : ""}</span>
+                      <span className="stream-range-option-label">{preset.label}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {rangeOpen && popoverView === "custom" && (
+                <form id="stream-range-popover" className="stream-range-popover stream-range-custom" onSubmit={(event) => { event.preventDefault(); applyRange(); }}>
                   <label>
                     <span>From</span>
                     <span className="stream-range-date-field">
@@ -248,7 +321,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
               )}
             </div>
           </div>
-          {rangeActive && (
+          {displayRangeActive && (
             <div className="stream-range-active-filters" aria-label="Active filters">
               <button type="button" className="stream-range-chip" onClick={clearRange} disabled={rangeNavigationPending}>
                 <span className="stream-range-chip-key">RANGE</span>
@@ -319,12 +392,23 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
         .stream-range-menu { position: relative; width: 270px; max-width: 100%; height: 100%; }
         .stream-range-toggle { width: 100%; height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 10px; padding: 0 14px; border: 0; border-radius: 15px; background: transparent; color: var(--text-mid); font: 600 13px Manrope, var(--font-manrope); text-align: left; cursor: pointer; }
         .stream-range-toggle:hover, .stream-range-toggle[aria-expanded="true"] { background: var(--cream); color: var(--rust); }
+        .stream-range-toggle:focus { outline: none; }
+        .stream-range-toggle:focus-visible,
+        .stream-range-option:focus-visible { outline: 2px solid var(--rust); outline-offset: -3px; }
         .stream-range-toggle.is-active { background: oklch(96% 0.025 55); color: var(--rust); }
         .stream-range-key { color: var(--text-light); font-size: 11px; font-weight: 600; letter-spacing: .12em; text-transform: uppercase; }
         .stream-range-value { overflow: hidden; color: var(--text); text-overflow: ellipsis; white-space: nowrap; }
-        .stream-range-toggle.is-active .stream-range-value { color: var(--rust); }
+        .stream-range-toggle.is-active .stream-range-value,
+        .stream-range-toggle[aria-expanded="true"] .stream-range-value { color: var(--rust); }
         .stream-range-toggle svg { flex-shrink: 0; transition: transform 160ms ease; }
-        .stream-range-popover { box-sizing: border-box; position: absolute; z-index: 5; top: calc(100% + 9px); left: 0; width: min(356px, calc(100vw - 32px)); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; margin: 0; padding: 14px; border: 1px solid var(--sand); border-radius: 12px; background: var(--white); box-shadow: 0 14px 36px oklch(25% 0.03 50 / .17); }
+        .stream-range-popover { box-sizing: border-box; position: absolute; z-index: 5; top: calc(100% + 9px); left: 0; margin: 0; border: 1px solid var(--sand); border-radius: 12px; background: var(--white); box-shadow: 0 14px 36px oklch(25% 0.03 50 / .17); }
+        .stream-range-options { width: min(220px, calc(100vw - 32px)); padding: 7px; }
+        .stream-range-option { width: 100%; min-height: 38px; display: flex; align-items: center; gap: 12px; border: 0; border-radius: 7px; background: transparent; color: var(--text-mid); padding: 7px 10px; text-align: left; font: 500 13px Manrope, var(--font-manrope); cursor: pointer; }
+        .stream-range-option:hover { background: var(--cream); color: var(--text); }
+        .stream-range-option[aria-pressed="true"] { background: oklch(96% 0.025 55); color: var(--rust); font-weight: 700; }
+        .stream-range-option-check { width: 14px; flex-shrink: 0; color: var(--rust); }
+        .stream-range-option-label { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .stream-range-custom { width: min(356px, calc(100vw - 32px)); display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px 10px; padding: 14px; }
         .stream-range-popover label { display: flex; flex-direction: column; gap: 6px; color: var(--text-light); font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
         .stream-range-date-field { position: relative; display: block; }
         .stream-range-popover input { box-sizing: border-box; position: relative; width: 100%; min-width: 0; height: 40px; padding: 0 34px 0 10px; border: 1px solid var(--sand); border-radius: 8px; outline: none; appearance: none; -webkit-appearance: none; background: var(--cream); color: var(--text); color-scheme: light; font: 500 12px Manrope, var(--font-manrope); }
@@ -390,7 +474,7 @@ export default function StreamPageClient({ range }: { range: StreamDateRange }) 
           .post-card header { align-items: flex-start; }
         }
         @media (max-width: 420px) {
-          .stream-range-popover { grid-template-columns: 1fr; }
+          .stream-range-custom { grid-template-columns: 1fr; }
           .stream-range-actions { grid-column: 1; }
         }
         @media (prefers-reduced-motion: reduce) {
