@@ -163,7 +163,7 @@ Required state and acceptance evidence:
 - Ship the V1 reports feature for profiles, listings, posts, conversations, and Notice Board content with the approved deduplication, burst-limit, admin-email, reason, and public-contact behavior; verify each surface and abuse limit end to end.
 - Publish the approved legal, privacy, terms/AGB, Impressum/contact, cookie, and safety pages; verify routes, footer/auth links, content approval, status codes, metadata, and indexability.
 - Ship server-side new-message email with unread-aware delay, idempotency, per-conversation throttling, correct contacted-profile naming/deep link, account-level opt-out, and same-account suppression; verify with real mail and authenticated deep-link journeys.
-- Ship the approved Following view and profile-scoped follow/unfollow behavior only after Turgay resolves its placement below; verify active-profile isolation, no-follows state, URL behavior, sibling follows, exact self-follow denial, and public counts.
+- Ship the approved Following view and profile-scoped follow/unfollow behavior according to Turgay's resolved Stream-placement ruling below; verify active-profile isolation, no-follows state, URL behavior, sibling follows, exact self-follow denial, and public counts.
 
 ## Owner measurements
 
@@ -181,12 +181,12 @@ Run these with a controlled owner profile/listing, capture status and response, 
 1. **Profile self-elevation probe:** attempt to change `is_verified` and `is_creator` on the caller's active profile. Expected secure result after remediation: denied, with no row change. Record the before-state separately because catalog evidence currently predicts the write may succeed.
 2. **Listing self-elevation probe:** attempt to change `is_featured`, `view_count`, and `admin_notes` on a listing owned by the caller's active profile. Expected secure result after remediation: denied, with no row change and no public `admin_notes` read. Record and restore any accepted before-state.
 
-## Open product decisions
+## Resolved product decisions
 
-These require Turgay's ruling; implementation must not choose silently.
+These rulings record product outcomes only. Their implementation belongs to separate future work.
 
-1. **Following placement:** `docs/V1_DECISIONS.md` specifies a Following tab on the active profile, hidden when following nobody. `docs/DECISIONS_HANDOVER.md` specifies an always-visible logged-in Stream toggle with a friendly no-follows state and URL view. Turgay must select the binding V1 placement before the feature is authored.
-2. **Homepage tickets:** the binding decision says to remove the hard-coded homepage ticket rail, but it remains implemented. Turgay must confirm the removal/replacement outcome before the launch surface is finalized.
+1. **Following placement — resolved by Turgay on 2026-08-21:** Following lives on the Stream page as an **All / Following** toggle, always visible to logged-in users, with a friendly empty state when the active profile follows nobody. For this placement, the `docs/DECISIONS_HANDOVER.md` wording takes precedence over `docs/V1_DECISIONS.md` line 29.
+2. **Homepage tickets — resolved by Turgay on 2026-08-21:** Remove the five hard-coded ticket cards. Keep the section location reserved and, once ticket-category listings exist, display the **most recent ten** in a carousel using the same rail mechanics as Featured Pieces on `/apparel` through the shared `FeaturedCategoryRail`: three visible plus peek, conditional arrows, snap, eased motion, and mobile swipe. Keep the section hidden/empty until such listings exist.
 
 ## Fact pins
 
