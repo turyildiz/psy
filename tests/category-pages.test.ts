@@ -209,9 +209,7 @@ test("category featured rails expose every featured item and add desktop overflo
   assert.match(rail, /const OVERFLOW_TOLERANCE_PX = 4;/, "minor snap residue must not keep a spent arrow visible");
   assert.match(rail, /useLayoutEffect\(/);
   assert.match(rail, /const updateOverflow = \(\) =>/);
-  assert.match(rail, /firstCard\?\.querySelector<HTMLElement>\('\[class\$="-featured-image"\]'\)/, "arrow placement must read the rendered image area rather than infer it from the whole card");
-  assert.match(rail, /const imageCenter = firstCard\.offsetTop \+ image\.offsetTop \+ image\.offsetHeight \/ 2;/, "arrow placement must use transform-independent layout geometry so the stagger entrance cannot leave it below the image center");
-  assert.match(rail, /segment\.style\.setProperty\("--featured-image-center", `\$\{imageCenter\}px`\)/, "both arrows must consume one image-center custom property");
+  assert.doesNotMatch(rail, /featured-image-center|querySelector<HTMLElement>\('\[class\$="-featured-image"\]'\)|imageCenter/, "whole-card centering must not depend on JS image measurements");
   assert.match(rail, /setCanScrollLeft\(rail\.scrollLeft > OVERFLOW_TOLERANCE_PX\)/, "the left arrow must ignore a few pixels of snap residue");
   assert.match(rail, /setCanScrollRight\(rail\.scrollWidth - rail\.clientWidth - rail\.scrollLeft > OVERFLOW_TOLERANCE_PX\)/, "the right arrow must use the same end tolerance");
   assert.match(rail, /new ResizeObserver\(updateOverflow\)/);
@@ -243,7 +241,8 @@ test("category featured rails expose every featured item and add desktop overflo
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail \{[^}]*display: flex;[^}]*overflow-x: auto;[^}]*scroll-snap-type: x mandatory;/);
   assert.match(styles, /\.featured-category-rail-segment\[data-scrollable="true"\] \.featured-category-rail > \.stagger-item \{[^}]*flex: 0 0 calc\(\(100% - 72px\) \/ 3\);[^}]*scroll-snap-align: start;[^}]*scroll-snap-stop: always;/);
   assert.doesNotMatch(styles, /\.featured-category-rail::after/, "a trailing pseudo-item must not add scrollable width after the final card");
-  assert.match(styles, /\.featured-category-rail-arrow \{[^}]*top: var\(--featured-image-center\);[^}]*width: 44px;[^}]*height: 44px;[^}]*border: 1px solid var\(--sand\);[^}]*background: var\(--white\);[^}]*box-shadow:/, "featured arrows must be 44px overlays centered on the 4:3 image area");
+  assert.match(styles, /\.featured-category-rail-arrow \{[^}]*top: 50%;[^}]*width: 44px;[^}]*height: 44px;[^}]*border: 1px solid var\(--sand\);[^}]*background: var\(--white\);[^}]*box-shadow:[^}]*transform: translateY\(-50%\);/, "featured arrows must be 44px overlays centered on the whole card rail");
+  assert.doesNotMatch(styles, /--featured-image-center/, "whole-card centering must not retain the obsolete image-center custom property");
   assert.match(rail, /<svg aria-hidden="true" viewBox="0 0 24 24">/);
   assert.match(styles, /\.featured-category-rail-arrow svg \{[^}]*width: 24px;[^}]*height: 24px;/, "the featured chevron must scale with its button");
   assert.match(styles, /\.featured-category-rail-arrow-left \{ left: 8px; \}/);
