@@ -1,5 +1,7 @@
 # Psy.market project status — verified ground truth
 
+> **HISTORICAL SNAPSHOT — NOT CURRENT-STATE AUTHORITY.** This document preserves the 2026-08-10 audit and dated addenda. For current Slice MP-4 execution truth, use [`../SLICE_MP4_EXECUTION_RECORD.md`](../SLICE_MP4_EXECUTION_RECORD.md) as the sole authority.
+
 **Audit date:** 2026-08-10 (Europe/Berlin)
 **Repository:** `/home/repos/psy`, branch `main`
 **Pre-report audited HEAD:** `d818dd2a2db6928e243b7a574d0e2712afef9392`

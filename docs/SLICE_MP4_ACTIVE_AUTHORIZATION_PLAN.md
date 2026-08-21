@@ -1,8 +1,8 @@
 # Slice MP-4 — active authorization and deletion foundation plan
 
 **Prepared:** 2026-08-13
-**Status:** GUARDED EXECUTION IN PROGRESS — MP4-A+B of eight are live; see [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md)
-**Current database state:** MP-3 foundations, the MP4-A active-authorization primitives and MP4-B's converted profile/listing policies are live; `profiles_one_per_user_key` remains in force, profile/listing authorization now uses active-profile authority, and the one-profile product model is unchanged
+**Status:** GUARDED EXECUTION IN PROGRESS — [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md) is the sole authority for package execution status
+**Current database state:** This authoring plan makes no current-state claim; consult [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md) for the recorded live/verified package state and remaining packages
 
 ## 1. Purpose and evidence boundary
 
@@ -559,4 +559,4 @@ These gates governed entry from planning into guarded execution:
 4. Psy drafts each preflight/apply/verify/rollback package from admitted live evidence, runs disposable PostgreSQL and static render-invariance tests, commits locally, and waits for independent review and push approval.
 5. Packages remain serial. No later package is authored against an unreviewed predecessor.
 
-The applicable gates, including Gate 4 session-claim compatibility, were satisfied for MP4-A and MP4-B; both packages are live and verified. The serial review and fresh-evidence gates remain binding for MP4-C through MP4-H, and this plan makes no implementation claim for those later packages.
+Package execution status and satisfied live gates are recorded only in [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md). The serial review and fresh-evidence gates remain binding for every package not recorded there as live and verified; this authoring plan makes no independent implementation-status claim.

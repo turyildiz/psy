@@ -5,6 +5,7 @@
 **Status:** Product decisions finalized; implementation proposal only.
 **Date:** 2026-08-08
 **Implementation state:** Not implemented. No database or application change is authorized by this document alone.
+**Current-status pointer:** Product decisions here remain binding; execution truth is in [`SLICE_MP4_EXECUTION_RECORD.md`](SLICE_MP4_EXECUTION_RECORD.md), and enablement/launch gates are in [`MULTI_PROFILE_GATES.md`](MULTI_PROFILE_GATES.md).
 
 This document proposes the coordinated database, authorization, privacy, application, migration, deletion, and verification work required to move Multi-Profile from V2 into V1. Launch delay is accepted.
 
