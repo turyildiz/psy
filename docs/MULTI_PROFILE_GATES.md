@@ -30,6 +30,8 @@ Acceptance evidence:
 
 ### 2. Messaging uses exact active-profile authority
 
+**COMPLETE — 2026-08-22.** MP4-E, MP4-F and MP4-G are live and verified, completing this item. The owner-run gates, independent recomputations, live catalog checks, and application-path proof are recorded in the [`Slice MP-4 execution record`](SLICE_MP4_EXECUTION_RECORD.md).
+
 Required state:
 
 - Complete MP4-E, MP4-F, and MP4-G for `conversations`, `messages`, and `conversation_participant_state`.
