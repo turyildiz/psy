@@ -23,6 +23,7 @@ select public.hide_conversation('e0000000-0000-4000-8000-000000000001');
 select public.unhide_conversation('e0000000-0000-4000-8000-000000000001');
 select public.find_and_unhide_conversation('b2000000-0000-4000-8000-000000000001',null);
 reset role;
+-- Keep both operands as scalar subqueries: record_eq matches NULL fields; inline row constructors would yield NULL.
 select pg_temp.assert_true('five post-apply RPC paths preserve baseline',(select row(last_message_body,unread_for,hidden_at) from private.mp4e_before_behavior)=(select row(c.last_message_body,c.unread_for,s.hidden_at) from public.conversations c left join public.conversation_participant_state s on s.conversation_id=c.id and s.profile_id='a1000000-0000-4000-8000-000000000001' where c.id='e0000000-0000-4000-8000-000000000001'));
 insert into public.conversation_participant_state(conversation_id,profile_id,hidden_at) values('f0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001',now()),('f0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001',null)
 on conflict(conversation_id,profile_id) do update set hidden_at=excluded.hidden_at;

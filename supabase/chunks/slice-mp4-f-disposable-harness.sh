@@ -10,6 +10,11 @@ cleanup(){ dropdb -h "$HOST" -p "$PORT" -U "$ADMIN" --if-exists "$DB" >/dev/null
 sha256sum "${FILES[@]}" >"$LOG_DIR/start.sha256"; cleanup; createdb -h "$HOST" -p "$PORT" -U "$ADMIN" -T template0 -O "$USER" "$DB"
 "${P[@]}" >"$LOG_DIR/setup.log" <<'SQL'
 create schema auth; create schema private; create extension if not exists pgcrypto;
+do $$begin
+  if not exists(select 1 from pg_roles where rolname='audit_readonly') then
+    create role audit_readonly nologin;
+  end if;
+end$$;
 -- The disposable cluster must already provide the standard Supabase roles.
 create function auth.jwt() returns jsonb language sql stable as $$select coalesce(nullif(current_setting('request.jwt.claims',true),''),'{}')::jsonb$$;
 create function auth.uid() returns uuid language sql stable as $$select nullif(auth.jwt()->>'sub','')::uuid$$;
@@ -17,7 +22,8 @@ create function auth.role() returns text language sql stable as $$select auth.jw
 create table public.users(id uuid primary key,banned_at timestamptz);
 create table public.profiles(id uuid primary key,user_id uuid not null,handle text not null unique,created_at timestamptz not null default now(),unique(id,user_id));
 create unique index profiles_one_per_user_key on public.profiles(user_id);
-create table public.listings(id uuid primary key default gen_random_uuid(),profile_id uuid not null references public.profiles(id),status text not null default 'active');
+create type public.listing_status as enum('draft','active','sold');
+create table public.listings(id uuid primary key default gen_random_uuid(),profile_id uuid not null references public.profiles(id),status public.listing_status not null default 'active');
 create table public.conversations(id uuid primary key default gen_random_uuid(),listing_id uuid references public.listings(id) on delete set null,buyer_profile_id uuid not null,seller_profile_id uuid not null,last_message_at timestamptz not null default now(),last_message_body text,created_at timestamptz not null default now(),unread_for text[] default '{}'::text[],constraint conversations_buyer_profile_id_fkey foreign key(buyer_profile_id) references public.profiles(id) on delete cascade,constraint conversations_seller_profile_id_fkey foreign key(seller_profile_id) references public.profiles(id) on delete cascade,constraint unique_conversation unique(listing_id,buyer_profile_id,seller_profile_id),constraint conversations_buyer_seller_differ check(buyer_profile_id<>seller_profile_id));
 create index idx_conversations_buyer on public.conversations(buyer_profile_id); create index idx_conversations_seller on public.conversations(seller_profile_id); create index idx_conversations_last_message on public.conversations(last_message_at desc);
 create table public.messages(id uuid primary key default gen_random_uuid(),conversation_id uuid not null,sender_profile_id uuid not null,body text not null constraint messages_body_check check(length(btrim(body))>0) constraint messages_body_max_2000 check(length(body)<=2000),created_at timestamptz not null default now(),constraint messages_conversation_id_fkey foreign key(conversation_id) references public.conversations(id) on delete cascade,constraint messages_sender_profile_id_fkey foreign key(sender_profile_id) references public.profiles(id) on delete cascade);
@@ -475,13 +481,18 @@ grant select on public.listings to authenticated;
 -- the separate ACL-remediation package owns removal of browser mutation/TRUNCATE rights.
 grant select,insert,update,references,trigger,truncate on public.conversations to anon,authenticated;
 grant select,insert,update,delete,references,trigger,truncate on public.messages to anon,authenticated;
+grant select on public.conversations,public.messages to audit_readonly;
 grant select on public.conversation_participant_state to authenticated;
 grant all privileges on public.conversations,public.messages,public.conversation_participant_state to service_role;
 alter table public.profiles enable row level security; alter table public.listings enable row level security;
 alter table public.conversations enable row level security; alter table public.messages enable row level security; alter table public.conversation_participant_state enable row level security;
-create policy "Public profiles are viewable" on public.profiles for select to public using(true);
-create policy "Active and sold listings are publicly readable" on public.listings for select to public using(status in('active','sold'));
-create policy "Owners can read own private listings" on public.listings for select to authenticated using(public.current_user_owns_profile(profile_id));
+-- Exact live names/types/read predicates are retained for the two tables that the
+-- conversation policies read transitively. The unexercised profile UPDATE policy
+-- and three listing mutation policies are intentionally omitted: this fixture
+-- inserts no listing and asserts no profile/listing mutation behavior.
+create policy "Profiles are publicly readable" on public.profiles for select to public using(true);
+create policy "Active and sold listings are publicly readable" on public.listings for select to public using(status=any(array['active'::public.listing_status,'sold'::public.listing_status]));
+create policy "Owners can read own private listings" on public.listings for select to authenticated using(profile_id=(select public.current_active_profile_id()));
 create policy "Unbanned buyers create conversations" on public.conversations for insert to authenticated with check(not public.current_user_is_banned() and public.current_user_owns_profile(buyer_profile_id) and buyer_profile_id<>seller_profile_id and(listing_id is null or seller_profile_id=(select l.profile_id from public.listings l where l.id=conversations.listing_id)));
 create policy "participants view visible conversations" on public.conversations for select to authenticated using((public.current_user_owns_profile(buyer_profile_id) or public.current_user_owns_profile(seller_profile_id)) and not exists(select 1 from public.conversation_participant_state s where s.conversation_id=conversations.id and public.current_user_owns_profile(s.profile_id) and s.hidden_at is not null));
 create policy "Unbanned participants send messages" on public.messages for insert to authenticated with check(not public.current_user_is_banned() and public.current_user_owns_profile(sender_profile_id) and conversation_id in(select c.id from public.conversations c where sender_profile_id=c.buyer_profile_id or sender_profile_id=c.seller_profile_id));

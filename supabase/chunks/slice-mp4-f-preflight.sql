@@ -80,6 +80,7 @@ expected_policy_acl(table_name,grantor,grantee,privilege_type,is_grantable) as (
  union all select 'conversations','postgres',r,p,false from unnest(array['anon','authenticated']) r cross join legal_privileges l(p) where p<>'DELETE'
  union all select 'messages','postgres',r,p,false from unnest(array['anon','authenticated']) r cross join legal_privileges l(p)
  union all select 'conversation_participant_state','postgres','authenticated','SELECT',false
+ union all select t,'postgres','audit_readonly','SELECT',false from unnest(array['conversations','messages']) t
 ),
 helper_state as (
  select n.nspname,p.proname,regexp_replace(pg_get_function_identity_arguments(p.oid),'(public|private)\.','','g') args,
