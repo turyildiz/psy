@@ -18,7 +18,7 @@ Each package receives one dated section after its live sitting. Future package r
 | MP4-C | Live and verified — 2026-08-15 |
 | MP4-D | Live and verified — 2026-08-15 |
 | MP4-E | Live and verified — 2026-08-21 |
-| MP4-F | Not yet authored/applied |
+| MP4-F | Live and verified — 2026-08-22 |
 | MP4-G | Not yet authored/applied |
 | MP4-H | Not yet authored/applied |
 
@@ -275,3 +275,43 @@ Application-layer proof followed on staging in the owner session. A real message
 - The accepted harness/evidence minors remain recorded on card `t_eb13e65e`; MP4-F must inherit the fixture-fidelity requirement and prove the no-first-branch-wins rule.
 
 MP4-E is live and verified. The next guarded package is MP4-F; its sitting must continue to use this rolling record and mandatory owner-hosted gates.
+
+---
+
+## 2026-08-22 — MP4-F: conversation policies and participant-state reads
+
+### Scope
+
+MP4-F converts the five conversation-create, conversation-read, message-read, message-insert and participant-state-read policies to the MP4-A active-profile authority and nullable-survivor semantics. It adds same-account contact denial at the database boundary without exposing sibling ownership and preserves the MP4-E structural guards.
+
+The package does not convert the messaging RPCs or complete the nullable-counterpart trigger behavior held for MP4-G.
+
+### Authoring and review history
+
+- MP4-F was authored on card `t_139bc3de` in commit `19d9288`.
+- The first independent live-catalog audit returned **CHANGES-REQUIRED**. Its blocker was a fixture-fidelity failure: the preflight ACL pin did not match independent live recomputation. Major findings also covered the session-coverage boundary, the cross-package STOP declaration, the policy-count fact and evidence emission.
+- Correction commit `708a6a6` addressed every disposition. Re-audit verified those dispositions by recomputation but found that the same ACL check remained two rows short: `audit_readonly` `SELECT` on `conversations` and `messages` was missing.
+- The predecessor card reached the block-loop brake, so the final correction landed as commit `a851eba` on continuation card `t_30a93499`.
+- Final independent audit confirmed scope containment and recomputed the expected ACL set as 81/81 rows with zero difference against live. The verdict was **PASS-WITH-MINORS**; the carried minors remain recorded on the card.
+
+### Live sitting results
+
+The owner-run live sequence completed successfully on 2026-08-22:
+
+1. **PREFLIGHT: GO 11/11 first run** — all owner-hosted gates passed. The emitted policy digest matched the auditor's independent live recomputation, `1d826818e61c36ca3e2316f9ba7a3239`.
+2. **APPLY: clean first run** — the guarded five-policy transition committed successfully.
+3. **APPLY rerun: proven no-op live** — the exact after-state was accepted without further mutation.
+4. **VERIFY: GO 15/15** — the final catalog, policy, privilege and compatibility state passed.
+
+Wingman post-checks confirmed that the live conversation-create policy requires active-buyer equality, both participants to be present and distinct, and same-account denial through `NOT current_user_owns_profile(seller)`, without exposing an owner column.
+
+Application-layer proof followed on staging in the owner session. Inbox-list read, thread-history read and a new message send all passed through the converted policies.
+
+### Declared boundaries
+
+- `SESSION_COVERAGE=UNPROVEN` — a missing or invalid session ID silently empties messaging reads. This remains a Gate 1 bootstrap item.
+- Hosted Realtime delivery remains owner-gated. It must prove active-only events, sibling silence, hidden-conversation silence and subscription replacement on profile switch.
+- `mp4-policy-conversion-verify.sql` is historical and intentionally STOPs after MP4-F.
+- `anon`/`authenticated` `TRUNCATE` on `conversations`, `messages`, `profiles` and `listings` is assigned to a separate ACL-remediation package and remains recorded in Gate 3 of the gates document.
+
+MP4-F is live and verified. The next guarded package is MP4-G; its sitting must continue to use this rolling record and mandatory owner-hosted gates.
