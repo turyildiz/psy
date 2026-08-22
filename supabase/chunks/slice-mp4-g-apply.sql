@@ -1,6 +1,10 @@
 -- psy.market Slice MP-4-G: messaging RPC active authority and trigger completion
 -- APPLY: guarded post-MP4-F source -> exact five-RPC/two-trigger target.
 -- Exact-target rerun is a no-op. No table, policy, row, publication, or app change.
+-- One-sided retained rows remain message/append read-only, but the surviving active
+-- participant may clear their own unread marker as a read-side courtesy.
+-- DECLARED INVALIDATIONS: slice-mp4-e-verify.sql, slice-mp4-f-verify.sql, and
+-- slice-mp4-f-preflight.sql intentionally STOP after G because they pin pre-G bodies.
 -- Rollback order: G before F before E.
 begin;
 set local row_security=off;
@@ -24,14 +28,17 @@ begin
   and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='unhide_conversation_for_message_recipient' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='65000503f5c585632d5cae3282217b43')
   and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='update_conversation_last_message' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='396ba90811a1f9ba79cbdf3bc3f5b060') into source_state;
  select (select count(*)=7 from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in('append_unread_for','remove_unread_for','hide_conversation','unhide_conversation','find_and_unhide_conversation','unhide_conversation_for_message_recipient','update_conversation_last_message'))
-  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='append_unread_for' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='ea719f14fbf39105240148d58aa8a38b')
-  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='remove_unread_for' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='8ed649f894edd22265efbf940201ac8d')
-  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='hide_conversation' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='59ffc3792e4e13f0f12b1f1e8ad9fe24')
-  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='unhide_conversation' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='93e51e3b852e1a68cec74c935f4ee5b2')
+  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='append_unread_for' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='d11f82a4b1d43fe42bbe3a6423660000')
+  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='remove_unread_for' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='77188697a16d747abfb12eaf16d5a1a6')
+  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='hide_conversation' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='be76125d658a1ad3077fbc2d8b8e9c75')
+  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='unhide_conversation' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='5ef5fa1296aed8f13fb52ab5cf5fdc99')
   and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='find_and_unhide_conversation' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='a54c515118342fae1db226b8dc09c8c8')
-  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='unhide_conversation_for_message_recipient' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='ce0b71a177cf61cdcbc25244df096d14')
+  and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='unhide_conversation_for_message_recipient' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='32ed416178cb477bfdb363eef779f10f')
   and exists(select 1 from pg_proc p join pg_namespace nsp on nsp.oid=p.pronamespace where nsp.nspname='public' and p.proname='update_conversation_last_message' and md5(btrim(regexp_replace(replace(p.prosrc,E'\r\n',E'\n'),'[[:space:]]+',' ','g')))='5a285350e95fb623199956f4d43b7953') into target_state;
- if target_state then return; end if;
+ if target_state then
+  if (select count(*)=19 and bool_and(a.grantor='postgres'::regrole and a.privilege_type='EXECUTE'and not a.is_grantable and((p.proname in('append_unread_for','remove_unread_for','hide_conversation','unhide_conversation','find_and_unhide_conversation')and a.grantee in('authenticated'::regrole,'postgres'::regrole,'service_role'::regrole))or(p.proname in('unhide_conversation_for_message_recipient','update_conversation_last_message')and a.grantee in('postgres'::regrole,'service_role'::regrole))))from pg_proc p join pg_namespace n on n.oid=p.pronamespace cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner)))a where n.nspname='public'and p.proname in('append_unread_for','remove_unread_for','hide_conversation','unhide_conversation','find_and_unhide_conversation','unhide_conversation_for_message_recipient','update_conversation_last_message'))then return;end if;
+  raise exception 'MP4-G APPLY target ACL drift' using errcode='55000';
+ end if;
  if not source_state then raise exception 'MP4-G APPLY source drift: neither exact reviewed source nor target function family' using errcode='55000'; end if;
  if (select count(*) from pg_policy p where p.polrelid in('public.conversations'::regclass,'public.messages'::regclass,'public.conversation_participant_state'::regclass)
       and (coalesce(pg_get_expr(p.polqual,p.polrelid,false),'')||coalesce(pg_get_expr(p.polwithcheck,p.polrelid,false),'')) like '%current_active_profile_id%')<>5 then
@@ -51,6 +58,10 @@ begin
   active_profile_id:=public.current_active_profile_id();
   if active_profile_id is null then raise exception 'Active profile selection is required' using errcode='P0001'; end if;
   target_profile_id:=profile_id::uuid;
+  select * into c from public.conversations where id=conv_id;
+  if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
+   raise exception 'Not a conversation participant' using errcode='P0001';
+  end if;
   select * into c from public.conversations where id=conv_id for update;
   if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
    raise exception 'Not a conversation participant' using errcode='P0001';
@@ -76,15 +87,16 @@ begin
   active_profile_id:=public.current_active_profile_id();
   if active_profile_id is null then raise exception 'Active profile selection is required' using errcode='P0001'; end if;
   target_profile_id:=profile_id::uuid;
+  select * into c from public.conversations where id=conv_id;
+  if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
+   raise exception 'Not a conversation participant' using errcode='P0001';
+  end if;
   select * into c from public.conversations where id=conv_id for update;
   if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
    raise exception 'Not a conversation participant' using errcode='P0001';
   end if;
   if public.current_user_owns_profile(c.buyer_profile_id) and public.current_user_owns_profile(c.seller_profile_id) then
    raise exception 'Both conversation participants belong to the caller account' using errcode='P0001';
-  end if;
-  if c.buyer_profile_id is null or c.seller_profile_id is null or c.buyer_profile_id=c.seller_profile_id then
-   raise exception 'One-sided retained conversations are read-only' using errcode='55000';
   end if;
   if target_profile_id is distinct from active_profile_id then raise exception 'Users may only clear their own unread state' using errcode='P0001'; end if;
   update public.conversations set unread_for=array_remove(coalesce(unread_for,'{}'::text[]),target_profile_id::text) where id=conv_id;
@@ -97,6 +109,10 @@ begin
   if public.current_user_is_banned() then raise exception 'Banned accounts cannot hide conversations' using errcode='P0001'; end if;
   active_profile_id:=public.current_active_profile_id();
   if active_profile_id is null then raise exception 'Active profile selection is required' using errcode='P0001'; end if;
+  select * into c from public.conversations where id=target_conversation_id;
+  if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
+   raise exception 'Conversation not found or caller is not a participant' using errcode='P0001';
+  end if;
   select * into c from public.conversations where id=target_conversation_id for update;
   if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
    raise exception 'Conversation not found or caller is not a participant' using errcode='P0001';
@@ -116,6 +132,10 @@ begin
   if public.current_user_is_banned() then raise exception 'Banned accounts cannot unhide conversations' using errcode='P0001'; end if;
   active_profile_id:=public.current_active_profile_id();
   if active_profile_id is null then raise exception 'Active profile selection is required' using errcode='P0001'; end if;
+  select * into c from public.conversations where id=target_conversation_id;
+  if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
+   raise exception 'Conversation not found or caller is not a participant' using errcode='P0001';
+  end if;
   select * into c from public.conversations where id=target_conversation_id for update;
   if not found or (active_profile_id is distinct from c.buyer_profile_id and active_profile_id is distinct from c.seller_profile_id) then
    raise exception 'Conversation not found or caller is not a participant' using errcode='P0001';
@@ -162,7 +182,7 @@ begin
   if tg_when<>'AFTER' or tg_level<>'ROW' or tg_op<>'INSERT' or tg_table_schema<>'public' or tg_table_name<>'messages' then
    raise exception 'Unexpected recipient-unhide trigger context' using errcode='42501';
   end if;
-  select * into c from public.conversations where id=new.conversation_id;
+  select * into c from public.conversations where id=new.conversation_id for update;
   if not found then raise exception 'Message parent conversation does not exist' using errcode='23503'; end if;
   if c.buyer_profile_id is null or c.seller_profile_id is null or c.buyer_profile_id=c.seller_profile_id then
    raise exception 'Recipient-unhide requires two present participants' using errcode='55000';
@@ -212,6 +232,7 @@ do $post$
 begin
  if (select count(*) from pg_proc p join pg_namespace n on n.oid=p.pronamespace where n.nspname='public' and p.proname in('append_unread_for','remove_unread_for','hide_conversation','unhide_conversation','find_and_unhide_conversation') and p.prosrc like '%current_active_profile_id%')<>5 then raise exception 'MP4-G postcondition: active RPC family incomplete'; end if;
  if exists(select 1 from pg_proc p join pg_namespace n on n.oid=p.pronamespace cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner))) a where n.nspname='public' and p.proname in('unhide_conversation_for_message_recipient','update_conversation_last_message') and (a.grantee=0 or a.grantee in('anon'::regrole,'authenticated'::regrole))) then raise exception 'MP4-G postcondition: trigger function client EXECUTE remains'; end if;
+ if not(select count(*)=19 and bool_and(a.grantor='postgres'::regrole and a.privilege_type='EXECUTE'and not a.is_grantable and((p.proname in('append_unread_for','remove_unread_for','hide_conversation','unhide_conversation','find_and_unhide_conversation')and a.grantee in('authenticated'::regrole,'postgres'::regrole,'service_role'::regrole))or(p.proname in('unhide_conversation_for_message_recipient','update_conversation_last_message')and a.grantee in('postgres'::regrole,'service_role'::regrole))))from pg_proc p join pg_namespace n on n.oid=p.pronamespace cross join lateral aclexplode(coalesce(p.proacl,acldefault('f',p.proowner)))a where n.nspname='public'and p.proname in('append_unread_for','remove_unread_for','hide_conversation','unhide_conversation','find_and_unhide_conversation','unhide_conversation_for_message_recipient','update_conversation_last_message'))then raise exception 'MP4-G postcondition: exact function ACL mismatch';end if;
  if (select count(*) from pg_trigger where not tgisinternal and (tgrelid,tgname) in(('public.messages'::regclass,'messages_unhide_recipient_conversation'),('public.messages'::regclass,'on_message_insert')))<>2 then raise exception 'MP4-G postcondition: trigger binding drift'; end if;
 end$post$;
 commit;

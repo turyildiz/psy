@@ -4,6 +4,13 @@ begin;
 create function pg_temp.assert_true(name text,ok boolean)returns void language plpgsql as $$begin if ok is not true then raise exception '% failed',name using errcode='XX000';end if;raise notice 'PASS %',name;end$$;
 create function pg_temp.claims(uid uuid,sid uuid)returns void language plpgsql as $$begin perform set_config('request.jwt.claims',jsonb_build_object('sub',uid,'role','authenticated','session_id',sid)::text,true);end$$;
 create function pg_temp.expect(name text,want_state text,want_message text,sql_text text)returns void language plpgsql as $$declare got_state text;got_message text;begin begin execute sql_text;exception when others then get stacked diagnostics got_state=returned_sqlstate,got_message=message_text;end;if got_state is distinct from want_state or got_message is distinct from want_message then raise exception '% expected [%] %, got [%] %',name,want_state,want_message,coalesce(got_state,'SUCCESS'),coalesce(got_message,'') using errcode='XX000';end if;raise notice 'PASS % SQLSTATE % message %',name,got_state,got_message;end$$;
+create function pg_temp.expect_active_required(prefix text)returns void language plpgsql as $$begin
+ perform pg_temp.expect(prefix||' append','P0001','Active profile selection is required',format('select public.append_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001'));
+ perform pg_temp.expect(prefix||' remove','P0001','Active profile selection is required',format('select public.remove_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001'));
+ perform pg_temp.expect(prefix||' hide','P0001','Active profile selection is required',format('select public.hide_conversation(%L)','e0000000-0000-4000-8000-000000000001'));
+ perform pg_temp.expect(prefix||' unhide','P0001','Active profile selection is required',format('select public.unhide_conversation(%L)','e0000000-0000-4000-8000-000000000001'));
+ perform pg_temp.expect(prefix||' find','P0001','Active profile selection is required',format('select public.find_and_unhide_conversation(%L,null)','b2000000-0000-4000-8000-000000000001'));
+end$$;
 
 -- Current one-profile live write shapes through all five RPCs, using sole-profile fallback.
 select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000011');set local role authenticated;
@@ -38,6 +45,13 @@ insert into private.account_session_active_profiles(session_id,user_id,profile_i
  ('bb000000-0000-4000-8000-000000000011','bb000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001'),
  ('cc000000-0000-4000-8000-000000000011','cc000000-0000-4000-8000-000000000001','c3000000-0000-4000-8000-000000000001'),
  ('dd000000-0000-4000-8000-000000000011','dd000000-0000-4000-8000-000000000001','d4000000-0000-4000-8000-000000000001');
+-- Future stale/mismatched rows are impossible under the FK today; bypass only
+-- the disposable fixture trigger to prove the resolver still fails closed.
+alter table private.account_session_active_profiles disable trigger all;
+insert into private.account_session_active_profiles(session_id,user_id,profile_id)values
+ ('ee000000-0000-4000-8000-000000000012','ee000000-0000-4000-8000-000000000001','ff000000-0000-4000-8000-000000000001'),
+ ('ee000000-0000-4000-8000-000000000013','aa000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001');
+alter table private.account_session_active_profiles enable trigger all;
 
 -- Inactive sibling and foreign denial for every scoped RPC.
 select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000012');set local role authenticated;
@@ -52,14 +66,17 @@ select pg_temp.expect('foreign remove','P0001','Not a conversation participant',
 select pg_temp.expect('foreign hide','P0001','Conversation not found or caller is not a participant',format('select public.hide_conversation(%L)','e0000000-0000-4000-8000-000000000001'));
 select pg_temp.expect('foreign unhide','P0001','Conversation not found or caller is not a participant',format('select public.unhide_conversation(%L)','e0000000-0000-4000-8000-000000000001'));reset role;
 
--- Missing active and banned paths across representative mutations/contact.
+-- Missing, stale, mismatched, malformed-session, and banned paths across every RPC.
 select pg_temp.claims('ee000000-0000-4000-8000-000000000001','ee000000-0000-4000-8000-000000000011');set local role authenticated;
-select pg_temp.expect('missing active append','P0001','Active profile selection is required',format('select public.append_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001'));
-select pg_temp.expect('missing active hide','P0001','Active profile selection is required',format('select public.hide_conversation(%L)','e0000000-0000-4000-8000-000000000001'));
-select pg_temp.expect('missing active find','P0001','Active profile selection is required',format('select public.find_and_unhide_conversation(%L,null)','b2000000-0000-4000-8000-000000000001'));reset role;
+select pg_temp.expect_active_required('missing active');reset role;
+select pg_temp.claims('ee000000-0000-4000-8000-000000000001','ee000000-0000-4000-8000-000000000012');set local role authenticated;select pg_temp.expect_active_required('stale active');reset role;
+select pg_temp.claims('ee000000-0000-4000-8000-000000000001','ee000000-0000-4000-8000-000000000013');set local role authenticated;select pg_temp.expect_active_required('mismatched active');reset role;
+select set_config('request.jwt.claims','{"sub":"ee000000-0000-4000-8000-000000000001","role":"authenticated","session_id":"not-a-uuid"}',true);set local role authenticated;select pg_temp.expect_active_required('malformed session');reset role;
 select pg_temp.claims('dd000000-0000-4000-8000-000000000001','dd000000-0000-4000-8000-000000000011');set local role authenticated;
-select pg_temp.expect('banned unread','P0001','Banned accounts cannot change unread state',format('select public.append_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001'));
+select pg_temp.expect('banned append','P0001','Banned accounts cannot change unread state',format('select public.append_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001'));
+select pg_temp.expect('banned remove','P0001','Banned accounts cannot change unread state',format('select public.remove_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','d4000000-0000-4000-8000-000000000001'));
 select pg_temp.expect('banned hide','P0001','Banned accounts cannot hide conversations',format('select public.hide_conversation(%L)','e0000000-0000-4000-8000-000000000001'));
+select pg_temp.expect('banned unhide','P0001','Banned accounts cannot unhide conversations',format('select public.unhide_conversation(%L)','e0000000-0000-4000-8000-000000000001'));
 select pg_temp.expect('banned find','P0001','Banned accounts cannot open conversations',format('select public.find_and_unhide_conversation(%L,null)','b2000000-0000-4000-8000-000000000001'));reset role;
 
 -- Malformed/wrong targets and contact denials assert exact guard messages.
@@ -82,15 +99,17 @@ select pg_temp.expect('dual-owned hide explicit fail','P0001','Both conversation
 select pg_temp.expect('dual-owned unhide explicit fail','P0001','Both conversation participants belong to the caller account',format('select public.unhide_conversation(%L)','90000000-0000-4000-8000-000000000002'));reset role;
 select pg_temp.assert_true('dual-owned fail created no participant state',not exists(select 1 from public.conversation_participant_state where conversation_id='90000000-0000-4000-8000-000000000002'));
 
--- Retained one-sided row: survivor may manage only independent hide state; unread/message are read-only and no deleted state is recreated.
+-- Retained one-sided row: survivor may hide/unhide and clear only their own unread
+-- marker; append/message remain read-only and no deleted state is recreated.
 alter table public.conversations disable trigger conversations_guard_participants;
-update public.conversations set buyer_profile_id=null,unread_for='{}'::text[] where id='e0000000-0000-4000-8000-000000000001';
+update public.conversations set buyer_profile_id=null,unread_for=array['b2000000-0000-4000-8000-000000000001']::text[] where id='e0000000-0000-4000-8000-000000000001';
 alter table public.conversations enable trigger conversations_guard_participants;
 delete from public.conversation_participant_state where conversation_id='e0000000-0000-4000-8000-000000000001';
 select pg_temp.claims('bb000000-0000-4000-8000-000000000001','bb000000-0000-4000-8000-000000000011');set local role authenticated;
 select public.hide_conversation('e0000000-0000-4000-8000-000000000001');select public.unhide_conversation('e0000000-0000-4000-8000-000000000001');
 select pg_temp.expect('retained append read-only','55000','One-sided retained conversations are read-only',format('select public.append_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001'));
-select pg_temp.expect('retained remove read-only','55000','One-sided retained conversations are read-only',format('select public.remove_unread_for(%L,%L)','e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001'));
+select public.remove_unread_for('e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001');
+select pg_temp.assert_true('retained survivor unread cleared',(select unread_for='{}'::text[] from public.conversations where id='e0000000-0000-4000-8000-000000000001'));
 select pg_temp.assert_true('retained find cannot attach deleted side',public.find_and_unhide_conversation('a1000000-0000-4000-8000-000000000001',null)is null);reset role;
 select pg_temp.assert_true('retained state only survivor',(select count(*)=1 and bool_and(profile_id='b2000000-0000-4000-8000-000000000001')from public.conversation_participant_state where conversation_id='e0000000-0000-4000-8000-000000000001'));
 

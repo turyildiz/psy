@@ -31,7 +31,16 @@ create index idx_messages_conversation on public.messages(conversation_id,create
 create table public.conversation_participant_state(conversation_id uuid not null,profile_id uuid not null,hidden_at timestamptz,created_at timestamptz not null default now(),updated_at timestamptz not null default now(),constraint conversation_participant_state_pkey primary key(conversation_id,profile_id),constraint conversation_participant_state_conversation_id_fkey foreign key(conversation_id) references public.conversations(id) on delete cascade,constraint conversation_participant_state_profile_id_fkey foreign key(profile_id) references public.profiles(id) on delete cascade);
 create index conversation_participant_state_hidden_profile_idx on public.conversation_participant_state(profile_id,conversation_id) where hidden_at is not null;
 create table private.account_session_active_profiles(session_id uuid primary key,user_id uuid not null,profile_id uuid not null,constraint account_session_active_profiles_profile_owner_fkey foreign key(profile_id,user_id) references public.profiles(id,user_id) on delete cascade);
-create function private.current_auth_session_id() returns uuid language plpgsql stable set search_path='' as $$declare raw text;begin raw:=auth.jwt()->>'session_id';if raw is null or raw='' then return null;end if;begin return raw::uuid;exception when invalid_text_representation then return null;end;end$$;
+create function private.current_auth_session_id()
+returns uuid language plpgsql stable security invoker set search_path=''
+as $function$
+declare raw text;
+begin
+  raw:=auth.jwt()->>'session_id';
+  if raw is null or raw='' then return null; end if;
+  begin return raw::uuid; exception when invalid_text_representation then return null; end;
+end
+$function$;
 create function private.current_active_profile_id() returns uuid language plpgsql stable security definer set search_path='' as $$
     declare
       uid uuid:=auth.uid();
@@ -482,6 +491,9 @@ grant select on public.listings to authenticated;
 -- the separate ACL-remediation package owns removal of browser mutation/TRUNCATE rights.
 grant select,insert,update,references,trigger,truncate on public.conversations to anon,authenticated;
 grant select,insert,update,delete,references,trigger,truncate on public.messages to anon,authenticated;
+-- PostgreSQL 17 added MAINTAIN. The inherited F fixture omitted these four rows,
+-- making its target-version preflight unreachable; reproduce the live PG17 ACLs.
+do $$begin if current_setting('server_version_num')::int>=170000 then execute 'grant maintain on public.conversations,public.messages to anon,authenticated';end if;end$$;
 grant select on public.conversations,public.messages to audit_readonly;
 grant select on public.conversation_participant_state to authenticated;
 grant all privileges on public.conversations,public.messages,public.conversation_participant_state to service_role;
@@ -518,6 +530,19 @@ create table private.mp4e_before_behavior as select last_message_body,unread_for
 SQL
 "${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-e-apply.sql" >"$LOG_DIR/mp4e-foundation.log"
 "${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-f-apply.sql" >"$LOG_DIR/mp4f-policy.log"
+# The disposable schema omits unrelated social/event tables. Reproduce only their
+# catalog contribution to the live post-F global active-authority count of 23.
+"${P[@]}" <<'SQL' >"$LOG_DIR/policy-total-fixture.log"
+create table public.mp4g_policy_count_fixture(id integer primary key);
+alter table public.mp4g_policy_count_fixture enable row level security;
+do $fixture$
+declare current_count integer;i integer;
+begin
+ select count(*) into current_count from pg_policy p where(coalesce(pg_get_expr(p.polqual,p.polrelid,false),'')||coalesce(pg_get_expr(p.polwithcheck,p.polrelid,false),''))like'%current_active_profile_id%';
+ if current_count>23 then raise exception 'Fixture active-authority policy count exceeds live target: %',current_count;end if;
+ for i in current_count+1..23 loop execute format('create policy %I on public.mp4g_policy_count_fixture for select using ((select public.current_active_profile_id()) is not null)','mp4g_count_'||i);end loop;
+end$fixture$;
+SQL
 version=$("${P[@]}" -At -c "show server_version_num")
 if ((version>=170000)); then echo POSTGRESQL_17_SEMANTICS=PASS; elif [[ ${MP4G_ALLOW_SUPPORTING_PG16:-0} == 1 ]]; then echo "POSTGRESQL_17_SEMANTICS=UNAVAILABLE(server_version_num=$version); explicit PG16 supporting run"; else echo "POSTGRESQL_17_SEMANTICS=BLOCKED(server_version_num=$version)" >&2; exit 1; fi
 verdict(){ local f=$1 label=$2 hostile=${3:-no};local out="$LOG_DIR/$label.log";if [[ $hostile == yes ]];then "${P[@]}" -At -c 'set search_path=pg_catalog' -f "$f" >"$out";else "${P[@]}" -At -f "$f" >"$out";fi;grep -q '|GO|' "$out";printf '%s=GO\n' "$label";}
@@ -529,7 +554,8 @@ if "${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-g-disposable-runtime.sql" >"$LO
 before=$(state);"${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-g-apply.sql" >"$LOG_DIR/apply-noop.log";[[ $before == "$(state)" ]];echo APPLY_NOOP=PASS
 if [[ -f "$ROOT/supabase/chunks/slice-mp4-g-verify.sql" ]];then verdict "$ROOT/supabase/chunks/slice-mp4-g-verify.sql" verify-default;verdict "$ROOT/supabase/chunks/slice-mp4-g-verify.sql" verify-hostile yes;fi
 "${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-g-disposable-runtime.sql" >"$LOG_DIR/runtime.log" 2>&1;grep -q MP4G_RPC_TRIGGER_BEHAVIOR_MATRIX=PASS "$LOG_DIR/runtime.log";echo RPC_TRIGGER_BEHAVIOR_MATRIX=PASS
-# Concurrency: unread row lock and recipient-unhide/state races remain profile-exact.
+# Concurrency: unread identity, authorization-before-lock, and deliberately
+# interleaved conversation->cps ordering remain exact and deadlock-free.
 "${P[@]}" <<'SQL' >"$LOG_DIR/concurrency-seed.log"
 insert into private.account_session_active_profiles(session_id,user_id,profile_id) values
  ('aa000000-0000-4000-8000-000000000011','aa000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001'),
@@ -541,8 +567,22 @@ SQL
 ("${P[@]}" -c "begin;set request.jwt.claims='{\"sub\":\"aa000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"session_id\":\"aa000000-0000-4000-8000-000000000011\"}';set role authenticated;select public.append_unread_for('e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001');select pg_sleep(1);commit" >"$LOG_DIR/concurrent-a.log")& pa=$!
 ("${P[@]}" -c "begin;set request.jwt.claims='{\"sub\":\"bb000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"session_id\":\"bb000000-0000-4000-8000-000000000011\"}';set role authenticated;select public.remove_unread_for('e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001');commit" >"$LOG_DIR/concurrent-b.log")& pb=$!;wait $pa;wait $pb
 [[ $("${P[@]}" -At -c "select cardinality(coalesce(unread_for,'{}'::text[]))<=1 and not exists(select 1 from unnest(coalesce(unread_for,'{}'::text[]))u(v)where v<>'b2000000-0000-4000-8000-000000000001')from public.conversations where id='e0000000-0000-4000-8000-000000000001'") == t ]];echo CONCURRENT_UNREAD_IDENTITY=PASS
-("${P[@]}" -c "begin;set request.jwt.claims='{\"sub\":\"aa000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"session_id\":\"aa000000-0000-4000-8000-000000000011\"}';set role authenticated;select public.hide_conversation('e0000000-0000-4000-8000-000000000001');select pg_sleep(1);commit" >"$LOG_DIR/concurrent-hide.log")& pa=$!
-("${P[@]}" -c "begin;set request.jwt.claims='{\"sub\":\"bb000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"session_id\":\"bb000000-0000-4000-8000-000000000011\"}';insert into public.messages(conversation_id,sender_profile_id,body)values('e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001','concurrent unhide');commit" >"$LOG_DIR/concurrent-message.log")& pb=$!;wait $pa;wait $pb
+# A foreign caller must reject from the unlocked authorization read while an
+# arbitrary target row is locked, rather than waiting on the definer row lock.
+("${P[@]}" -c "begin;select 1 from public.conversations where id='e0000000-0000-4000-8000-000000000001' for update;select pg_sleep(2);rollback" >"$LOG_DIR/auth-lock-holder.log")& locker=$!;sleep .2
+if "${P[@]}" -c "set statement_timeout='750ms';set request.jwt.claims='{\"sub\":\"cc000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"session_id\":\"cc000000-0000-4000-8000-000000000011\"}';set role authenticated;select public.hide_conversation('e0000000-0000-4000-8000-000000000001')" >"$LOG_DIR/unauthorized-before-lock.log" 2>&1;then echo 'Unauthorized lock probe unexpectedly succeeded'>&2;exit 1;fi
+grep -q 'Conversation not found or caller is not a participant' "$LOG_DIR/unauthorized-before-lock.log";! grep -q 'statement timeout' "$LOG_DIR/unauthorized-before-lock.log";wait $locker;echo AUTHORIZATION_BEFORE_LOCK=PASS
+# A statement trigger pauses hide after it owns the conversation row but before
+# its cps upsert. With the old recipient cps->conversation order this schedule
+# deadlocks; the corrected conversation->cps order serializes and completes.
+"${P[@]}" <<'SQL' >"$LOG_DIR/deadlock-probe-setup.log"
+create function public.mp4g_pause_before_cps_insert()returns trigger language plpgsql as $$begin if current_setting('mp4g.pause_before_cps',true)='on'then perform pg_sleep(1);end if;return null;end$$;
+create trigger mp4g_pause_before_cps_insert before insert on public.conversation_participant_state for each statement execute function public.mp4g_pause_before_cps_insert();
+SQL
+("${P[@]}" -c "begin;set statement_timeout='8s';set mp4g.pause_before_cps='on';set request.jwt.claims='{\"sub\":\"aa000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"session_id\":\"aa000000-0000-4000-8000-000000000011\"}';set role authenticated;select public.hide_conversation('e0000000-0000-4000-8000-000000000001');commit" >"$LOG_DIR/concurrent-hide.log" 2>&1)& pa=$!;sleep .2
+("${P[@]}" -c "begin;set statement_timeout='8s';set request.jwt.claims='{\"sub\":\"bb000000-0000-4000-8000-000000000001\",\"role\":\"authenticated\",\"session_id\":\"bb000000-0000-4000-8000-000000000011\"}';insert into public.messages(conversation_id,sender_profile_id,body)values('e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001','interleaved unhide');commit" >"$LOG_DIR/concurrent-message.log" 2>&1)& pb=$!;wait $pa;wait $pb
+"${P[@]}" -c 'drop trigger mp4g_pause_before_cps_insert on public.conversation_participant_state;drop function public.mp4g_pause_before_cps_insert()' >"$LOG_DIR/deadlock-probe-cleanup.log"
+! grep -q 'deadlock detected\|statement timeout' "$LOG_DIR/concurrent-hide.log" "$LOG_DIR/concurrent-message.log";echo INTERLEAVED_LOCK_ORDER=PASS
 [[ $("${P[@]}" -At -c "select count(*)filter(where profile_id='a1000000-0000-4000-8000-000000000001'and hidden_at is null)=1 and count(*)filter(where profile_id='b2000000-0000-4000-8000-000000000001'and hidden_at is not null)=1 from public.conversation_participant_state where conversation_id='e0000000-0000-4000-8000-000000000001'") == t ]];echo CONCURRENT_RECIPIENT_UNHIDE_IDENTITY=PASS
 "${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-g-rollback.sql" >"$LOG_DIR/rollback.log"
 if [[ -f "$ROOT/supabase/chunks/slice-mp4-g-rollback-verify.sql" ]];then verdict "$ROOT/supabase/chunks/slice-mp4-g-rollback-verify.sql" rollback-verify;fi
