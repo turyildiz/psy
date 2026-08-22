@@ -1,6 +1,14 @@
 -- psy.market Slice MP-4-F: conversation policy active authority
 -- APPLY: guarded post-MP4-E source -> exact five-policy target; exact-target rerun is a no-op.
 -- No function, trigger, table ACL, publication, replica-identity, or row change is made.
+-- DECLARED BOUNDARIES / CROSS-PACKAGE FACTS:
+-- * Gate-1 authenticated-session coverage remains open. All messaging reads after F require
+--   session-derived active identity; missing/invalid session_id silently yields an empty inbox.
+-- * Hosted Realtime worker JWT/session propagation remains an owner verification gate.
+-- * mp4-policy-conversion-verify.sql intentionally STOPs after F because it pins the replaced
+--   ownership expressions; it is a historical verifier and is not modified by this package.
+-- * Active-authority policy count becomes 23 = 13 social/event + 5 profile/listing
+--   + 5 conversation policies. F rollback restores the count to 18.
 begin;
 set local row_security=off;
 set local lock_timeout='5s';

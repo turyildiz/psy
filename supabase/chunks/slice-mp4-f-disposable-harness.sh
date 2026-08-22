@@ -17,7 +17,7 @@ create function auth.role() returns text language sql stable as $$select auth.jw
 create table public.users(id uuid primary key,banned_at timestamptz);
 create table public.profiles(id uuid primary key,user_id uuid not null,handle text not null unique,created_at timestamptz not null default now(),unique(id,user_id));
 create unique index profiles_one_per_user_key on public.profiles(user_id);
-create table public.listings(id uuid primary key default gen_random_uuid(),profile_id uuid not null references public.profiles(id));
+create table public.listings(id uuid primary key default gen_random_uuid(),profile_id uuid not null references public.profiles(id),status text not null default 'active');
 create table public.conversations(id uuid primary key default gen_random_uuid(),listing_id uuid references public.listings(id) on delete set null,buyer_profile_id uuid not null,seller_profile_id uuid not null,last_message_at timestamptz not null default now(),last_message_body text,created_at timestamptz not null default now(),unread_for text[] default '{}'::text[],constraint conversations_buyer_profile_id_fkey foreign key(buyer_profile_id) references public.profiles(id) on delete cascade,constraint conversations_seller_profile_id_fkey foreign key(seller_profile_id) references public.profiles(id) on delete cascade,constraint unique_conversation unique(listing_id,buyer_profile_id,seller_profile_id),constraint conversations_buyer_seller_differ check(buyer_profile_id<>seller_profile_id));
 create index idx_conversations_buyer on public.conversations(buyer_profile_id); create index idx_conversations_seller on public.conversations(seller_profile_id); create index idx_conversations_last_message on public.conversations(last_message_at desc);
 create table public.messages(id uuid primary key default gen_random_uuid(),conversation_id uuid not null,sender_profile_id uuid not null,body text not null constraint messages_body_check check(length(btrim(body))>0) constraint messages_body_max_2000 check(length(body)<=2000),created_at timestamptz not null default now(),constraint messages_conversation_id_fkey foreign key(conversation_id) references public.conversations(id) on delete cascade,constraint messages_sender_profile_id_fkey foreign key(sender_profile_id) references public.profiles(id) on delete cascade);
@@ -26,11 +26,76 @@ create table public.conversation_participant_state(conversation_id uuid not null
 create index conversation_participant_state_hidden_profile_idx on public.conversation_participant_state(profile_id,conversation_id) where hidden_at is not null;
 create table private.account_session_active_profiles(session_id uuid primary key,user_id uuid not null,profile_id uuid not null,constraint account_session_active_profiles_profile_owner_fkey foreign key(profile_id,user_id) references public.profiles(id,user_id) on delete cascade);
 create function private.current_auth_session_id() returns uuid language plpgsql stable set search_path='' as $$declare raw text;begin raw:=auth.jwt()->>'session_id';if raw is null or raw='' then return null;end if;begin return raw::uuid;exception when invalid_text_representation then return null;end;end$$;
-create function private.current_active_profile_id() returns uuid language plpgsql stable security definer set search_path='' as $$declare uid uuid:=auth.uid();sid uuid;selected uuid;state_exists boolean;fallback_guard boolean;begin if uid is null then return null;end if;sid:=private.current_auth_session_id();if sid is null then return null;end if;select exists(select 1 from private.account_session_active_profiles a where a.session_id=sid) into state_exists;if state_exists then select a.profile_id into selected from private.account_session_active_profiles a join public.profiles p on p.id=a.profile_id and p.user_id=a.user_id where a.session_id=sid and a.user_id=uid;return selected;end if;select exists(select 1 from pg_catalog.pg_index i where i.indexrelid=pg_catalog.to_regclass('public.profiles_one_per_user_key') and i.indrelid=pg_catalog.to_regclass('public.profiles') and i.indisunique and not i.indisprimary and i.indisvalid and i.indisready and i.indpred is null and pg_catalog.pg_get_indexdef(i.indexrelid)='CREATE UNIQUE INDEX profiles_one_per_user_key ON public.profiles USING btree (user_id)' and not exists(select 1 from pg_catalog.pg_constraint c where c.conindid=i.indexrelid)) into fallback_guard;if not fallback_guard then return null;end if;select p.id into selected from public.profiles p where p.user_id=uid;return selected;end$$;
-create function public.current_active_profile_id() returns uuid language sql stable security definer set search_path='' as $$select private.current_active_profile_id()$$;
+create function private.current_active_profile_id() returns uuid language plpgsql stable security definer set search_path='' as $$
+    declare
+      uid uuid:=auth.uid();
+      sid uuid;
+      selected uuid;
+      state_exists boolean;
+      fallback_guard boolean;
+    begin
+      if uid is null then return null; end if;
+      sid:=private.current_auth_session_id();
+      if sid is null then return null; end if;
+
+      select exists(
+        select 1 from private.account_session_active_profiles a where a.session_id=sid
+      ) into state_exists;
+      if state_exists then
+        select a.profile_id into selected
+        from private.account_session_active_profiles a
+        join public.profiles p on p.id=a.profile_id and p.user_id=a.user_id
+        where a.session_id=sid and a.user_id=uid;
+        return selected;
+      end if;
+
+      select exists(
+        select 1 from pg_catalog.pg_index i
+        where i.indexrelid=pg_catalog.to_regclass('public.profiles_one_per_user_key')
+          and i.indrelid=pg_catalog.to_regclass('public.profiles')
+          and i.indisunique and not i.indisprimary and i.indisvalid and i.indisready
+          and i.indpred is null
+          and pg_catalog.pg_get_indexdef(i.indexrelid)='CREATE UNIQUE INDEX profiles_one_per_user_key ON public.profiles USING btree (user_id)'
+          and not exists(select 1 from pg_catalog.pg_constraint c where c.conindid=i.indexrelid)
+      ) into fallback_guard;
+      if not fallback_guard then return null; end if;
+
+      select p.id into selected from public.profiles p where p.user_id=uid;
+      return selected;
+    end
+$$;
+create function public.current_active_profile_id() returns uuid language sql stable security definer set search_path='' as $$
+      select private.current_active_profile_id();
+$$;
 create function public.current_user_is_active_profile(target_profile_id uuid) returns boolean language sql stable security definer set search_path='' as $$select coalesce(target_profile_id=private.current_active_profile_id(),false)$$;
-create function public.current_user_owns_profile(target_profile_id uuid) returns boolean language sql stable security definer set search_path='' as $$select coalesce(exists(select 1 from public.profiles p where p.id=$1 and p.user_id=auth.uid()),false)$$;
-create function public.current_user_is_banned() returns boolean language sql stable security definer set search_path='' as $$select coalesce((select u.banned_at is not null from public.users u where u.id=auth.uid()),false)$$;
+create function public.current_user_owns_profile(target_profile_id uuid) returns boolean language sql stable security definer set search_path='' as $$
+  with caller as (
+    select auth.uid() as account_user_id
+  )
+  select coalesce(
+    (
+      select exists (
+        select 1
+        from public.profiles p
+        where p.id = target_profile_id
+          and p.user_id = c.account_user_id
+      )
+      from caller c
+      where c.account_user_id is not null
+    ),
+    false
+  );
+$$;
+create function public.current_user_is_banned() returns boolean language sql stable security definer set search_path=pg_catalog,public,auth as $$
+  select coalesce(
+    (
+      select u.banned_at is not null
+      from public.users u
+      where u.id = auth.uid()
+    ),
+    false
+  );
+$$;
 create function public.enforce_conversation_listing_seller() returns trigger language plpgsql security definer set search_path=pg_catalog,public as $$
 declare
   expected_seller_profile_id uuid;
@@ -398,12 +463,25 @@ begin
 end;
 $$;
 
-revoke all on function private.current_active_profile_id(),public.current_active_profile_id(),public.current_user_is_active_profile(uuid),public.enforce_conversation_listing_seller(),public.unhide_conversation_for_message_recipient(),public.update_conversation_last_message() from public;
+revoke all on function private.current_active_profile_id(),public.current_active_profile_id(),public.current_user_is_active_profile(uuid),public.current_user_owns_profile(uuid),public.current_user_is_banned(),public.enforce_conversation_listing_seller(),public.unhide_conversation_for_message_recipient(),public.update_conversation_last_message() from public;
 grant execute on function public.current_active_profile_id(),public.current_user_is_active_profile(uuid) to authenticated;
+grant execute on function public.current_user_owns_profile(uuid) to authenticated;
+grant execute on function public.current_user_is_banned() to authenticated,service_role;
 grant execute on function public.enforce_conversation_listing_seller(),public.unhide_conversation_for_message_recipient(),public.update_conversation_last_message() to service_role;
 grant execute on function public.append_unread_for(uuid,text),public.remove_unread_for(uuid,text),public.hide_conversation(uuid),public.unhide_conversation(uuid),public.find_and_unhide_conversation(uuid,uuid) to authenticated;
-grant usage on schema public to anon,authenticated,service_role; grant select on public.listings to authenticated; grant select,insert,update on public.conversations,public.messages to authenticated; grant select on public.conversation_participant_state to authenticated; grant select,insert,update,delete on all tables in schema public to service_role;
+grant usage on schema public to anon,authenticated,service_role;
+grant select on public.listings to authenticated;
+-- Transcribe the live post-E ACL posture, warts included. MP4-F changes no grants;
+-- the separate ACL-remediation package owns removal of browser mutation/TRUNCATE rights.
+grant select,insert,update,references,trigger,truncate on public.conversations to anon,authenticated;
+grant select,insert,update,delete,references,trigger,truncate on public.messages to anon,authenticated;
+grant select on public.conversation_participant_state to authenticated;
+grant all privileges on public.conversations,public.messages,public.conversation_participant_state to service_role;
+alter table public.profiles enable row level security; alter table public.listings enable row level security;
 alter table public.conversations enable row level security; alter table public.messages enable row level security; alter table public.conversation_participant_state enable row level security;
+create policy "Public profiles are viewable" on public.profiles for select to public using(true);
+create policy "Active and sold listings are publicly readable" on public.listings for select to public using(status in('active','sold'));
+create policy "Owners can read own private listings" on public.listings for select to authenticated using(public.current_user_owns_profile(profile_id));
 create policy "Unbanned buyers create conversations" on public.conversations for insert to authenticated with check(not public.current_user_is_banned() and public.current_user_owns_profile(buyer_profile_id) and buyer_profile_id<>seller_profile_id and(listing_id is null or seller_profile_id=(select l.profile_id from public.listings l where l.id=conversations.listing_id)));
 create policy "participants view visible conversations" on public.conversations for select to authenticated using((public.current_user_owns_profile(buyer_profile_id) or public.current_user_owns_profile(seller_profile_id)) and not exists(select 1 from public.conversation_participant_state s where s.conversation_id=conversations.id and public.current_user_owns_profile(s.profile_id) and s.hidden_at is not null));
 create policy "Unbanned participants send messages" on public.messages for insert to authenticated with check(not public.current_user_is_banned() and public.current_user_owns_profile(sender_profile_id) and conversation_id in(select c.id from public.conversations c where sender_profile_id=c.buyer_profile_id or sender_profile_id=c.seller_profile_id));
@@ -467,5 +545,5 @@ for f in sys.argv[1:]:
 echo POLICY_INITPLAN_MATRIX=PASS
 "${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-f-rollback.sql" >"$LOG_DIR/rollback.log"; verdict "$ROOT/supabase/chunks/slice-mp4-f-rollback-verify.sql" rollback-verify; before=$(state); "${P[@]}" -f "$ROOT/supabase/chunks/slice-mp4-f-rollback.sql" >"$LOG_DIR/rollback-noop.log"; [[ $before == "$(state)" ]]; echo ROLLBACK_NOOP=PASS
 verdict "$ROOT/supabase/chunks/slice-mp4-f-preflight.sql" restored-default; verdict "$ROOT/supabase/chunks/slice-mp4-f-preflight.sql" restored-hostile yes
-"${P[@]}" -c 'set search_path=pg_catalog' -f "$ROOT/supabase/chunks/slice-mp4-f-apply.sql" >"$LOG_DIR/second-apply-hostile.log"; echo SECOND_APPLY_HOSTILE=PASS; verdict "$ROOT/supabase/chunks/slice-mp4-f-verify.sql" second-verify-hostile yes; "${P[@]}" -c 'set search_path=pg_catalog' -f "$ROOT/supabase/chunks/slice-mp4-f-rollback.sql" >"$LOG_DIR/final-rollback-hostile.log"; verdict "$ROOT/supabase/chunks/slice-mp4-f-rollback-verify.sql" final-rollback-verify; verdict "$ROOT/supabase/chunks/slice-mp4-f-preflight.sql" final-restored
+"${P[@]}" -c 'set search_path=pg_catalog' -f "$ROOT/supabase/chunks/slice-mp4-f-apply.sql" >"$LOG_DIR/second-apply-hostile.log"; echo SECOND_APPLY_HOSTILE=PASS; verdict "$ROOT/supabase/chunks/slice-mp4-f-verify.sql" second-verify-hostile yes; "${P[@]}" -c 'set search_path=pg_catalog' -f "$ROOT/supabase/chunks/slice-mp4-f-disposable-runtime.sql" >"$LOG_DIR/second-runtime-hostile.log" 2>&1; grep -q MP4F_POLICY_BEHAVIOR_MATRIX=PASS "$LOG_DIR/second-runtime-hostile.log"; echo SECOND_HOSTILE_POLICY_BEHAVIOR_MATRIX=PASS; "${P[@]}" -c 'set search_path=pg_catalog' -f "$ROOT/supabase/chunks/slice-mp4-f-rollback.sql" >"$LOG_DIR/final-rollback-hostile.log"; verdict "$ROOT/supabase/chunks/slice-mp4-f-rollback-verify.sql" final-rollback-verify; verdict "$ROOT/supabase/chunks/slice-mp4-f-preflight.sql" final-restored
 sha256sum "${FILES[@]}" >"$LOG_DIR/end.sha256"; cmp "$LOG_DIR/start.sha256" "$LOG_DIR/end.sha256"; echo "SLICE_MP4_F_BOUND_LIFECYCLE=PASS logs=$LOG_DIR"

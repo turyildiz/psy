@@ -3,7 +3,7 @@
 begin;
 create function pg_temp.assert_true(name text,ok boolean) returns void language plpgsql as $$begin if ok is not true then raise exception '% failed',name using errcode='XX000';end if;raise notice 'PASS %',name;end$$;
 create function pg_temp.claims(uid uuid,sid uuid) returns void language plpgsql as $$begin perform set_config('request.jwt.claims',jsonb_build_object('sub',uid,'role','authenticated','session_id',sid)::text,true);end$$;
-create function pg_temp.expect_error(name text,want text,sql_text text,neutral boolean default false) returns void language plpgsql as $$declare got text;msg text;begin begin execute sql_text;exception when others then get stacked diagnostics got=returned_sqlstate,msg=message_text;end;if got is distinct from want then raise exception '% expected %, got %',name,want,coalesce(got,'SUCCESS') using errcode='XX000';end if;if neutral and (msg~*'(owner|sibling|same[- ]account|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})') then raise exception '% leaked linkage: %',name,msg using errcode='XX000';end if;raise notice 'PASS % SQLSTATE % neutral=%',name,got,neutral;end$$;
+create function pg_temp.expect_error(name text,want text,sql_text text,neutral boolean default false) returns void language plpgsql as $$declare got text;msg text;begin begin execute sql_text;exception when others then get stacked diagnostics got=returned_sqlstate,msg=message_text;end;if got is distinct from want then raise exception '% expected %, got %',name,want,coalesce(got,'SUCCESS') using errcode='XX000';end if;if want='42501' and msg not like 'new row violates row-level security policy for table %' then raise exception '% expected isolated RLS denial, got message %',name,msg using errcode='XX000';end if;if neutral and (msg~*'(owner|sibling|same[- ]account|[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})') then raise exception '% leaked linkage: %',name,msg using errcode='XX000';end if;raise notice 'PASS % SQLSTATE % neutral=%',name,got,neutral;end$$;
 
 -- Current shape: ordinary accounts have one profile; the sole-profile fallback is real.
 select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000011');
@@ -12,7 +12,20 @@ insert into public.conversations(id,buyer_profile_id,seller_profile_id) values('
 insert into public.messages(id,conversation_id,sender_profile_id,body) values('f1000000-0000-4000-8000-000000000001','f0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001','active sender');
 select pg_temp.assert_true('active buyer creates and reads inbox',(select count(*)=1 from public.conversations where id='f0000000-0000-4000-8000-000000000001') and (select count(*)=1 from public.messages where conversation_id='f0000000-0000-4000-8000-000000000001'));
 reset role;
-insert into public.conversation_participant_state(conversation_id,profile_id,hidden_at) values('f0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001',now()),('f0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001',null);
+-- Exercise all five legacy conversation RPC paths after F while the current one-profile
+-- compatibility shape still holds. Their final state must match the setup-time baseline.
+select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000011');set local role authenticated;
+select public.append_unread_for('e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001');
+reset role;select pg_temp.claims('bb000000-0000-4000-8000-000000000001','bb000000-0000-4000-8000-000000000011');set local role authenticated;
+select public.remove_unread_for('e0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001');
+reset role;select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000011');set local role authenticated;
+select public.hide_conversation('e0000000-0000-4000-8000-000000000001');
+select public.unhide_conversation('e0000000-0000-4000-8000-000000000001');
+select public.find_and_unhide_conversation('b2000000-0000-4000-8000-000000000001',null);
+reset role;
+select pg_temp.assert_true('five post-apply RPC paths preserve baseline',(select row(last_message_body,unread_for,hidden_at) from private.mp4e_before_behavior)=(select row(c.last_message_body,c.unread_for,s.hidden_at) from public.conversations c left join public.conversation_participant_state s on s.conversation_id=c.id and s.profile_id='a1000000-0000-4000-8000-000000000001' where c.id='e0000000-0000-4000-8000-000000000001'));
+insert into public.conversation_participant_state(conversation_id,profile_id,hidden_at) values('f0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000001',now()),('f0000000-0000-4000-8000-000000000001','b2000000-0000-4000-8000-000000000001',null)
+on conflict(conversation_id,profile_id) do update set hidden_at=excluded.hidden_at;
 set local role authenticated;
 select pg_temp.assert_true('active participant hide filters only own inbox',(select count(*)=0 from public.conversations where id='f0000000-0000-4000-8000-000000000001') and (select count(*)=1 from public.conversation_participant_state where conversation_id='f0000000-0000-4000-8000-000000000001' and profile_id='a1000000-0000-4000-8000-000000000001'));
 reset role;
@@ -61,11 +74,14 @@ insert into public.conversations(id,buyer_profile_id,seller_profile_id) values('
 insert into public.conversation_participant_state(conversation_id,profile_id,hidden_at) values('f0000000-0000-4000-8000-000000000002','a1000000-0000-4000-8000-000000000001',now()),('f0000000-0000-4000-8000-000000000002','a1000000-0000-4000-8000-000000000002',null);
 select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000012');set local role authenticated;
 select pg_temp.assert_true('both-owned row resolves active seller not first buyer',(select count(*)=1 from public.conversations where id='f0000000-0000-4000-8000-000000000002') and (select count(*)=1 from public.conversation_participant_state where conversation_id='f0000000-0000-4000-8000-000000000002' and profile_id='a1000000-0000-4000-8000-000000000002'));
+select pg_temp.expect_error('find RPC caller_profile_count greater than one fails closed','P0001',format('select public.find_and_unhide_conversation(%L,null)','b2000000-0000-4000-8000-000000000001'));
 reset role;
 
 alter table public.messages disable trigger messages_guard_active_participant;
-select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000012');set local role authenticated;
-select pg_temp.expect_error('inactive sender policy deny','42501',format('insert into public.messages(conversation_id,sender_profile_id,body) values(%L,%L,%L)','f0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000002','deny'));
+select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000011');set local role authenticated;
+select pg_temp.expect_error('inactive sibling sender active participant policy deny','42501',format('insert into public.messages(conversation_id,sender_profile_id,body) values(%L,%L,%L)','f0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000002','deny'));
+reset role;select pg_temp.claims('aa000000-0000-4000-8000-000000000001','aa000000-0000-4000-8000-000000000012');set local role authenticated;
+select pg_temp.expect_error('nonparticipant sender policy deny','42501',format('insert into public.messages(conversation_id,sender_profile_id,body) values(%L,%L,%L)','f0000000-0000-4000-8000-000000000001','a1000000-0000-4000-8000-000000000002','deny'));
 select pg_temp.expect_error('same-account message policy deny neutral','42501',format('insert into public.messages(conversation_id,sender_profile_id,body) values(%L,%L,%L)','f0000000-0000-4000-8000-000000000002','a1000000-0000-4000-8000-000000000002','deny'),true);
 reset role;
 -- Emulate retained one-sided shape under owner-controlled guard disable.
