@@ -192,6 +192,6 @@ These rulings record product outcomes only. Their implementation belongs to sepa
 
 These facts prevent stale packages and reviews from reopening completed or differently scoped work:
 
-- Exactly **18** current policies use the active-profile accessor, not 19: 13 from the social/event conversion plus 5 profile/listing policies.
+- Exactly **23** current policies use the active-profile accessor (13 social/event + 5 profile/listing + 5 messaging conversion in MP4-F; was 18 before F, reverts to 18 on rollback).
 - The `vendor` enum value is **already live in the database**. MP4-H must not add or re-add it. Remaining vendor work is application-contract work only: update the three TypeScript lists (`types/marketplace.ts`, `app/profile/edit/page.tsx`, and `components/EditProfileModal.tsx`) and add a drift test that binds them to the reviewed enum contract.
 - MP4-H scope is **browser-upload active authorization**. Trusted external import authorization remains a separate explicitly approved ownership/resource boundary.
