@@ -19,7 +19,7 @@ Each package receives one dated section after its live sitting. Future package r
 | MP4-D | Live and verified — 2026-08-15 |
 | MP4-E | Live and verified — 2026-08-21 |
 | MP4-F | Live and verified — 2026-08-22 |
-| MP4-G | Not yet authored/applied |
+| MP4-G | Live and verified — 2026-08-22 |
 | MP4-H | Not yet authored/applied |
 
 ---
@@ -315,3 +315,45 @@ Application-layer proof followed on staging in the owner session. Inbox-list rea
 - `anon`/`authenticated` `TRUNCATE` on `conversations`, `messages`, `profiles` and `listings` is assigned to a separate ACL-remediation package and remains recorded in Gate 3 of the gates document.
 
 MP4-F is live and verified. The next guarded package is MP4-G; its sitting must continue to use this rolling record and mandatory owner-hosted gates.
+
+---
+
+## 2026-08-22 — MP4-G: messaging RPC active authorization and nullable-counterpart behavior
+
+### Scope
+
+MP4-G converts the five messaging RPCs from account-owned participant resolution to exact active-profile authority: hide/unhide, unread add/remove, and find-and-unhide behavior now resolve through `current_active_profile_id`. It removes first-branch-wins actor selection, preserves fail-closed ambiguity handling, and completes the nullable-counterpart trigger behavior required for a surviving participant's retained conversation state.
+
+The package does not enable profile deletion or the profile-FK `SET NULL` cutover. Those remain held behind their separate guarded packages and acceptance evidence.
+
+### Authoring and review history
+
+- MP4-G was authored on card `t_f51bcc33` in commit `ba2e062`.
+- The first independent live-catalog audit returned **CHANGES-REQUIRED**. Its blocker was that the harness fixture omitted PostgreSQL 17 `MAINTAIN`, making the PostgreSQL 17 acceptance path unreachable. That fixture was inherited verbatim from MP4-F, so the finding retroactively bounds MP4-F's disposable lifecycle evidence as PostgreSQL 16 supporting evidence; MP4-F's owner-hosted PostgreSQL 17.6 gates remain its acceptance evidence.
+- Major findings also required lock-before-authorize ordering, explicit cross-package STOP declarations, manifest emission, accessor attribute pins, an explicit survivor-unread disposition, and a complete denial matrix.
+- Correction commit `12be5e5` fixed every blocker and major disposition. Re-audit recomputed and verified all 81/81 ACL rows on both PostgreSQL branches, all four emitted digests, and lock ordering across every pairing, including foreign-key `KEY SHARE` and cascade. The resulting verdict was **PASS-WITH-MINORS**; all ten non-blocking minors remain recorded on the card and audit report.
+- The auditor withdrew its own round-one deadlock-cycle claim after confirming that the foreign key's `KEY SHARE` lock already ordered the message path and no cycle existed. The independently justified lock-before-authorize correction remains in place.
+- The disposable harness achieved `POSTGRESQL_17_SEMANTICS=UNAVAILABLE` on PostgreSQL 16, consistent with the MP4-E/F evidence boundary. The owner-hosted PostgreSQL 17.6 gates remained mandatory acceptance evidence.
+
+### Live sitting results
+
+The owner-run live sequence completed successfully on 2026-08-22:
+
+1. **PREFLIGHT: GO 13/13 first run** — all owner-hosted gates passed. All three emitted digests matched the pinned expectations and the auditor's independent recomputations.
+2. **APPLY: clean first run** — the guarded function and trigger transition committed successfully.
+3. **APPLY rerun: proven no-op live** — the exact after-state was accepted without further mutation.
+4. **VERIFY: GO 17/17** — the final catalog, function, trigger, privilege and compatibility state passed, including the exact target digest.
+
+Wingman live post-checks confirmed that all five RPCs resolve through `current_active_profile_id`, with zero ownership-based participant resolution remaining.
+
+Application-layer proof followed on staging in the owner session. Opening a thread and sending a message exercised the live `append_unread_for` and `remove_unread_for` bodies through the application path.
+
+### Declared boundaries
+
+- `SESSION_COVERAGE=UNPROVEN` remains a Gate 1 active-profile-bootstrap item; MP4-G does not prove complete session-state coverage.
+- Hosted Realtime delivery remains an owner gate for active-only events, sibling silence, hidden-conversation silence, and subscription replacement on profile switch.
+- `mp4-policy-conversion-verify.sql`, `slice-mp4-e-verify.sql`, `slice-mp4-f-verify.sql`, and `slice-mp4-f-preflight.sql` are historical and intentionally STOP after MP4-G.
+- The `TRUNCATE` privilege remediation remains a separate package.
+- Profile deletion and the profile-FK `SET NULL` cutover remain held.
+
+MP4-G is live and verified, and Gate 1 item 2, messaging exact active-profile authority, is complete. Remaining Gate 1 work is items 1, 3, 4, 5 and 6 — media namespace, signup, active-profile bootstrap, browser uploads and cache invalidation — plus MP4-H under the authoring plan.
